@@ -1,0 +1,19 @@
+{
+  "name": "portfolio-watcher",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "main": "bun run ./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "neverthrow": "^8.2.0",
+    "zod": "^4.3.6"
+  }
+}
