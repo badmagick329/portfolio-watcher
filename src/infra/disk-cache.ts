@@ -7,6 +7,7 @@ import { type CacheType } from "@/types/schemas/cache";
 import { cacheSchema } from "@/types/schemas/cache";
 import { toFileError } from "@/core/errors";
 import { z } from "zod";
+import type { Logger, LoggerCreator, LoggerFactory } from "@/core/logger";
 
 const init = (cacheFilePath: string) =>
   Result.fromThrowable(
@@ -49,19 +50,29 @@ const persistCache = (resolvedPath: string, toSave: CacheType) =>
     (e) => toFileError(e, "Failed to save cache"),
   )(resolvedPath, toSave);
 
-const createDiskCache = (cacheFilePath: string): Result<Cache, AppError> => {
+const createDiskCache = (
+  cacheFilePath: string,
+  loggerCreator?: LoggerCreator,
+): Result<Cache, AppError> => {
   let cache: CacheType;
   let filePath: string;
+  let log: Logger | undefined = undefined;
 
   const save = (key: string, content: string) => {
     cache[key] = {
       isoTime: new Date(),
       content,
     };
-    return persistCache(filePath, cache);
+    const result = persistCache(filePath, cache);
+    log?.debug("Saved", { key });
+    return result;
   };
 
-  const get = (key: string) => cache[key]?.content;
+  const get = (key: string) => {
+    const val = cache[key]?.content;
+    val === undefined ? log?.info("Miss", { key }) : log?.info("Hit", { key });
+    return val;
+  };
   const typesafeGet = <T>(key: string, schema: z.ZodType<T>) => {
     const raw = get(key);
     if (raw) {
@@ -69,6 +80,7 @@ const createDiskCache = (cacheFilePath: string): Result<Cache, AppError> => {
         const json = JSON.parse(raw);
         const parsed = schema.safeParse(json);
         if (parsed.success) {
+          log?.debug("Parsed", { key });
           return parsed.data;
         }
       } catch {}
@@ -77,6 +89,7 @@ const createDiskCache = (cacheFilePath: string): Result<Cache, AppError> => {
   const reset = () =>
     persistCache(filePath, {}).map(() => {
       cache = {};
+      log?.debug("Cache reset");
       return;
     });
 
@@ -84,6 +97,14 @@ const createDiskCache = (cacheFilePath: string): Result<Cache, AppError> => {
     loadCache(resolvedPath).map((loadedCache) => {
       cache = loadedCache;
       filePath = resolvedPath;
+      if (loggerCreator) {
+        log = loggerCreator("DiskCache");
+      }
+      log?.debug("Cache initialized", {
+        filePath,
+        cacheKeys: Object.keys(cache),
+      });
+
       return {
         save,
         get,
