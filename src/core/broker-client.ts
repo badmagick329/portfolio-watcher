@@ -1,9 +1,13 @@
 import type { AppError } from '@/types';
-import type { AccountCash } from '@/types/schemas/api-responses';
+import type {
+  AccountCash,
+  AccountSummary,
+} from '@/types/schemas/api-responses';
 import type { Result, ResultAsync } from 'neverthrow';
 
 interface BrokerClient {
   fetchAccountCash: () => ResultAsync<AccountCash, AppError>;
+  fetchAccountSummary: () => ResultAsync<AccountSummary, AppError>;
   endPoints: Record<string, string>;
 }
 

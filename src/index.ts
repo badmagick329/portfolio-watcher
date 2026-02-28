@@ -7,7 +7,7 @@ const main = async () => {
 
   createDiskCache('./data/cache.json', loggerCreator)
     .map((cache) => createTrading212ClientWithCache(cache))
-    .asyncAndThen((client) => client.fetchAccountCash())
+    .asyncAndThen((client) => client.fetchAccountSummary())
     .match(
       (json) => {
         console.log(json);

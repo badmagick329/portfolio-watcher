@@ -10,7 +10,25 @@ const accountCashSchema = z.object({
   blocked: z.number(),
 });
 
-type AccountCash = z.infer<typeof accountCashSchema>;
+const accountSummarySchema = z.object({
+  cash: z.object({
+    availableToTrade: z.number(),
+    inPies: z.number(),
+    reservedForOrders: z.number(),
+  }),
+  currency: z.string(),
+  id: z.number(),
+  investments: z.object({
+    currentValue: z.number(),
+    realizedProfitLoss: z.number(),
+    totalCost: z.number(),
+    unrealizedProfitLoss: z.number(),
+  }),
+  totalValue: z.number(),
+});
 
-export type { AccountCash };
-export { accountCashSchema };
+type AccountCash = z.infer<typeof accountCashSchema>;
+type AccountSummary = z.infer<typeof accountSummarySchema>;
+
+export type { AccountCash, AccountSummary };
+export { accountCashSchema, accountSummarySchema };
