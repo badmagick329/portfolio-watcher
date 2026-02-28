@@ -3,23 +3,23 @@ import type {
   LogLevelNumber,
   Logger,
   LoggerFactory,
-} from "@/core/logger";
+} from '@/core/logger';
 
-const createLoggerFactory: LoggerFactory = (level: LogLevel = "info") => {
+const createLoggerFactory: LoggerFactory = (level: LogLevel = 'info') => {
   let logLevel: LogLevelNumber = 2;
 
   const setLogLevel = (level: LogLevel) => {
     switch (level) {
-      case "error":
+      case 'error':
         logLevel = 0;
         break;
-      case "warn":
+      case 'warn':
         logLevel = 1;
         break;
-      case "info":
+      case 'info':
         logLevel = 2;
         break;
-      case "debug":
+      case 'debug':
         logLevel = 3;
         break;
       default: {

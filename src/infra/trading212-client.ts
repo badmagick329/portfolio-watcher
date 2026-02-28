@@ -1,12 +1,12 @@
-import type { BrokerClient, BrokerClientWithCache } from "@/core/broker-client";
-import type { Cache } from "@/core/cache";
-import type { AppError } from "@/types";
-import { accountCashSchema } from "@/types/schemas/api-responses";
-import { errAsync, okAsync, ResultAsync } from "neverthrow";
-import { z } from "zod";
+import type { BrokerClient, BrokerClientWithCache } from '@/core/broker-client';
+import type { Cache } from '@/core/cache';
+import type { AppError } from '@/types';
+import { accountCashSchema } from '@/types/schemas/api-responses';
+import { ResultAsync, errAsync, okAsync } from 'neverthrow';
+import { z } from 'zod';
 
-const paperUrl = "https://demo.trading212.com/api/v0";
-const liveUrl = "https://live.trading212.com/api/v0";
+const paperUrl = 'https://demo.trading212.com/api/v0';
+const liveUrl = 'https://live.trading212.com/api/v0';
 const endPoints = {
   accountCash: `${liveUrl}/equity/account/cash`,
 };
@@ -25,7 +25,7 @@ const fetchRequest = <T>({
       headers: { Authorization: `Basic ${creds}` },
     }),
     (e): AppError => ({
-      code: "NETWORK",
+      code: 'NETWORK',
       message: `Request failed: ${e instanceof Error ? e.message : String(e)}`,
     }),
   )
@@ -34,7 +34,7 @@ const fetchRequest = <T>({
         resp.ok
           ? okAsync(resp)
           : errAsync({
-              code: "API",
+              code: 'API',
               message: `Trading212 returned ${resp.status} - ${resp.statusText}`,
             }),
     )
@@ -43,7 +43,7 @@ const fetchRequest = <T>({
         ResultAsync.fromPromise(
           resp.json(),
           (e): AppError => ({
-            code: "API",
+            code: 'API',
             message: `Invalid JSON body: ${e instanceof Error ? e.message : String(e)}`,
           }),
         ),
@@ -53,7 +53,7 @@ const fetchRequest = <T>({
       return parsed.success
         ? okAsync(parsed.data)
         : errAsync({
-            code: "API",
+            code: 'API',
             message: `Invalid account cash schema: ${parsed.error.message}`,
           });
     });
@@ -61,7 +61,7 @@ const fetchRequest = <T>({
 const createTrading212Client = () => {
   const creds = Buffer.from(
     `${process.env.API_KEY}:${process.env.API_SECRET}`,
-    "utf-8",
+    'utf-8',
   ).toBase64();
 
   const fetchAccountCash = () =>
@@ -86,13 +86,10 @@ const createTrading212ClientWithCache = (cache: Cache) => {
       accountCashSchema,
     );
     if (saved) {
-      console.log("[Cache] - HIT");
       return okAsync(saved);
     }
-    console.log("[Cache] - MISS");
     return client.fetchAccountCash().andTee((json) => {
       cache.save(client.endPoints.accountCash, JSON.stringify(json));
-      console.log("[Cache] - SAVED");
     });
   };
 

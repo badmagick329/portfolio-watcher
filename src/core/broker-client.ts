@@ -1,6 +1,6 @@
-import type { AppError } from "@/types";
-import type { AccountCash } from "@/types/schemas/api-responses";
-import type { Result, ResultAsync } from "neverthrow";
+import type { AppError } from '@/types';
+import type { AccountCash } from '@/types/schemas/api-responses';
+import type { Result, ResultAsync } from 'neverthrow';
 
 interface BrokerClient {
   fetchAccountCash: () => ResultAsync<AccountCash, AppError>;

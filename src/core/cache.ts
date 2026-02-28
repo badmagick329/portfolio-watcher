@@ -1,6 +1,6 @@
-import type { AppError } from "@/types";
-import type { Result } from "neverthrow";
-import { z } from "zod";
+import type { AppError } from '@/types';
+import type { Result } from 'neverthrow';
+import { z } from 'zod';
 
 export interface Cache {
   save: (key: string, content: string) => Result<void, AppError>;

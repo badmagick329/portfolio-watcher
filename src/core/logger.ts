@@ -1,4 +1,4 @@
-type LogLevel = "error" | "warn" | "info" | "debug";
+type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 type LogLevelNumber = 0 | 1 | 2 | 3;
 interface Logger {
   error(...args: any[]): void;

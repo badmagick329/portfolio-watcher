@@ -7,6 +7,7 @@
     "main": "bun run ./src/index.ts"
   },
   "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/bun": "latest"
   },
   "peerDependencies": {
@@ -15,5 +16,23 @@
   "dependencies": {
     "neverthrow": "^8.2.0",
     "zod": "^4.3.6"
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "semi": true,
+    "singleQuote": true,
+    "jsxSingleQuote": true,
+    "tabWidth": 2,
+    "useTabs": false,
+    "printWidth": 80,
+    "importOrder": [
+      "^@/lib/(.*)$",
+      "^[./]"
+    ],
+    "importOrderSeparation": false,
+    "importOrderSortSpecifiers": true,
+    "plugins": [
+      "@trivago/prettier-plugin-sort-imports"
+    ]
   }
 }
