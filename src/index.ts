@@ -5,7 +5,11 @@ import { createTrading212ClientWithCache } from '@/infra/trading212-client';
 const main = async () => {
   const loggerCreator = createLoggerFactory('info');
 
-  createDiskCache('./data/cache.json', loggerCreator)
+  createDiskCache({
+    cacheFilePath: './data/cache.json',
+    expirationPeriodInSeconds: 10,
+    loggerCreator,
+  })
     .map((cache) => createTrading212ClientWithCache(cache))
     .asyncAndThen((client) => client.fetchAccountSummary())
     .match(

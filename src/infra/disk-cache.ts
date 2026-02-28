@@ -60,10 +60,15 @@ const normalizeContent = (content: string) => {
   return content;
 };
 
-const createDiskCache = (
-  cacheFilePath: string,
-  loggerCreator?: LoggerCreator,
-): Result<Cache, AppError> => {
+const createDiskCache = ({
+  cacheFilePath,
+  expirationPeriodInSeconds,
+  loggerCreator,
+}: {
+  cacheFilePath: string;
+  expirationPeriodInSeconds?: number;
+  loggerCreator?: LoggerCreator;
+}): Result<Cache, AppError> => {
   let cache: CacheType;
   let filePath: string;
   let log: Logger | undefined = undefined;
@@ -80,12 +85,25 @@ const createDiskCache = (
 
   const get = (key: string) => {
     const val = cache[key]?.content;
-    val === undefined ? log?.info('Miss', { key }) : log?.info('Hit', { key });
-    return typeof val === 'string'
-      ? val
-      : val === undefined
-        ? undefined
-        : JSON.stringify(val);
+    if (val === undefined) {
+      log?.info('Miss', { key });
+      return undefined;
+    }
+    const isoTime = cache[key]?.isoTime;
+    if (isoTime && expirationPeriodInSeconds !== undefined) {
+      const ageInSeconds =
+        (new Date().getTime() - new Date(isoTime).getTime()) / 1000;
+      if (ageInSeconds > expirationPeriodInSeconds) {
+        log?.info('Expired', { key, ageInSeconds });
+        return undefined;
+      }
+    }
+
+    log?.info('Hit', { key });
+    if (typeof val === 'string') {
+      return val;
+    }
+    return JSON.stringify(val);
   };
 
   const typesafeGet = <T>(key: string, schema: z.ZodType<T>) => {
