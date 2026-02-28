@@ -50,6 +50,16 @@ const persistCache = (resolvedPath: string, toSave: CacheType) =>
     (e) => toFileError(e, 'Failed to save cache'),
   )(resolvedPath, toSave);
 
+const normalizeContent = (content: string) => {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed !== null && typeof parsed === 'object') {
+      return parsed;
+    }
+  } catch {}
+  return content;
+};
+
 const createDiskCache = (
   cacheFilePath: string,
   loggerCreator?: LoggerCreator,
@@ -61,7 +71,7 @@ const createDiskCache = (
   const save = (key: string, content: string) => {
     cache[key] = {
       isoTime: new Date(),
-      content,
+      content: normalizeContent(content),
     };
     const result = persistCache(filePath, cache);
     log?.debug('Saved', { key });
@@ -71,11 +81,16 @@ const createDiskCache = (
   const get = (key: string) => {
     const val = cache[key]?.content;
     val === undefined ? log?.info('Miss', { key }) : log?.info('Hit', { key });
-    return val;
+    return typeof val === 'string'
+      ? val
+      : val === undefined
+        ? undefined
+        : JSON.stringify(val);
   };
+
   const typesafeGet = <T>(key: string, schema: z.ZodType<T>) => {
     const raw = get(key);
-    if (raw) {
+    if (raw !== undefined) {
       try {
         const json = JSON.parse(raw);
         const parsed = schema.safeParse(json);
@@ -86,6 +101,7 @@ const createDiskCache = (
       } catch {}
     }
   };
+
   const reset = () =>
     persistCache(filePath, {}).map(() => {
       cache = {};
