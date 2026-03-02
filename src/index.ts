@@ -1,9 +1,6 @@
 import { createLoggerFactory } from '@/infra/console-logger';
 import { createDiskCache } from '@/infra/disk-cache';
-import {
-  createTrading212Client,
-  createTrading212ClientWithCache,
-} from '@/infra/trading212-client';
+import { createTrading212ClientWithCache } from '@/infra/trading212-client';
 
 const main = async () => {
   const loggerCreator = createLoggerFactory('info');
