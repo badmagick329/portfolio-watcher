@@ -1,10 +1,12 @@
 import type { BrokerClient, BrokerClientWithCache } from '@/core/broker-client';
 import type { Cache } from '@/core/cache';
 import { endPoints } from '@/infra/trading212-client/end-points';
-import { fetchRequest } from '@/infra/trading212-client/utils';
+import { fetchRequest, fetchRequestRaw } from '@/infra/trading212-client/utils';
+import type { HistoricalOrdersParams } from '@/types';
 import {
   accountCashSchema,
   accountSummarySchema,
+  historicalOrdersSchema,
 } from '@/types/schemas/api-responses';
 import { okAsync } from 'neverthrow';
 
@@ -28,9 +30,17 @@ const createTrading212Client = () => {
       creds,
     });
 
+  const fetchHistoricalOrders = (params: HistoricalOrdersParams) =>
+    fetchRequest({
+      endPoint: endPoints.historicalOrders(params),
+      schema: historicalOrdersSchema,
+      creds,
+    });
+
   return {
     fetchAccountCash,
     fetchAccountSummary,
+    fetchHistoricalOrders,
     endPoints,
   } satisfies BrokerClient;
 };
@@ -64,9 +74,21 @@ const createTrading212ClientWithCache = (cache: Cache) => {
     });
   };
 
+  const fetchHistoricalOrders = (params: HistoricalOrdersParams) => {
+    const endpoint = client.endPoints.historicalOrders(params);
+    const saved = cache.typesafeGet(endpoint, historicalOrdersSchema);
+    if (saved) {
+      return okAsync(saved);
+    }
+    return client.fetchHistoricalOrders(params).andTee((json) => {
+      cache.save(endpoint, JSON.stringify(json));
+    });
+  };
+
   return {
     fetchAccountCash,
     fetchAccountSummary,
+    fetchHistoricalOrders,
     endPoints: client.endPoints,
     resetCache: cache.reset,
   } satisfies BrokerClientWithCache;

@@ -2,7 +2,7 @@ import type { AppError } from '@/types';
 import { ResultAsync, errAsync, okAsync } from 'neverthrow';
 import { z } from 'zod';
 
-export const fetchRequest = <T>({
+const fetchRequest = <T>({
   endPoint,
   schema,
   creds,
@@ -11,7 +11,27 @@ export const fetchRequest = <T>({
   schema: z.ZodType<T>;
   creds: string;
 }): ResultAsync<T, AppError> =>
-  ResultAsync.fromPromise(
+  fetchRequestRaw({
+    endPoint,
+    creds,
+  }).andThen((json): ResultAsync<T, AppError> => {
+    const parsed = schema.safeParse(json);
+    return parsed.success
+      ? okAsync(parsed.data)
+      : errAsync({
+          code: 'API',
+          message: `Invalid account cash schema: ${parsed.error.message}`,
+        });
+  });
+
+const fetchRequestRaw = ({
+  endPoint,
+  creds,
+}: {
+  endPoint: string;
+  creds: string;
+}): ResultAsync<unknown, AppError> => {
+  return ResultAsync.fromPromise(
     fetch(endPoint, {
       headers: { Authorization: `Basic ${creds}` },
     }),
@@ -38,13 +58,7 @@ export const fetchRequest = <T>({
             message: `Invalid JSON body: ${e instanceof Error ? e.message : String(e)}`,
           }),
         ),
-    )
-    .andThen((json): ResultAsync<T, AppError> => {
-      const parsed = schema.safeParse(json);
-      return parsed.success
-        ? okAsync(parsed.data)
-        : errAsync({
-            code: 'API',
-            message: `Invalid account cash schema: ${parsed.error.message}`,
-          });
-    });
+    );
+};
+
+export { fetchRequest, fetchRequestRaw };

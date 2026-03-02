@@ -1,14 +1,21 @@
-import type { AppError } from '@/types';
+import type { AppError, HistoricalOrdersParams } from '@/types';
 import type {
   AccountCash,
   AccountSummary,
+  HistoricalOrders,
 } from '@/types/schemas/api-responses';
 import type { Result, ResultAsync } from 'neverthrow';
 
 interface BrokerClient {
   fetchAccountCash: () => ResultAsync<AccountCash, AppError>;
   fetchAccountSummary: () => ResultAsync<AccountSummary, AppError>;
-  endPoints: Record<string, string>;
+  fetchHistoricalOrders: (
+    params: HistoricalOrdersParams,
+  ) => ResultAsync<HistoricalOrders, AppError>;
+  endPoints: Record<
+    string,
+    string | ((params: HistoricalOrdersParams) => string)
+  >;
 }
 
 interface ClientCache {

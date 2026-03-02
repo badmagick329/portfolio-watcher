@@ -27,8 +27,63 @@ const accountSummarySchema = z.object({
   totalValue: z.number(),
 });
 
+const historicalOrdersSchema = z.object({
+  items: z.array(
+    z.object({
+      order: z.object({
+        id: z.number(),
+        strategy: z.string(),
+        type: z.string(),
+        ticker: z.string(),
+        quantity: z.number().optional(),
+        filledQuantity: z.number().optional(),
+        limitPrice: z.number().optional(),
+        value: z.number().optional(),
+        filledValue: z.number().optional(),
+        status: z.string(),
+        currency: z.string(),
+        extendedHours: z.boolean(),
+        initiatedFrom: z.string(),
+        side: z.string(),
+        createdAt: z.string(),
+        instrument: z.object({
+          ticker: z.string(),
+          name: z.string(),
+          isin: z.string(),
+          currency: z.string(),
+        }),
+      }),
+      fill: z
+        .object({
+          id: z.number(),
+          quantity: z.number(),
+          price: z.number(),
+          type: z.string(),
+          tradingMethod: z.string(),
+          filledAt: z.string(),
+          walletImpact: z.object({
+            currency: z.string(),
+            netValue: z.number(),
+            fxRate: z.number(),
+            taxes: z.array(
+              z.object({
+                name: z.string(),
+                quantity: z.number(),
+                currency: z.string(),
+                chargedAt: z.string(),
+              }),
+            ),
+          }),
+        })
+        .optional(),
+    }),
+  ),
+  nextPagePath: z.string(),
+});
+
 type AccountCash = z.infer<typeof accountCashSchema>;
 type AccountSummary = z.infer<typeof accountSummarySchema>;
+type HistoricalOrders = z.infer<typeof historicalOrdersSchema>;
 
-export type { AccountCash, AccountSummary };
-export { accountCashSchema, accountSummarySchema };
+export type { AccountCash, AccountSummary, HistoricalOrders };
+export { accountCashSchema, accountSummarySchema, historicalOrdersSchema };

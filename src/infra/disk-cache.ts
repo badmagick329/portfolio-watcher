@@ -1,6 +1,6 @@
 import type { Cache } from '@/core/cache';
 import { toFileError } from '@/core/errors';
-import type { Logger, LoggerCreator, LoggerFactory } from '@/core/logger';
+import type { Logger, LoggerCreator } from '@/core/logger';
 import type { AppError } from '@/types';
 import { type CacheType } from '@/types/schemas/cache';
 import { cacheSchema } from '@/types/schemas/cache';
