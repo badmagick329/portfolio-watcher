@@ -78,7 +78,7 @@ const historicalOrdersSchema = z.object({
         .optional(),
     }),
   ),
-  nextPagePath: z.string(),
+  nextPagePath: z.string().nullable(),
 });
 
 type AccountCash = z.infer<typeof accountCashSchema>;

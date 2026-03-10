@@ -86,12 +86,33 @@ const fillTaxes = sqliteTable(
   (table) => [index('fill_taxes_fill_id_idx').on(table.fillId)],
 );
 
+const syncState = sqliteTable('sync_state', {
+  key: text('key').primaryKey(),
+
+  backfillNextPagePath: text('backfill_next_page_path'),
+  backfillCompleted: integer('backfill_completed', { mode: 'boolean' })
+    .notNull()
+    .default(false),
+
+  rateLimitLimit: integer('rate_limit_limit'),
+  rateLimitPeriodSec: integer('rate_limit_period_sec'),
+  rateLimitRemaining: integer('rate_limit_remaining'),
+  rateLimitResetEpoch: integer('rate_limit_reset_epoch'),
+
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
 type Order = typeof orders.$inferSelect;
 type NewOrder = typeof orders.$inferInsert;
 
 type Fill = typeof fills.$inferSelect;
 type NewFill = typeof fills.$inferInsert;
 
-export type { Order, NewOrder, Fill, NewFill };
+type SyncState = typeof syncState.$inferSelect;
+type NewSyncState = typeof syncState.$inferInsert;
 
-export { instruments, orders, fills, fillTaxes };
+export type { Order, NewOrder, Fill, NewFill, SyncState, NewSyncState };
+
+export { instruments, orders, fills, fillTaxes, syncState };

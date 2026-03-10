@@ -1,7 +1,8 @@
 import type { BrokerClient, BrokerClientWithCache } from '@/core/broker-client';
 import type { Cache } from '@/core/cache';
+import type { OrderSyncStateManager } from '@/core/order-sync-state';
 import { endPoints } from '@/infra/trading212-client/end-points';
-import { fetchRequest, fetchRequestRaw } from '@/infra/trading212-client/utils';
+import { fetchRequest } from '@/infra/trading212-client/utils';
 import type { HistoricalOrdersParams } from '@/types';
 import {
   accountCashSchema,
@@ -10,7 +11,7 @@ import {
 } from '@/types/schemas/api-responses';
 import { okAsync } from 'neverthrow';
 
-const createTrading212Client = () => {
+const createTrading212Client = (m: OrderSyncStateManager) => {
   const creds = Buffer.from(
     `${process.env.API_KEY}:${process.env.API_SECRET}`,
     'utf-8',
@@ -36,17 +37,26 @@ const createTrading212Client = () => {
       schema: historicalOrdersSchema,
       creds,
     });
+  const syncHistoricalOrders = () =>
+    m.getState().map((t) => {
+      //
+      throw '';
+    });
 
   return {
     fetchAccountCash,
     fetchAccountSummary,
     fetchHistoricalOrders,
+    syncHistoricalOrders,
     endPoints,
   } satisfies BrokerClient;
 };
 
-const createTrading212ClientWithCache = (cache: Cache) => {
-  const client = createTrading212Client();
+const createTrading212ClientWithCache = (
+  m: OrderSyncStateManager,
+  cache: Cache,
+) => {
+  const client = createTrading212Client(m);
 
   const fetchAccountCash = () => {
     const saved = cache.typesafeGet(
@@ -85,10 +95,15 @@ const createTrading212ClientWithCache = (cache: Cache) => {
     });
   };
 
+  const syncHistoricalOrders = () => {
+    throw '';
+  };
+
   return {
     fetchAccountCash,
     fetchAccountSummary,
     fetchHistoricalOrders,
+    syncHistoricalOrders,
     endPoints: client.endPoints,
     resetCache: cache.reset,
   } satisfies BrokerClientWithCache;
