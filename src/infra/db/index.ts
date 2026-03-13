@@ -1,9 +1,21 @@
+import type { BrokerDataManager } from '@/core/broker-client';
 import type {
   OrderSyncState,
   OrderSyncStateManager,
 } from '@/core/order-sync-state';
-import { syncState } from '@/infra/db/schema';
+import {
+  mapApiOrderItemToDbObjects,
+  mapDbHistoricalOrdersToApi,
+} from '@/infra/db/mappers';
+import {
+  fillTaxes,
+  fills,
+  instruments,
+  orders,
+  syncState,
+} from '@/infra/db/schema';
 import type { AppError } from '@/types';
+import type { HistoricalOrdersItems } from '@/types/schemas/api-responses';
 import { eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { ResultAsync } from 'neverthrow';
@@ -57,6 +69,7 @@ const createOrderSyncStateManager = () => {
         rateLimitPeriodSec: row.rateLimitPeriodSec ?? 0,
         rateLimitRemaining: row.rateLimitRemaining ?? 0,
         rateLimitResetEpoch: row.rateLimitResetEpoch ?? 0,
+        rateLimitUsed: row.rateLimitUsed ?? 0,
       };
     }, 'get order sync state');
 
@@ -66,4 +79,85 @@ const createOrderSyncStateManager = () => {
   } satisfies OrderSyncStateManager;
 };
 
-export { db, createOrderSyncStateManager };
+const createBrokerDataManager = () => {
+  const saveHistoricalOrders = (historicalOrdersItems: HistoricalOrdersItems) =>
+    wrapDb(() => {
+      historicalOrdersItems.forEach((item) => {
+        const {
+          instrument,
+          order,
+          fill,
+          fillTaxes: taxes,
+        } = mapApiOrderItemToDbObjects(item);
+
+        db.insert(instruments).values(instrument).onConflictDoNothing().run();
+        db.insert(orders).values(order).onConflictDoNothing().run();
+
+        if (fill) {
+          db.insert(fills).values(fill).onConflictDoNothing().run();
+          db.insert(fillTaxes).values(taxes).onConflictDoNothing().run();
+        }
+      });
+    }, 'save historical orders');
+
+  const getHistoricalOrders = () =>
+    wrapDb(() => {
+      const orderRows = db
+        .select({
+          orderId: orders.id,
+          strategy: orders.strategy,
+          type: orders.type,
+          ticker: orders.ticker,
+          quantity: orders.quantity,
+          filledQuantity: orders.filledQuantity,
+          value: orders.value,
+          filledValue: orders.filledValue,
+          limitPrice: orders.limitPrice,
+          status: orders.status,
+          currency: orders.currency,
+          extendedHours: orders.extendedHours,
+          initiatedFrom: orders.initiatedFrom,
+          side: orders.side,
+          createdAt: orders.createdAt,
+
+          instrumentTicker: instruments.ticker,
+          instrumentName: instruments.name,
+          instrumentIsin: instruments.isin,
+          instrumentCurrency: instruments.currency,
+
+          fillId: fills.id,
+          fillQuantity: fills.quantity,
+          fillPrice: fills.price,
+          fillType: fills.type,
+          fillTradingMethod: fills.tradingMethod,
+          fillFilledAt: fills.filledAt,
+          fillWalletCurrency: fills.walletCurrency,
+          fillWalletNetValue: fills.walletNetValue,
+          fillWalletFxRate: fills.walletFxRate,
+        })
+        .from(orders)
+        .innerJoin(instruments, eq(orders.ticker, instruments.ticker))
+        .leftJoin(fills, eq(fills.orderId, orders.id))
+        .all();
+
+      const taxRows = db
+        .select({
+          fillId: fillTaxes.fillId,
+          name: fillTaxes.name,
+          quantity: fillTaxes.quantity,
+          currency: fillTaxes.currency,
+          chargedAt: fillTaxes.chargedAt,
+        })
+        .from(fillTaxes)
+        .all();
+
+      return mapDbHistoricalOrdersToApi(orderRows, taxRows);
+    }, 'get historical orders');
+
+  return {
+    saveHistoricalOrders,
+    getHistoricalOrders,
+  } satisfies BrokerDataManager;
+};
+
+export { db, createOrderSyncStateManager, createBrokerDataManager };

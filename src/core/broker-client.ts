@@ -4,6 +4,7 @@ import type {
   AccountCash,
   AccountSummary,
   HistoricalOrders,
+  HistoricalOrdersItems,
 } from '@/types/schemas/api-responses';
 import type { Result, ResultAsync } from 'neverthrow';
 
@@ -24,6 +25,13 @@ interface ClientCache {
   resetCache: () => Result<void, AppError>;
 }
 
+interface BrokerDataManager {
+  saveHistoricalOrders(
+    historicalOrdersItems: HistoricalOrdersItems,
+  ): ResultAsync<void, AppError>;
+  getHistoricalOrders(): ResultAsync<HistoricalOrdersItems, AppError>;
+}
+
 type BrokerClientWithCache = BrokerClient & ClientCache;
 
-export type { BrokerClient, BrokerClientWithCache };
+export type { BrokerClient, BrokerClientWithCache, BrokerDataManager };

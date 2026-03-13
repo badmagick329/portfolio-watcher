@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "53f59804-cc0d-4e4e-a199-38151abd7f2b",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "83ca083f-fb30-4969-9613-2ba5bd9b7391",
+  "prevId": "53f59804-cc0d-4e4e-a199-38151abd7f2b",
   "tables": {
     "fill_taxes": {
       "name": "fill_taxes",
@@ -57,6 +57,17 @@
             "fill_id"
           ],
           "isUnique": false
+        },
+        "fill_taxes_unique_entry_idx": {
+          "name": "fill_taxes_unique_entry_idx",
+          "columns": [
+            "fill_id",
+            "name",
+            "quantity",
+            "currency",
+            "charged_at"
+          ],
+          "isUnique": true
         }
       },
       "foreignKeys": {

@@ -31,9 +31,11 @@ const orders = sqliteTable(
     ticker: text('ticker')
       .notNull()
       .references(() => instruments.ticker),
-    quantity: real('quantity').notNull(),
-    filledQuantity: real('filled_quantity').notNull(),
-    limitPrice: real('limit_price').notNull(),
+    quantity: real('quantity'),
+    filledQuantity: real('filled_quantity'),
+    value: real('value'),
+    filledValue: real('filled_value'),
+    limitPrice: real('limit_price'),
     status: text('status').notNull(),
     currency: text('currency').notNull(),
     extendedHours: integer('extended_hours', { mode: 'boolean' }).notNull(),
@@ -83,7 +85,16 @@ const fillTaxes = sqliteTable(
     currency: text('currency').notNull(),
     chargedAt: text('charged_at').notNull(),
   },
-  (table) => [index('fill_taxes_fill_id_idx').on(table.fillId)],
+  (table) => [
+    index('fill_taxes_fill_id_idx').on(table.fillId),
+    uniqueIndex('fill_taxes_unique_entry_idx').on(
+      table.fillId,
+      table.name,
+      table.quantity,
+      table.currency,
+      table.chargedAt,
+    ),
+  ],
 );
 
 const syncState = sqliteTable('sync_state', {
@@ -98,11 +109,15 @@ const syncState = sqliteTable('sync_state', {
   rateLimitPeriodSec: integer('rate_limit_period_sec'),
   rateLimitRemaining: integer('rate_limit_remaining'),
   rateLimitResetEpoch: integer('rate_limit_reset_epoch'),
+  rateLimitUsed: integer('rate_limit_used'),
 
   updatedAt: text('updated_at')
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+type Instrument = typeof instruments.$inferSelect;
+type NewInstrument = typeof instruments.$inferInsert;
 
 type Order = typeof orders.$inferSelect;
 type NewOrder = typeof orders.$inferInsert;
@@ -110,9 +125,23 @@ type NewOrder = typeof orders.$inferInsert;
 type Fill = typeof fills.$inferSelect;
 type NewFill = typeof fills.$inferInsert;
 
+type FillTaxes = typeof fillTaxes.$inferSelect;
+type NewFillTaxes = typeof fillTaxes.$inferInsert;
+
 type SyncState = typeof syncState.$inferSelect;
 type NewSyncState = typeof syncState.$inferInsert;
 
-export type { Order, NewOrder, Fill, NewFill, SyncState, NewSyncState };
+export type {
+  Instrument,
+  NewInstrument,
+  Order,
+  NewOrder,
+  Fill,
+  NewFill,
+  FillTaxes,
+  NewFillTaxes,
+  SyncState,
+  NewSyncState,
+};
 
 export { instruments, orders, fills, fillTaxes, syncState };

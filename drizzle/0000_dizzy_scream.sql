@@ -40,9 +40,11 @@ CREATE TABLE `orders` (
 	`strategy` text NOT NULL,
 	`type` text NOT NULL,
 	`ticker` text NOT NULL,
-	`quantity` real NOT NULL,
-	`filled_quantity` real NOT NULL,
-	`limit_price` real NOT NULL,
+	`quantity` real,
+	`filled_quantity` real,
+	`value` real,
+	`filled_value` real,
+	`limit_price` real,
 	`status` text NOT NULL,
 	`currency` text NOT NULL,
 	`extended_hours` integer NOT NULL,
@@ -53,4 +55,14 @@ CREATE TABLE `orders` (
 );
 --> statement-breakpoint
 CREATE INDEX `orders_ticker_idx` ON `orders` (`ticker`);--> statement-breakpoint
-CREATE INDEX `orders_created_at_idx` ON `orders` (`created_at`);
+CREATE INDEX `orders_created_at_idx` ON `orders` (`created_at`);--> statement-breakpoint
+CREATE TABLE `sync_state` (
+	`key` text PRIMARY KEY NOT NULL,
+	`backfill_next_page_path` text,
+	`backfill_completed` integer DEFAULT false NOT NULL,
+	`rate_limit_limit` integer,
+	`rate_limit_period_sec` integer,
+	`rate_limit_remaining` integer,
+	`rate_limit_reset_epoch` integer,
+	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
+);

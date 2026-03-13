@@ -7,4 +7,12 @@ type HistoricalOrdersParams = {
   limit?: string;
 };
 
-export type { AppError, HistoricalOrdersParams };
+type RateLimitResponse = {
+  rateLimitLimit: number;
+  rateLimitPeriodSec: number;
+  rateLimitRemaining: number;
+  rateLimitResetEpoch: number;
+  rateLimitUsed: number;
+};
+
+export type { AppError, HistoricalOrdersParams, RateLimitResponse };

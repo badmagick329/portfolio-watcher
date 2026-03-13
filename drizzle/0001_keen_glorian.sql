@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `fill_taxes_unique_entry_idx` ON `fill_taxes` (`fill_id`,`name`,`quantity`,`currency`,`charged_at`);

@@ -1,14 +1,10 @@
-import type { AppError } from '@/types';
+import type { AppError, RateLimitResponse } from '@/types';
 import type { ResultAsync } from 'neverthrow';
 
 type OrderSyncState = {
   backfillNextPagePath: string | null;
   backfillCompleted: boolean;
-  rateLimitLimit: number;
-  rateLimitPeriodSec: number;
-  rateLimitRemaining: number;
-  rateLimitResetEpoch: number;
-};
+} & RateLimitResponse;
 
 interface OrderSyncStateManager {
   setState({
@@ -18,6 +14,7 @@ interface OrderSyncStateManager {
     rateLimitPeriodSec,
     rateLimitRemaining,
     rateLimitResetEpoch,
+    rateLimitUsed,
   }: OrderSyncState): ResultAsync<void, AppError>;
   getState(): ResultAsync<OrderSyncState | undefined, AppError>;
 }
