@@ -23,7 +23,7 @@ const main = async () => {
         cache,
       ),
     )
-    .asyncAndThen((client) => client.fetchHistoricalOrders({ limit: '50' }))
+    .asyncAndThen((client) => client.syncHistoricalOrders())
     .match(
       (json) => {
         console.log(json);

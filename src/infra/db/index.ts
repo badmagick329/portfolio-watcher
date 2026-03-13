@@ -95,7 +95,9 @@ const createBrokerDataManager = () => {
 
         if (fill) {
           db.insert(fills).values(fill).onConflictDoNothing().run();
-          db.insert(fillTaxes).values(taxes).onConflictDoNothing().run();
+          if (taxes.length > 0) {
+            db.insert(fillTaxes).values(taxes).onConflictDoNothing().run();
+          }
         }
       });
     }, 'save historical orders');
