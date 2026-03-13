@@ -15,6 +15,13 @@
       "when": 1773418098283,
       "tag": "0001_keen_glorian",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1773445470298,
+      "tag": "0002_wonderful_dragon_man",
+      "breakpoints": true
     }
   ]
 }
