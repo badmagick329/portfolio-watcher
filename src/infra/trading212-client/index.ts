@@ -15,9 +15,14 @@ import {
 import type { FetchParams } from '@/infra/trading212-client/types';
 import {
   fetchRequest,
-  fetchRequestWithRateLimit,
+  tryFetchRequestWithRateLimit,
 } from '@/infra/trading212-client/utils';
-import type { AppError, HistoricalOrdersParams } from '@/types';
+import type {
+  AppError,
+  HistoricalOrdersParams,
+  RateLimitResponse,
+  SyncStepResult,
+} from '@/types';
 import {
   type HistoricalOrders,
   accountCashSchema,
@@ -55,95 +60,75 @@ const createTrading212Client = (
       schema: historicalOrdersSchema,
       creds,
     });
-  const syncHistoricalOrders = () =>
+
+  const syncHistoricalOrders = (): ResultAsync<SyncStepResult, AppError> => {
+    const runNextStep = (): ResultAsync<SyncStepResult, AppError> =>
+      syncHistoricalOrdersStep().andThen((result) =>
+        result === 'page_processed' || result === 'backfill_completed'
+          ? runNextStep()
+          : okAsync(result),
+      );
+
+    return runNextStep();
+  };
+
+  const syncHistoricalOrdersStep = (): ResultAsync<SyncStepResult, AppError> =>
     syncStateManager
       .getState()
-      .andThen(
-        (
-          state,
-        ): ResultAsync<
-          {
-            state?: OrderSyncState;
-            params: FetchParams<HistoricalOrders>;
-          },
-          AppError
-        > => {
-          if (state?.rateLimitRemaining === 0) {
-            const date = new Date(state.rateLimitResetEpoch * 1000);
-            if (date > new Date()) {
-              return errAsync({
-                code: 'RATE_LIMIT',
-                message: `Rate limit reached, try again later at ${date.toLocaleString()}`,
-              });
-            }
-          }
-          // Rate limit should've reset, continue
-
-          let nextPagePath = undefined;
-          if (state && !state.backfillCompleted && state.backfillNextPagePath) {
-            nextPagePath = state.backfillNextPagePath;
-          }
-          if (nextPagePath === undefined) {
-            return okAsync({
-              state,
-              params: {
-                endPoint: endPoints.historicalOrders({ limit: '50' }),
-                schema: historicalOrdersSchema,
-                creds,
-              },
-            });
-          }
-
-          return okAsync({
-            state,
-            params: {
-              endPoint: resolveEndPoint(nextPagePath),
-              schema: historicalOrdersSchema,
-              creds,
-            },
-          });
-        },
-      )
+      .andThen((state) => buildHistoricalOrdersRequest(creds, state))
       .andThen(({ params, state }) =>
-        fetchRequestWithRateLimit({
+        tryFetchRequestWithRateLimit({
           endPoint: params.endPoint,
           schema: params.schema,
           creds: params.creds,
-        }).andThen(({ data, rateLimitResponse }) => {
-          let nextState: OrderSyncState;
+        }).map((result) => ({ ...result, state })),
+      )
+      .andThen(({ data, rateLimitResponse, state }) =>
+        persistOrdersAndSyncState({
+          data,
+          rateLimitResponse,
+          state,
+        }),
+      )
+      .orElse((e) =>
+        e.code === 'RATE_LIMIT'
+          ? okAsync('rate_limited' as const)
+          : errAsync(e),
+      );
 
-          if (data !== undefined) {
-            nextState = {
-              backfillNextPagePath: data.nextPagePath,
-              backfillCompleted: data.nextPagePath === null,
-              ...rateLimitResponse,
-            };
-          } else if (state) {
-            nextState = {
-              backfillNextPagePath: state.backfillNextPagePath,
-              backfillCompleted: state.backfillCompleted,
-              ...rateLimitResponse,
-            };
-          } else {
-            // this should technically never happen?
-            nextState = {
-              backfillNextPagePath: endPoints.historicalOrders({
-                limit: '50',
-              }),
-              backfillCompleted: false,
-              ...rateLimitResponse,
-            };
+  const persistOrdersAndSyncState = ({
+    data,
+    rateLimitResponse,
+    state,
+  }: {
+    data?: HistoricalOrders;
+    rateLimitResponse: RateLimitResponse;
+    state?: OrderSyncState;
+  }) => {
+    const nextState = deriveNextSyncState(data, rateLimitResponse, state);
+
+    if (data) {
+      return brokerDataManager
+        .saveHistoricalOrders(data.items)
+        .andThen((ordersSaved: number) =>
+          syncStateManager.setState(nextState).map(() => ordersSaved),
+        )
+        .map((ordersSaved) => {
+          const inPostBackfillSync = Boolean(state?.backfillCompleted);
+          if (ordersSaved === 0 && inPostBackfillSync) {
+            return 'in_sync' as const;
           }
 
-          const saveDataResult = data?.items
-            ? brokerDataManager.saveHistoricalOrders(data.items)
-            : okAsync(undefined);
+          return nextState.backfillCompleted && !state?.backfillCompleted
+            ? ('backfill_completed' as const)
+            : ('page_processed' as const);
+        });
+    }
 
-          return saveDataResult
-            .andThen(() => syncStateManager.setState(nextState))
-            .map(() => nextState);
-        }),
-      );
+    return syncStateManager
+      .setState(nextState)
+      .map(() => 'rate_limited' as const);
+  };
 
   return {
     fetchAccountCash,
@@ -213,3 +198,79 @@ const createTrading212ClientWithCache = (
 };
 
 export { createTrading212Client, createTrading212ClientWithCache };
+
+const buildHistoricalOrdersRequest = (
+  creds: string,
+  state?: OrderSyncState,
+): ResultAsync<
+  {
+    state?: OrderSyncState;
+    params: FetchParams<HistoricalOrders>;
+  },
+  AppError
+> => {
+  const waitUntil = shouldWaitUntil(state);
+  if (waitUntil) {
+    return errAsync({
+      code: 'RATE_LIMIT',
+      message: `Rate limit reached, try again later at ${waitUntil.toLocaleString()}`,
+    });
+  }
+
+  return okAsync({
+    state,
+    params: {
+      endPoint: getNextHistoricalOrdersEndpoint(state),
+      schema: historicalOrdersSchema,
+      creds,
+    },
+  });
+};
+
+const shouldWaitUntil = (state?: OrderSyncState) => {
+  if (state?.rateLimitRemaining !== 0) {
+    return undefined;
+  }
+  const date = new Date(state.rateLimitResetEpoch * 1000);
+  if (date > new Date()) {
+    return date;
+  }
+};
+
+const getNextHistoricalOrdersEndpoint = (state?: OrderSyncState) => {
+  if (!state?.nextPagePath) {
+    return endPoints.historicalOrders({ limit: '50' });
+  }
+
+  return resolveEndPoint(state.nextPagePath);
+};
+
+const deriveNextSyncState = (
+  data: HistoricalOrders | undefined,
+  rateLimitResponse: RateLimitResponse,
+  state?: OrderSyncState,
+): OrderSyncState => {
+  if (data !== undefined) {
+    return {
+      nextPagePath: data.nextPagePath,
+      backfillCompleted:
+        data.nextPagePath === null || Boolean(state?.backfillCompleted),
+      ...rateLimitResponse,
+    };
+  }
+
+  if (state) {
+    return {
+      nextPagePath: state.nextPagePath,
+      backfillCompleted: state.backfillCompleted,
+      ...rateLimitResponse,
+    };
+  }
+
+  // this should technically never happen?
+  return {
+    nextPagePath: null,
+    backfillCompleted: false,
+    ...rateLimitResponse,
+  };
+};

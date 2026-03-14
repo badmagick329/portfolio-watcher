@@ -1,0 +1,1 @@
+ALTER TABLE `sync_state` RENAME COLUMN "backfill_next_page_path" TO "next_page_path";

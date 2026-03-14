@@ -15,4 +15,15 @@ type RateLimitResponse = {
   rateLimitUsed: number;
 };
 
-export type { AppError, HistoricalOrdersParams, RateLimitResponse };
+type SyncStepResult =
+  | 'rate_limited'
+  | 'page_processed'
+  | 'backfill_completed'
+  | 'in_sync';
+
+export type {
+  AppError,
+  HistoricalOrdersParams,
+  RateLimitResponse,
+  SyncStepResult,
+};

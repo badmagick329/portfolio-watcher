@@ -38,12 +38,24 @@ const createOrderSyncStateManager = () => {
       db.insert(syncState)
         .values({
           key,
-          ...params,
+          nextPagePath: params.nextPagePath,
+          backfillCompleted: params.backfillCompleted,
+          rateLimitLimit: params.rateLimitLimit,
+          rateLimitPeriodSec: params.rateLimitPeriodSec,
+          rateLimitRemaining: params.rateLimitRemaining,
+          rateLimitResetEpoch: params.rateLimitResetEpoch,
+          rateLimitUsed: params.rateLimitUsed,
         })
         .onConflictDoUpdate({
           target: syncState.key,
           set: {
-            ...params,
+            nextPagePath: params.nextPagePath,
+            backfillCompleted: params.backfillCompleted,
+            rateLimitLimit: params.rateLimitLimit,
+            rateLimitPeriodSec: params.rateLimitPeriodSec,
+            rateLimitRemaining: params.rateLimitRemaining,
+            rateLimitResetEpoch: params.rateLimitResetEpoch,
+            rateLimitUsed: params.rateLimitUsed,
             updatedAt: sql`CURRENT_TIMESTAMP`,
           },
         })
@@ -63,7 +75,7 @@ const createOrderSyncStateManager = () => {
       }
 
       return {
-        backfillNextPagePath: row.backfillNextPagePath,
+        nextPagePath: row.nextPagePath,
         backfillCompleted: row.backfillCompleted,
         rateLimitLimit: row.rateLimitLimit ?? 0,
         rateLimitPeriodSec: row.rateLimitPeriodSec ?? 0,
@@ -82,6 +94,8 @@ const createOrderSyncStateManager = () => {
 const createBrokerDataManager = () => {
   const saveHistoricalOrders = (historicalOrdersItems: HistoricalOrdersItems) =>
     wrapDb(() => {
+      let savedOrdersCount = 0;
+
       historicalOrdersItems.forEach((item) => {
         const {
           instrument,
@@ -91,7 +105,16 @@ const createBrokerDataManager = () => {
         } = mapApiOrderItemToDbObjects(item);
 
         db.insert(instruments).values(instrument).onConflictDoNothing().run();
-        db.insert(orders).values(order).onConflictDoNothing().run();
+        const insertedOrdersId = db
+          .insert(orders)
+          .values(order)
+          .onConflictDoNothing()
+          .returning({ id: orders.id })
+          .all();
+
+        if (insertedOrdersId.length > 0) {
+          savedOrdersCount++;
+        }
 
         if (fill) {
           db.insert(fills).values(fill).onConflictDoNothing().run();
@@ -100,6 +123,8 @@ const createBrokerDataManager = () => {
           }
         }
       });
+
+      return savedOrdersCount;
     }, 'save historical orders');
 
   const getHistoricalOrders = () =>

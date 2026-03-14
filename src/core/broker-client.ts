@@ -1,5 +1,4 @@
-import type { OrderSyncState } from '@/core/order-sync-state';
-import type { AppError, HistoricalOrdersParams } from '@/types';
+import type { AppError, HistoricalOrdersParams, SyncStepResult } from '@/types';
 import type {
   AccountCash,
   AccountSummary,
@@ -18,7 +17,7 @@ interface BrokerClient {
     string,
     string | ((params: HistoricalOrdersParams) => string)
   >;
-  syncHistoricalOrders: () => ResultAsync<OrderSyncState, AppError>;
+  syncHistoricalOrders: () => ResultAsync<SyncStepResult, AppError>;
 }
 
 interface ClientCache {
@@ -28,7 +27,7 @@ interface ClientCache {
 interface BrokerDataManager {
   saveHistoricalOrders(
     historicalOrdersItems: HistoricalOrdersItems,
-  ): ResultAsync<void, AppError>;
+  ): ResultAsync<number, AppError>;
   getHistoricalOrders(): ResultAsync<HistoricalOrdersItems, AppError>;
 }
 

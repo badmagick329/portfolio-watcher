@@ -100,7 +100,7 @@ const fillTaxes = sqliteTable(
 const syncState = sqliteTable('sync_state', {
   key: text('key').primaryKey(),
 
-  backfillNextPagePath: text('backfill_next_page_path'),
+  nextPagePath: text('next_page_path'),
   backfillCompleted: integer('backfill_completed', { mode: 'boolean' })
     .notNull()
     .default(false),

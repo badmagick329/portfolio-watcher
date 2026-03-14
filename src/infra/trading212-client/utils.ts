@@ -24,7 +24,7 @@ const fetchRequest = <T>({
         });
   });
 
-const fetchRequestWithRateLimit = <T>({
+const tryFetchRequestWithRateLimit = <T>({
   endPoint,
   schema,
   creds,
@@ -32,7 +32,7 @@ const fetchRequestWithRateLimit = <T>({
   { data?: T; rateLimitResponse: RateLimitResponse },
   AppError
 > =>
-  fetchRequestRawWithRateLimit({
+  tryFetchRequestRawWithRateLimit({
     endPoint,
     creds,
   }).andThen(
@@ -99,7 +99,7 @@ const fetchRequestRaw = <T>({
     );
 };
 
-const fetchRequestRawWithRateLimit = <T>({
+const tryFetchRequestRawWithRateLimit = <T>({
   endPoint,
   creds,
 }: Omit<FetchParams<T>, 'schema'>): ResultAsync<
@@ -168,6 +168,9 @@ const fetchRequestRawWithRateLimit = <T>({
         rateLimitResponse,
       }): ResultAsync<RawWithRateLimitResult, AppError> => {
         if (response.status === 429) {
+          console.warn(
+            `Rate limit reached. Try again after ${new Date(rateLimitResponse.rateLimitResetEpoch * 1000).toLocaleString()}`,
+          );
           return okAsync({
             json: undefined,
             rateLimitResponse,
@@ -200,6 +203,6 @@ const fetchRequestRawWithRateLimit = <T>({
 export {
   fetchRequest,
   fetchRequestRaw,
-  fetchRequestWithRateLimit,
-  fetchRequestRawWithRateLimit,
+  tryFetchRequestWithRateLimit,
+  tryFetchRequestRawWithRateLimit,
 };

@@ -2,13 +2,13 @@ import type { AppError, RateLimitResponse } from '@/types';
 import type { ResultAsync } from 'neverthrow';
 
 type OrderSyncState = {
-  backfillNextPagePath: string | null;
+  nextPagePath: string | null;
   backfillCompleted: boolean;
 } & RateLimitResponse;
 
 interface OrderSyncStateManager {
   setState({
-    backfillNextPagePath,
+    nextPagePath,
     backfillCompleted,
     rateLimitLimit,
     rateLimitPeriodSec,
