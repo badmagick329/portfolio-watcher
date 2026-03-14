@@ -1,7 +1,9 @@
 import type { HistoricalOrdersParams } from '@/types';
 
-const paperUrl = 'https://demo.trading212.com/api/v0';
-const liveUrl = 'https://live.trading212.com/api/v0';
+const paperBase = 'https://demo.trading212.com';
+const liveBase = 'https://live.trading212.com';
+const paperUrl = `${paperBase}/api/v0`;
+const liveUrl = `${liveBase}/api/v0`;
 
 const endPoints = {
   accountCash: `${liveUrl}/equity/account/cash`,
@@ -14,4 +16,7 @@ const endPoints = {
     }).toString()}`,
 };
 
-export { endPoints };
+const resolveEndPoint = (path: string, isLive: boolean = true) =>
+  path.startsWith('http') ? path : `${isLive ? liveBase : paperBase}${path}`;
+
+export { endPoints, resolveEndPoint };

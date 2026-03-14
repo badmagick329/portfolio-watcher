@@ -8,7 +8,10 @@ import type {
   OrderSyncState,
   OrderSyncStateManager,
 } from '@/core/order-sync-state';
-import { endPoints } from '@/infra/trading212-client/end-points';
+import {
+  endPoints,
+  resolveEndPoint,
+} from '@/infra/trading212-client/end-points';
 import type { FetchParams } from '@/infra/trading212-client/types';
 import {
   fetchRequest,
@@ -94,7 +97,7 @@ const createTrading212Client = (
           return okAsync({
             state,
             params: {
-              endPoint: nextPagePath,
+              endPoint: resolveEndPoint(nextPagePath),
               schema: historicalOrdersSchema,
               creds,
             },

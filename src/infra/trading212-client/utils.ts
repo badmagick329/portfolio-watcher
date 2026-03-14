@@ -159,7 +159,7 @@ const fetchRequestRawWithRateLimit = <T>({
       }
       return errAsync({
         code: 'API',
-        message: `Trading212 returned ${resp.status} - ${resp.statusText}`,
+        message: `Trading212 returned ${resp.status} - ${resp.statusText} from ${resp.url}`,
       });
     })
     .andThen(
@@ -178,7 +178,7 @@ const fetchRequestRawWithRateLimit = <T>({
         if (!response.ok) {
           return errAsync({
             code: 'API',
-            message: `Trading212 returned ${response.status} - ${response.statusText}`,
+            message: `Trading212 returned ${response.status} - ${response.statusText} from ${response.url}`,
           });
         }
 
