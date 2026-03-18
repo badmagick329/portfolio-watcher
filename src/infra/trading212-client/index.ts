@@ -211,6 +211,9 @@ const buildHistoricalOrdersRequest = (
 > => {
   const waitUntil = shouldWaitUntil(state);
   if (waitUntil) {
+    console.warn(
+      `Rate limit reached, try again later at ${waitUntil.toLocaleString()}`,
+    );
     return errAsync({
       code: 'RATE_LIMIT',
       message: `Rate limit reached, try again later at ${waitUntil.toLocaleString()}`,
