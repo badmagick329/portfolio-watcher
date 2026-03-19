@@ -3,7 +3,7 @@ import type {
   NewFillTaxes,
   NewInstrument,
   NewOrder,
-} from '@/infra/db/schema';
+} from './schema';
 
 type HistoricalOrderRow = {
   orderId: number;

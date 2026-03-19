@@ -27,7 +27,10 @@
     "noPropertyAccessFromIndexSignature": false,
 
     "paths": {
-      "@/*": ["./src/*"]
+      "@/core/*": ["./packages/domain/src/core/*"],
+      "@/types": ["./packages/domain/src/types/index.ts"],
+      "@/types/*": ["./packages/domain/src/types/*"],
+      "@/infra/*": ["./packages/infra/src/*"]
     }
   }
 }

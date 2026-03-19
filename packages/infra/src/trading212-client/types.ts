@@ -1,4 +1,4 @@
-import type { RateLimitResponse } from '@/types';
+import type { RateLimitResponse } from '@portfolio/domain';
 import { z } from 'zod';
 
 type FetchParams<T> = {

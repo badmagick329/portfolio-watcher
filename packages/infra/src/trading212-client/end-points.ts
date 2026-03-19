@@ -1,4 +1,4 @@
-import type { HistoricalOrdersParams } from '@/types';
+import type { HistoricalOrdersParams } from '@portfolio/domain';
 
 const paperBase = 'https://demo.trading212.com';
 const liveBase = 'https://live.trading212.com';

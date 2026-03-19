@@ -1,21 +1,21 @@
-import type { BrokerDataManager } from '@/core/broker-client';
 import type {
+  AppError,
+  BrokerDataManager,
+  HistoricalOrdersItems,
   OrderSyncState,
   OrderSyncStateManager,
-} from '@/core/order-sync-state';
+} from '@portfolio/domain';
 import {
   mapApiOrderItemToDbObjects,
   mapDbHistoricalOrdersToApi,
-} from '@/infra/db/mappers';
+} from './mappers';
 import {
   fillTaxes,
   fills,
   instruments,
   orders,
   syncState,
-} from '@/infra/db/schema';
-import type { AppError } from '@/types';
-import type { HistoricalOrdersItems } from '@/types/schemas/api-responses';
+} from './schema';
 import { eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { ResultAsync } from 'neverthrow';

@@ -1,0 +1,8 @@
+{
+  "name": "@portfolio/cli",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@portfolio/composition": "workspace:*"
+  }
+}

@@ -1,4 +1,4 @@
-import type { AppError } from '@/types';
+import type { AppError } from '../types';
 
 const toFileError = (e: unknown, context: string): AppError => ({
   code: 'FILE_IO',

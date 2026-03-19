@@ -1,34 +1,30 @@
 import type {
+  AppError,
   BrokerClient,
   BrokerClientWithCache,
   BrokerDataManager,
-} from '@/core/broker-client';
-import type { Cache } from '@/core/cache';
-import type {
+  Cache,
+  HistoricalOrdersParams,
   OrderSyncState,
   OrderSyncStateManager,
-} from '@/core/order-sync-state';
+  RateLimitResponse,
+  SyncStepResult,
+  HistoricalOrders,
+} from '@portfolio/domain';
 import {
   endPoints,
   resolveEndPoint,
-} from '@/infra/trading212-client/end-points';
-import type { FetchParams } from '@/infra/trading212-client/types';
+} from './end-points';
+import type { FetchParams } from './types';
 import {
   fetchRequest,
   tryFetchRequestWithRateLimit,
-} from '@/infra/trading212-client/utils';
-import type {
-  AppError,
-  HistoricalOrdersParams,
-  RateLimitResponse,
-  SyncStepResult,
-} from '@/types';
+} from './utils';
 import {
-  type HistoricalOrders,
   accountCashSchema,
   accountSummarySchema,
   historicalOrdersSchema,
-} from '@/types/schemas/api-responses';
+} from '@portfolio/domain';
 import { ResultAsync, errAsync, okAsync } from 'neverthrow';
 
 const createTrading212Client = (

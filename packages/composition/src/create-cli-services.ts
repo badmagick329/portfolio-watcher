@@ -6,12 +6,12 @@ import {
   createTrading212ClientWithCache,
 } from '@portfolio/infra';
 
-const main = async () => {
+export const createCliServices = () => {
   const loggerCreator = createLoggerFactory('info');
   const orderSyncStateManager = createOrderSyncStateManager();
   const brokerDataManager = createBrokerDataManager();
 
-  createDiskCache({
+  return createDiskCache({
     cacheFilePath: './data/cache.json',
     expirationPeriodInSeconds: 10,
     loggerCreator,
@@ -23,13 +23,7 @@ const main = async () => {
         cache,
       ),
     )
-    .asyncAndThen((client) => client.syncHistoricalOrders())
-    .match(
-      (json) => {
-        console.log(json);
-      },
-      (e) => console.error(e),
-    );
+    .map((client) => ({
+      syncHistoricalOrders: client.syncHistoricalOrders,
+    }));
 };
-
-main();

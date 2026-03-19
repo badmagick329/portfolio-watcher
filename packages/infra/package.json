@@ -1,0 +1,13 @@
+{
+  "name": "@portfolio/infra",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "drizzle-orm": "^0.45.1",
+    "neverthrow": "^8.2.0",
+    "zod": "^4.3.6",
+    "@portfolio/domain": "workspace:*"
+  }
+}

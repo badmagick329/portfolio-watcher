@@ -1,4 +1,4 @@
-import type { AppError, RateLimitResponse } from '@/types';
+import type { AppError, RateLimitResponse } from '../types';
 import type { ResultAsync } from 'neverthrow';
 
 type OrderSyncState = {

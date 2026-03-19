@@ -1,8 +1,8 @@
 import type {
   FetchParams,
   RawWithRateLimitResult,
-} from '@/infra/trading212-client/types';
-import type { AppError, RateLimitResponse } from '@/types';
+} from './types';
+import type { AppError, RateLimitResponse } from '@portfolio/domain';
 import { ResultAsync, errAsync, okAsync } from 'neverthrow';
 import type { Trading212Response } from './types';
 

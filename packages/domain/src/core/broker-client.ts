@@ -1,10 +1,14 @@
-import type { AppError, HistoricalOrdersParams, SyncStepResult } from '@/types';
+import type {
+  AppError,
+  HistoricalOrdersParams,
+  SyncStepResult,
+} from '../types';
 import type {
   AccountCash,
   AccountSummary,
   HistoricalOrders,
   HistoricalOrdersItems,
-} from '@/types/schemas/api-responses';
+} from '../types/schemas/api-responses';
 import type { Result, ResultAsync } from 'neverthrow';
 
 interface BrokerClient {

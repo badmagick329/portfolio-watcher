@@ -2,11 +2,11 @@ import type {
   FillTaxRow,
   HistoricalOrderRow,
   HistoricalOrderWriteSet,
-} from '@/infra/db/types';
+} from './types';
 import type {
   HistoricalOrdersItem,
   HistoricalOrdersItems,
-} from '@/types/schemas/api-responses';
+} from '@portfolio/domain';
 
 const mapApiOrderItemToDbObjects = (
   item: HistoricalOrdersItem,

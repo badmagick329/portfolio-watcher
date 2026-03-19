@@ -3,7 +3,7 @@ import type {
   LogLevelNumber,
   Logger,
   LoggerFactory,
-} from '@/core/logger';
+} from '@portfolio/domain';
 
 const createLoggerFactory: LoggerFactory = (level: LogLevel = 'info') => {
   let logLevel: LogLevelNumber = 2;
