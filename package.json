@@ -1,10 +1,9 @@
 {
   "name": "portfolio-watcher",
-  "module": "index.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "main": "bun run ./src/index.ts",
+    "main": "bun run ./apps/cli/src/main.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",

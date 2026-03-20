@@ -1,8 +1,12 @@
 import { createCliServices } from '@portfolio/composition';
 
 const main = () => {
-  const services = createCliServices();
-  //
+  createCliServices()
+    .map((ops) => ops.syncHistoricalOrders)
+    .match(
+      () => console.log('done'),
+      (e) => console.error(e),
+    );
 };
 
 main();
