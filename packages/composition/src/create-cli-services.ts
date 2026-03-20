@@ -5,25 +5,24 @@ import {
   createOrderSyncStateManager,
   createTrading212ClientWithCache,
 } from '@portfolio/infra';
+import { createSyncHistoricalOrders } from '../../use-cases/sync-historical-orders';
 
 export const createCliServices = () => {
   const loggerCreator = createLoggerFactory('info');
-  const orderSyncStateManager = createOrderSyncStateManager();
-  const brokerDataManager = createBrokerDataManager();
+  const syncStateManager = createOrderSyncStateManager();
+  const dataManager = createBrokerDataManager();
 
   return createDiskCache({
     cacheFilePath: './data/cache.json',
     expirationPeriodInSeconds: 10,
     loggerCreator,
   })
-    .map((cache) =>
-      createTrading212ClientWithCache(
-        orderSyncStateManager,
-        brokerDataManager,
-        cache,
-      ),
-    )
+    .map((cache) => createTrading212ClientWithCache(cache))
     .map((client) => ({
-      syncHistoricalOrders: client.syncHistoricalOrders,
+      syncHistoricalOrders: createSyncHistoricalOrders({
+        client,
+        dataManager,
+        syncStateManager,
+      }),
     }));
 };

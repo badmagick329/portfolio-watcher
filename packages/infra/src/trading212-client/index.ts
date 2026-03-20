@@ -1,36 +1,19 @@
 import type {
-  AppError,
   BrokerClient,
   BrokerClientWithCache,
-  BrokerDataManager,
   Cache,
   HistoricalOrdersParams,
-  OrderSyncState,
-  OrderSyncStateManager,
-  RateLimitResponse,
-  SyncStepResult,
-  HistoricalOrders,
 } from '@portfolio/domain';
-import {
-  endPoints,
-  resolveEndPoint,
-} from './end-points';
-import type { FetchParams } from './types';
-import {
-  fetchRequest,
-  tryFetchRequestWithRateLimit,
-} from './utils';
 import {
   accountCashSchema,
   accountSummarySchema,
   historicalOrdersSchema,
 } from '@portfolio/domain';
-import { ResultAsync, errAsync, okAsync } from 'neverthrow';
+import { okAsync } from 'neverthrow';
+import { endPoints } from './end-points';
+import { fetchRequest } from './utils';
 
-const createTrading212Client = (
-  syncStateManager: OrderSyncStateManager,
-  brokerDataManager: BrokerDataManager,
-) => {
+const createTrading212Client = () => {
   const creds = Buffer.from(
     `${process.env.API_KEY}:${process.env.API_SECRET}`,
     'utf-8',
@@ -57,90 +40,17 @@ const createTrading212Client = (
       creds,
     });
 
-  const syncHistoricalOrders = (): ResultAsync<SyncStepResult, AppError> => {
-    const runNextStep = (): ResultAsync<SyncStepResult, AppError> =>
-      syncHistoricalOrdersStep().andThen((result) =>
-        result === 'page_processed' || result === 'backfill_completed'
-          ? runNextStep()
-          : okAsync(result),
-      );
-
-    return runNextStep();
-  };
-
-  const syncHistoricalOrdersStep = (): ResultAsync<SyncStepResult, AppError> =>
-    syncStateManager
-      .getState()
-      .andThen((state) => buildHistoricalOrdersRequest(creds, state))
-      .andThen(({ params, state }) =>
-        tryFetchRequestWithRateLimit({
-          endPoint: params.endPoint,
-          schema: params.schema,
-          creds: params.creds,
-        }).map((result) => ({ ...result, state })),
-      )
-      .andThen(({ data, rateLimitResponse, state }) =>
-        persistOrdersAndSyncState({
-          data,
-          rateLimitResponse,
-          state,
-        }),
-      )
-      .orElse((e) =>
-        e.code === 'RATE_LIMIT'
-          ? okAsync('rate_limited' as const)
-          : errAsync(e),
-      );
-
-  const persistOrdersAndSyncState = ({
-    data,
-    rateLimitResponse,
-    state,
-  }: {
-    data?: HistoricalOrders;
-    rateLimitResponse: RateLimitResponse;
-    state?: OrderSyncState;
-  }) => {
-    const nextState = deriveNextSyncState(data, rateLimitResponse, state);
-
-    if (data) {
-      return brokerDataManager
-        .saveHistoricalOrders(data.items)
-        .andThen((ordersSaved: number) =>
-          syncStateManager.setState(nextState).map(() => ordersSaved),
-        )
-        .map((ordersSaved) => {
-          const inPostBackfillSync = Boolean(state?.backfillCompleted);
-          if (ordersSaved === 0 && inPostBackfillSync) {
-            return 'in_sync' as const;
-          }
-
-          return nextState.backfillCompleted && !state?.backfillCompleted
-            ? ('backfill_completed' as const)
-            : ('page_processed' as const);
-        });
-    }
-
-    return syncStateManager
-      .setState(nextState)
-      .map(() => 'rate_limited' as const);
-  };
-
   return {
     fetchAccountCash,
     fetchAccountSummary,
     fetchHistoricalOrders,
-    syncHistoricalOrders,
     endPoints,
+    creds,
   } satisfies BrokerClient;
 };
 
-const createTrading212ClientWithCache = (
-  syncStateManager: OrderSyncStateManager,
-  brokerDataManager: BrokerDataManager,
-  cache: Cache,
-) => {
-  const client = createTrading212Client(syncStateManager, brokerDataManager);
+const createTrading212ClientWithCache = (cache: Cache) => {
+  const client = createTrading212Client();
 
   const fetchAccountCash = () => {
     const saved = cache.typesafeGet(
@@ -179,97 +89,14 @@ const createTrading212ClientWithCache = (
     });
   };
 
-  const syncHistoricalOrders = () => {
-    return client.syncHistoricalOrders();
-  };
-
   return {
     fetchAccountCash,
     fetchAccountSummary,
     fetchHistoricalOrders,
-    syncHistoricalOrders,
     endPoints: client.endPoints,
     resetCache: cache.reset,
+    creds: client.creds,
   } satisfies BrokerClientWithCache;
 };
 
 export { createTrading212Client, createTrading212ClientWithCache };
-
-const buildHistoricalOrdersRequest = (
-  creds: string,
-  state?: OrderSyncState,
-): ResultAsync<
-  {
-    state?: OrderSyncState;
-    params: FetchParams<HistoricalOrders>;
-  },
-  AppError
-> => {
-  const waitUntil = shouldWaitUntil(state);
-  if (waitUntil) {
-    console.warn(
-      `Rate limit reached, try again later at ${waitUntil.toLocaleString()}`,
-    );
-    return errAsync({
-      code: 'RATE_LIMIT',
-      message: `Rate limit reached, try again later at ${waitUntil.toLocaleString()}`,
-    });
-  }
-
-  return okAsync({
-    state,
-    params: {
-      endPoint: getNextHistoricalOrdersEndpoint(state),
-      schema: historicalOrdersSchema,
-      creds,
-    },
-  });
-};
-
-const shouldWaitUntil = (state?: OrderSyncState) => {
-  if (state?.rateLimitRemaining !== 0) {
-    return undefined;
-  }
-  const date = new Date(state.rateLimitResetEpoch * 1000);
-  if (date > new Date()) {
-    return date;
-  }
-};
-
-const getNextHistoricalOrdersEndpoint = (state?: OrderSyncState) => {
-  if (!state?.nextPagePath) {
-    return endPoints.historicalOrders({ limit: '50' });
-  }
-
-  return resolveEndPoint(state.nextPagePath);
-};
-
-const deriveNextSyncState = (
-  data: HistoricalOrders | undefined,
-  rateLimitResponse: RateLimitResponse,
-  state?: OrderSyncState,
-): OrderSyncState => {
-  if (data !== undefined) {
-    return {
-      nextPagePath: data.nextPagePath,
-      backfillCompleted:
-        data.nextPagePath === null || Boolean(state?.backfillCompleted),
-      ...rateLimitResponse,
-    };
-  }
-
-  if (state) {
-    return {
-      nextPagePath: state.nextPagePath,
-      backfillCompleted: state.backfillCompleted,
-      ...rateLimitResponse,
-    };
-  }
-
-  // this should technically never happen?
-  return {
-    nextPagePath: null,
-    backfillCompleted: false,
-    ...rateLimitResponse,
-  };
-};

@@ -1,3 +1,4 @@
+import type { Result, ResultAsync } from 'neverthrow';
 import type {
   AppError,
   HistoricalOrdersParams,
@@ -9,9 +10,9 @@ import type {
   HistoricalOrders,
   HistoricalOrdersItems,
 } from '../types/schemas/api-responses';
-import type { Result, ResultAsync } from 'neverthrow';
 
 interface BrokerClient {
+  creds: string;
   fetchAccountCash: () => ResultAsync<AccountCash, AppError>;
   fetchAccountSummary: () => ResultAsync<AccountSummary, AppError>;
   fetchHistoricalOrders: (
@@ -21,7 +22,6 @@ interface BrokerClient {
     string,
     string | ((params: HistoricalOrdersParams) => string)
   >;
-  syncHistoricalOrders: () => ResultAsync<SyncStepResult, AppError>;
 }
 
 interface ClientCache {
