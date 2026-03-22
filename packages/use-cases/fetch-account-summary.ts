@@ -1,16 +1,6 @@
-import { endPoints } from '@/infra/trading212-client/end-points';
-import { fetchRequest } from '@/infra/trading212-client/utils';
-import { accountSummarySchema } from '@/types/schemas/api-responses';
+import type { BrokerClient } from '@portfolio/domain';
 
-const createFetchAccountSummary = (creds: string) => {
-  const fetchAccountSummary = () =>
-    fetchRequest({
-      endPoint: endPoints.accountSummary,
-      schema: accountSummarySchema,
-      creds,
-    });
-
-  return { fetchAccountSummary };
-};
+const createFetchAccountSummary = (client: BrokerClient) =>
+  client.fetchAccountSummary;
 
 export { createFetchAccountSummary };

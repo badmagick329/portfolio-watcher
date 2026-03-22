@@ -1,6 +1,3 @@
-type AppErrorCodes = 'FILE_IO' | 'API' | 'NETWORK' | 'RATE_LIMIT' | 'DATABASE';
-type AppError = { code: AppErrorCodes; message: string };
-
 type HistoricalOrdersParams = {
   cursor?: string;
   ticker?: string;
@@ -14,6 +11,14 @@ type RateLimitResponse = {
   rateLimitResetEpoch: number;
   rateLimitUsed: number;
 };
+
+type AppError =
+  | { code: 'FILE_IO'; message: string }
+  | { code: 'API'; message: string }
+  | { code: 'NETWORK'; message: string }
+  | { code: 'RATE_LIMIT'; message: string; rateLimitResponse: RateLimitResponse }
+  | { code: 'FORBIDDEN'; message: string }
+  | { code: 'DATABASE'; message: string };
 
 type SyncStepResult =
   | 'rate_limited'

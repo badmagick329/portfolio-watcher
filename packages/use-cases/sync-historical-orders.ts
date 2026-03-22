@@ -1,19 +1,14 @@
-import type { BrokerClient, BrokerDataManager } from '@/core/broker-client';
 import type {
+  AppError,
+  BrokerClient,
+  BrokerDataManager,
+  HistoricalOrders,
+  HistoricalOrdersInput,
+  HistoricalOrdersParams,
   OrderSyncState,
   OrderSyncStateManager,
-} from '@/core/order-sync-state';
-import {
-  endPoints,
-  resolveEndPoint,
-} from '@/infra/trading212-client/end-points';
-import type { FetchParams } from '@/infra/trading212-client/types';
-import { tryFetchRequestWithRateLimit } from '@/infra/trading212-client/utils';
-import type { AppError, RateLimitResponse, SyncStepResult } from '@/types';
-import {
-  type HistoricalOrders,
-  historicalOrdersSchema,
-} from '@/types/schemas/api-responses';
+  SyncStepResult,
+} from '@portfolio/domain';
 import { ResultAsync, errAsync, okAsync } from 'neverthrow';
 
 type Params = {
@@ -21,6 +16,7 @@ type Params = {
   dataManager: BrokerDataManager;
   syncStateManager: OrderSyncStateManager;
 };
+
 const createSyncHistoricalOrders = ({
   client,
   dataManager,
@@ -40,150 +36,97 @@ const createSyncHistoricalOrders = ({
   const syncHistoricalOrdersStep = (): ResultAsync<SyncStepResult, AppError> =>
     syncStateManager
       .getState()
-      .andThen((state) => buildHistoricalOrdersRequest(client.creds, state))
-      .andThen(({ params, state }) =>
-        tryFetchRequestWithRateLimit({
-          endPoint: params.endPoint,
-          schema: params.schema,
-          creds: params.creds,
-        }).map((result) => ({ ...result, state })),
+      .map((state) => ({
+        state,
+        request: getNextHistoricalOrdersRequest(state),
+      }))
+      .andThen(({ request, state }) =>
+        client.fetchHistoricalOrders(request).map((data) => ({ data, state })),
       )
-      .andThen(({ data, rateLimitResponse, state }) =>
-        persistOrdersAndSyncState({
-          data,
-          rateLimitResponse,
-          state,
-        }),
-      )
-      .orElse((e) =>
-        e.code === 'RATE_LIMIT'
-          ? okAsync('rate_limited' as const)
-          : errAsync(e),
-      );
+      .andThen(({ data, state }) => persistOrdersAndSyncState({ data, state }))
+      .orElse((e) => {
+        if (e.code !== 'RATE_LIMIT') {
+          return errAsync(e);
+        }
+
+        return syncStateManager
+          .getState()
+          .andThen((state) =>
+            syncStateManager
+              .setState(deriveRateLimitedSyncState(e, state))
+              .map(() => 'rate_limited' as const),
+          );
+      });
 
   const persistOrdersAndSyncState = ({
     data,
-    rateLimitResponse,
     state,
   }: {
-    data?: HistoricalOrders;
-    rateLimitResponse: RateLimitResponse;
+    data: HistoricalOrders;
     state?: OrderSyncState;
   }) => {
-    const nextState = deriveNextSyncState(data, rateLimitResponse, state);
+    const nextState = deriveNextSyncState(data, state);
 
-    if (data) {
-      return dataManager
-        .saveHistoricalOrders(data.items)
-        .andThen((ordersSaved: number) => {
-          const inPostBackfillSync = Boolean(state?.backfillCompleted);
-          const stateToPersist =
-            ordersSaved === 0 && inPostBackfillSync
-              ? {
-                  ...nextState,
-                  nextPagePath: null,
-                }
-              : nextState;
+    return dataManager
+      .saveHistoricalOrders(data.items)
+      .andThen((ordersSaved: number) => {
+        const inPostBackfillSync = Boolean(state?.backfillCompleted);
+        const stateToPersist =
+          ordersSaved === 0 && inPostBackfillSync
+            ? {
+                ...nextState,
+                nextPagePath: null,
+              }
+            : nextState;
 
-          return syncStateManager.setState(stateToPersist).map(() => ordersSaved);
-        })
-        .map((ordersSaved) => {
-          const inPostBackfillSync = Boolean(state?.backfillCompleted);
-          if (ordersSaved === 0 && inPostBackfillSync) {
-            return 'in_sync' as const;
-          }
+        return syncStateManager.setState(stateToPersist).map(() => ordersSaved);
+      })
+      .map((ordersSaved) => {
+        const inPostBackfillSync = Boolean(state?.backfillCompleted);
+        if (ordersSaved === 0 && inPostBackfillSync) {
+          return 'in_sync' as const;
+        }
 
-          return nextState.backfillCompleted && !state?.backfillCompleted
-            ? ('backfill_completed' as const)
-            : ('page_processed' as const);
-        });
-    }
-
-    return syncStateManager
-      .setState(nextState)
-      .map(() => 'rate_limited' as const);
+        return nextState.backfillCompleted && !state?.backfillCompleted
+          ? ('backfill_completed' as const)
+          : ('page_processed' as const);
+      });
   };
 
   return syncHistoricalOrders;
 };
 
-const buildHistoricalOrdersRequest = (
-  creds: string,
+const getNextHistoricalOrdersRequest = (
   state?: OrderSyncState,
-): ResultAsync<
-  {
-    state?: OrderSyncState;
-    params: FetchParams<HistoricalOrders>;
-  },
-  AppError
-> => {
-  const waitUntil = shouldWaitUntil(state);
-  if (waitUntil) {
-    console.warn(
-      `Rate limit reached, try again later at ${waitUntil.toLocaleString()}`,
-    );
-    return errAsync({
-      code: 'RATE_LIMIT',
-      message: `Rate limit reached, try again later at ${waitUntil.toLocaleString()}`,
-    });
-  }
-
-  return okAsync({
-    state,
-    params: {
-      endPoint: getNextHistoricalOrdersEndpoint(state),
-      schema: historicalOrdersSchema,
-      creds,
-    },
-  });
-};
-
-const shouldWaitUntil = (state?: OrderSyncState) => {
-  if (state?.rateLimitRemaining !== 0) {
-    return undefined;
-  }
-  const date = new Date(state.rateLimitResetEpoch * 1000);
-  if (date > new Date()) {
-    return date;
-  }
-};
-
-const getNextHistoricalOrdersEndpoint = (state?: OrderSyncState) => {
+): HistoricalOrdersInput => {
   if (!state?.nextPagePath) {
-    return endPoints.historicalOrders({ limit: '50' });
+    return { limit: '50' } satisfies HistoricalOrdersParams;
   }
 
-  return resolveEndPoint(state.nextPagePath);
+  return { nextPagePath: state.nextPagePath };
 };
 
 const deriveNextSyncState = (
-  data: HistoricalOrders | undefined,
-  rateLimitResponse: RateLimitResponse,
+  data: HistoricalOrders,
   state?: OrderSyncState,
-): OrderSyncState => {
-  if (data !== undefined) {
-    return {
-      nextPagePath: data.nextPagePath,
-      backfillCompleted:
-        data.nextPagePath === null || Boolean(state?.backfillCompleted),
-      ...rateLimitResponse,
-    };
-  }
+): OrderSyncState => ({
+  nextPagePath: data.nextPagePath,
+  backfillCompleted:
+    data.nextPagePath === null || Boolean(state?.backfillCompleted),
+  rateLimitLimit: state?.rateLimitLimit ?? 0,
+  rateLimitPeriodSec: state?.rateLimitPeriodSec ?? 0,
+  rateLimitRemaining: state?.rateLimitRemaining ?? 0,
+  rateLimitResetEpoch: state?.rateLimitResetEpoch ?? 0,
+  rateLimitUsed: state?.rateLimitUsed ?? 0,
+});
 
-  if (state) {
-    return {
-      nextPagePath: state.nextPagePath,
-      backfillCompleted: state.backfillCompleted,
-      ...rateLimitResponse,
-    };
-  }
-
-  // this should technically never happen?
-  return {
-    nextPagePath: null,
-    backfillCompleted: false,
-    ...rateLimitResponse,
-  };
-};
+const deriveRateLimitedSyncState = (
+  error: Extract<AppError, { code: 'RATE_LIMIT' }>,
+  state?: OrderSyncState,
+): OrderSyncState => ({
+  nextPagePath: state?.nextPagePath ?? null,
+  backfillCompleted: state?.backfillCompleted ?? false,
+  ...error.rateLimitResponse,
+});
 
 export { createSyncHistoricalOrders };

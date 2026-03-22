@@ -11,17 +11,14 @@ import type {
   HistoricalOrdersItems,
 } from '../types/schemas/api-responses';
 
+type HistoricalOrdersInput = HistoricalOrdersParams | { nextPagePath: string };
+
 interface BrokerClient {
-  creds: string;
   fetchAccountCash: () => ResultAsync<AccountCash, AppError>;
   fetchAccountSummary: () => ResultAsync<AccountSummary, AppError>;
   fetchHistoricalOrders: (
-    params: HistoricalOrdersParams,
+    input: HistoricalOrdersInput,
   ) => ResultAsync<HistoricalOrders, AppError>;
-  endPoints: Record<
-    string,
-    string | ((params: HistoricalOrdersParams) => string)
-  >;
 }
 
 interface ClientCache {
@@ -37,4 +34,9 @@ interface BrokerDataManager {
 
 type BrokerClientWithCache = BrokerClient & ClientCache;
 
-export type { BrokerClient, BrokerClientWithCache, BrokerDataManager };
+export type {
+  BrokerClient,
+  BrokerClientWithCache,
+  BrokerDataManager,
+  HistoricalOrdersInput,
+};

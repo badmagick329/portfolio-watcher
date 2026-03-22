@@ -1,3 +1,4 @@
+import type { AppError, SyncStepResult } from '@portfolio/domain';
 import { createCliServices } from '@portfolio/composition';
 
 const main = async () => {
@@ -6,10 +7,10 @@ const main = async () => {
   await services.match(
     (ops) =>
       ops.syncHistoricalOrders().match(
-        (step) => console.log(step, 'done'),
-        (e) => console.error(e),
+        (step: SyncStepResult) => console.log(step, 'done'),
+        (e: AppError) => console.error(e),
       ),
-    (e) => {
+    (e: AppError) => {
       console.error(e);
       return Promise.resolve();
     },

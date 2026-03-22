@@ -5,7 +5,11 @@ import {
   createOrderSyncStateManager,
   createTrading212ClientWithCache,
 } from '@portfolio/infra';
-import { createSyncHistoricalOrders } from '../../use-cases/sync-historical-orders';
+import {
+  createFetchAccountCash,
+  createFetchAccountSummary,
+  createSyncHistoricalOrders,
+} from '@portfolio/use-cases';
 
 export const createCliServices = () => {
   const loggerCreator = createLoggerFactory('info');
@@ -19,6 +23,8 @@ export const createCliServices = () => {
   })
     .map((cache) => createTrading212ClientWithCache(cache))
     .map((client) => ({
+      fetchAccountCash: createFetchAccountCash(client),
+      fetchAccountSummary: createFetchAccountSummary(client),
       syncHistoricalOrders: createSyncHistoricalOrders({
         client,
         dataManager,
