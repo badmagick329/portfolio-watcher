@@ -18,11 +18,13 @@ import {
   orders,
   syncState,
 } from './schema';
+import Database from 'better-sqlite3';
 import { eq, sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { ResultAsync } from 'neverthrow';
 
-const db = drizzle(process.env.SQLITE_DB!);
+const sqlite = new Database(process.env.SQLITE_DB!);
+const db = drizzle(sqlite);
 const wrapDb = <T>(fn: () => T, action: string) =>
   ResultAsync.fromPromise(
     Promise.resolve().then(fn),
