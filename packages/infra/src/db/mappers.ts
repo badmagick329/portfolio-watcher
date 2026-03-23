@@ -6,6 +6,9 @@ import type {
 import type {
   HistoricalOrdersItem,
   HistoricalOrdersItems,
+  WebHistoricalOrder,
+  WebHistoricalOrdersFilters,
+  WebHistoricalOrdersResult,
 } from '@portfolio/domain';
 
 const mapApiOrderItemToDbObjects = (
@@ -133,4 +136,95 @@ const mapDbHistoricalOrdersToApi = (
   })) satisfies HistoricalOrdersItems;
 };
 
-export { mapDbHistoricalOrdersToApi, mapApiOrderItemToDbObjects };
+const mapDbHistoricalOrdersToWeb = (
+  orderRows: HistoricalOrderRow[],
+  taxRows: FillTaxRow[],
+  filters: WebHistoricalOrdersFilters = {},
+): WebHistoricalOrdersResult => {
+  const taxesByFillId = new Map<number, typeof taxRows>();
+  const fillIdsByOrderId = new Map<number, Set<number>>();
+  const ordersById = new Map<number, WebHistoricalOrder>();
+  const items: WebHistoricalOrder[] = [];
+
+  taxRows.forEach((tax) => {
+    const existing = taxesByFillId.get(tax.fillId) ?? [];
+    existing.push(tax);
+    taxesByFillId.set(tax.fillId, existing);
+  });
+
+  orderRows.forEach((row) => {
+    let order = ordersById.get(row.orderId);
+
+    if (!order) {
+      order = {
+        id: row.orderId,
+        strategy: row.strategy,
+        type: row.type,
+        ticker: row.ticker,
+        quantity: row.quantity,
+        filledQuantity: row.filledQuantity,
+        value: row.value,
+        filledValue: row.filledValue,
+        limitPrice: row.limitPrice,
+        status: row.status,
+        currency: row.currency,
+        extendedHours: row.extendedHours,
+        initiatedFrom: row.initiatedFrom,
+        side: row.side,
+        createdAt: row.createdAt,
+        instrument: {
+          ticker: row.instrumentTicker,
+          name: row.instrumentName,
+          isin: row.instrumentIsin,
+          currency: row.instrumentCurrency,
+        },
+        fills: [],
+      };
+
+      ordersById.set(row.orderId, order);
+      fillIdsByOrderId.set(row.orderId, new Set());
+      items.push(order);
+    }
+
+    if (!row.fillId) {
+      return;
+    }
+
+    const seenFillIds = fillIdsByOrderId.get(row.orderId)!;
+    if (seenFillIds.has(row.fillId)) {
+      return;
+    }
+
+    seenFillIds.add(row.fillId);
+    order.fills.push({
+      id: row.fillId,
+      quantity: row.fillQuantity!,
+      price: row.fillPrice!,
+      type: row.fillType!,
+      tradingMethod: row.fillTradingMethod!,
+      filledAt: row.fillFilledAt!,
+      walletImpact: {
+        currency: row.fillWalletCurrency!,
+        netValue: row.fillWalletNetValue!,
+        fxRate: row.fillWalletFxRate!,
+        taxes: (taxesByFillId.get(row.fillId) ?? []).map((tax) => ({
+          name: tax.name,
+          quantity: tax.quantity,
+          currency: tax.currency,
+          chargedAt: tax.chargedAt,
+        })),
+      },
+    });
+  });
+
+  return {
+    items,
+    filters,
+  };
+};
+
+export {
+  mapDbHistoricalOrdersToApi,
+  mapDbHistoricalOrdersToWeb,
+  mapApiOrderItemToDbObjects,
+};

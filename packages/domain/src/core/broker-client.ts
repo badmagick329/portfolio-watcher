@@ -3,6 +3,8 @@ import type {
   AppError,
   HistoricalOrdersParams,
   SyncStepResult,
+  WebHistoricalOrdersFilters,
+  WebHistoricalOrdersResult,
 } from '../types';
 import type {
   AccountCash,
@@ -30,6 +32,9 @@ interface BrokerDataManager {
     historicalOrdersItems: HistoricalOrdersItems,
   ): ResultAsync<number, AppError>;
   getHistoricalOrders(): ResultAsync<HistoricalOrdersItems, AppError>;
+  getHistoricalOrdersForWeb(
+    filters?: WebHistoricalOrdersFilters,
+  ): ResultAsync<WebHistoricalOrdersResult, AppError>;
 }
 
 type BrokerClientWithCache = BrokerClient & ClientCache;
