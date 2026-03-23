@@ -9,9 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@portfolio/composition": "workspace:*",
     "@portfolio/domain": "workspace:*",
-    "@portfolio/infra": "workspace:*",
-    "@portfolio/use-cases": "workspace:*",
     "@remixicon/react": "^4.9.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
