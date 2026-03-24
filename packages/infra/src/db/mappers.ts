@@ -217,6 +217,33 @@ const mapDbHistoricalOrdersToWeb = (
     });
   });
 
+  items.forEach((order) => {
+    const totalFillQuantity = order.fills.reduce(
+      (sum, fill) => sum + fill.quantity,
+      0,
+    );
+    const totalFillValue = order.fills.reduce(
+      (sum, fill) => sum + fill.walletImpact.netValue,
+      0,
+    );
+
+    if (order.quantity === null && order.fills.length > 0) {
+      order.quantity = totalFillQuantity;
+    }
+
+    if (order.filledQuantity === null && order.fills.length > 0) {
+      order.filledQuantity = totalFillQuantity;
+    }
+
+    if (order.value === null && order.fills.length > 0) {
+      order.value = totalFillValue;
+    }
+
+    if (order.filledValue === null && order.fills.length > 0) {
+      order.filledValue = totalFillValue;
+    }
+  });
+
   return {
     items,
     filters,

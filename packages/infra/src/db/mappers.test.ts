@@ -68,7 +68,7 @@ describe('mapDbHistoricalOrdersToWeb', () => {
     });
   });
 
-  test('maps one fill and nests taxes under that fill', () => {
+  test('maps one fill, nests taxes, and backfills missing quantities and values from fills', () => {
     const orderRows: HistoricalOrderRow[] = [
       {
         ...baseOrderRow,
@@ -105,10 +105,10 @@ describe('mapDbHistoricalOrdersToWeb', () => {
           strategy: 'MANUAL',
           type: 'LIMIT',
           ticker: 'AAPL',
-          quantity: null,
-          filledQuantity: null,
-          value: null,
-          filledValue: null,
+          quantity: 2,
+          filledQuantity: 2,
+          value: 200,
+          filledValue: 200,
           limitPrice: null,
           status: 'OPEN',
           currency: 'USD',
@@ -185,6 +185,10 @@ describe('mapDbHistoricalOrdersToWeb', () => {
     );
 
     expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.quantity).toBe(2);
+    expect(result.items[0]?.filledQuantity).toBe(2);
+    expect(result.items[0]?.value).toBe(200);
+    expect(result.items[0]?.filledValue).toBe(200);
     expect(result.items[0]?.fills).toEqual([
       {
         id: 10,
