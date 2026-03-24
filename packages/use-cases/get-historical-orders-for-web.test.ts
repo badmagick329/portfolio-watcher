@@ -16,6 +16,7 @@ describe('getHistoricalOrdersForWeb', () => {
     const dataManager: BrokerDataManager = {
       saveHistoricalOrders: () => okAsync(0),
       getHistoricalOrders: () => okAsync([]),
+      getDistinctInstruments: () => okAsync([]),
       getHistoricalOrdersForWeb: (input = {}) => {
         receivedFilters = input;
 

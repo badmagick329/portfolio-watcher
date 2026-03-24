@@ -3,6 +3,7 @@ import type {
   AppError,
   HistoricalOrdersParams,
   SyncStepResult,
+  WebHistoricalOrderInstrument,
   WebHistoricalOrdersFilters,
   WebHistoricalOrdersResult,
 } from '../types';
@@ -35,6 +36,7 @@ interface BrokerDataManager {
   getHistoricalOrdersForWeb(
     filters?: WebHistoricalOrdersFilters,
   ): ResultAsync<WebHistoricalOrdersResult, AppError>;
+  getDistinctInstruments(): ResultAsync<WebHistoricalOrderInstrument[], AppError>;
 }
 
 type BrokerClientWithCache = BrokerClient & ClientCache;

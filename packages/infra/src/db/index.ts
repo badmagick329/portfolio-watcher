@@ -241,10 +241,26 @@ const createBrokerDataManager = () => {
       return mapDbHistoricalOrdersToWeb(orderRows, taxRows, filters);
     }, 'get historical orders for web');
 
+  const getDistinctInstruments = () =>
+    wrapDb(
+      () =>
+        db
+          .selectDistinct({
+            ticker: instruments.ticker,
+            name: instruments.name,
+            isin: instruments.isin,
+            currency: instruments.currency,
+          })
+          .from(instruments)
+          .all(),
+      'get distinct instruments',
+    );
+
   return {
     saveHistoricalOrders,
     getHistoricalOrders,
     getHistoricalOrdersForWeb,
+    getDistinctInstruments,
   } satisfies BrokerDataManager;
 };
 

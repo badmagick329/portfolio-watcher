@@ -45,6 +45,7 @@ describe('syncHistoricalOrders', () => {
     const dataManager: BrokerDataManager = {
       getHistoricalOrders: () => okAsync([]),
       getHistoricalOrdersForWeb: () => okAsync({ items: [], filters: {} }),
+      getDistinctInstruments: () => okAsync([]),
       saveHistoricalOrders: () => okAsync(0),
     };
 
@@ -82,6 +83,7 @@ describe('syncHistoricalOrders', () => {
     const dataManager: BrokerDataManager = {
       getHistoricalOrders: () => okAsync([]),
       getHistoricalOrdersForWeb: () => okAsync({ items: [], filters: {} }),
+      getDistinctInstruments: () => okAsync([]),
       saveHistoricalOrders: () => okAsync(0),
     };
 
