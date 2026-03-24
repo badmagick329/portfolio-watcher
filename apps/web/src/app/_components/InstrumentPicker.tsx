@@ -1,10 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-import type {
-  WebHistoricalOrder,
-  WebHistoricalOrderInstrument,
-} from '@portfolio/domain';
 import { OrdersList } from '@/app/_components/OrdersList';
 import {
   Combobox,
@@ -17,6 +12,11 @@ import {
   ComboboxItem,
   ComboboxList,
 } from '@/components/ui/combobox';
+import type {
+  WebHistoricalOrder,
+  WebHistoricalOrderInstrument,
+} from '@portfolio/domain';
+import { useState } from 'react';
 
 type InstrumentPickerProps = {
   instruments: WebHistoricalOrderInstrument[];
@@ -31,14 +31,14 @@ export function InstrumentPicker({
     WebHistoricalOrderInstrument[]
   >([]);
   const selectedTickers = new Set(
-    selectedInstruments.map((instrument) => instrument.ticker)
+    selectedInstruments.map((instrument) => instrument.ticker),
   );
-  const filteredOrders = orders.filter((order) =>
-    selectedTickers.has(order.ticker) && order.status === 'FILLED'
+  const filteredOrders = orders.filter(
+    (order) => selectedTickers.has(order.ticker) && order.status === 'FILLED',
   );
 
   return (
-    <div className='w-full max-w-xl space-y-3'>
+    <div className='flex w-full flex-col space-y-3'>
       <Combobox
         multiple
         items={instruments}

@@ -7,7 +7,7 @@ export default async function OrdersExplorer() {
   const instruments = await getDistinctInstrumentsAction();
 
   return (
-    <div className='flex flex-col items-center grow gap-12'>
+    <div className='flex w-full grow flex-col items-stretch gap-12'>
       <InstrumentPicker
         instruments={instruments}
         orders={orders.items.toSorted(
