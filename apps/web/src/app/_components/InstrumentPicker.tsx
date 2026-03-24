@@ -3,12 +3,10 @@
 import { OrdersList } from '@/app/_components/OrdersList';
 import {
   Combobox,
-  ComboboxChip,
-  ComboboxChips,
-  ComboboxChipsInput,
   ComboboxCollection,
   ComboboxContent,
   ComboboxEmpty,
+  ComboboxInput,
   ComboboxItem,
   ComboboxList,
 } from '@/components/ui/combobox';
@@ -27,33 +25,28 @@ export function InstrumentPicker({
   instruments,
   orders,
 }: InstrumentPickerProps) {
-  const [selectedInstruments, setSelectedInstruments] = useState<
-    WebHistoricalOrderInstrument[]
-  >([]);
-  const selectedTickers = new Set(
-    selectedInstruments.map((instrument) => instrument.ticker),
-  );
+  const [selectedInstrument, setSelectedInstrument] =
+    useState<WebHistoricalOrderInstrument | null>(null);
   const filteredOrders = orders.filter(
-    (order) => selectedTickers.has(order.ticker) && order.status === 'FILLED',
+    (order) =>
+      order.ticker === selectedInstrument?.ticker && order.status === 'FILLED',
   );
 
   return (
     <div className='flex w-full flex-col space-y-3'>
       <Combobox
-        multiple
         items={instruments}
-        value={selectedInstruments}
-        onValueChange={(value) => setSelectedInstruments(value)}
+        value={selectedInstrument}
+        onValueChange={(value) => setSelectedInstrument(value)}
         itemToStringLabel={(instrument) => instrument.name}
         itemToStringValue={(instrument) => instrument.ticker}
         isItemEqualToValue={(item, value) => item.isin === value.isin}
       >
-        <ComboboxChips className='w-full'>
-          {selectedInstruments.map((instrument) => (
-            <ComboboxChip key={instrument.isin}>{instrument.name}</ComboboxChip>
-          ))}
-          <ComboboxChipsInput placeholder='Select instruments by name' />
-        </ComboboxChips>
+        <ComboboxInput
+          className='w-full'
+          placeholder='Select instruments by name'
+          showClear
+        />
 
         <ComboboxContent className='w-full'>
           <ComboboxEmpty>No instruments found.</ComboboxEmpty>
@@ -72,18 +65,16 @@ export function InstrumentPicker({
         </ComboboxContent>
       </Combobox>
 
-      {selectedInstruments.length > 0 ? (
+      {selectedInstrument ? (
         <pre>
-          {selectedInstruments.map((instrument) => (
-            <p key={instrument.isin}>
-              {instrument.name} ({instrument.ticker})
-            </p>
-          ))}
+          <p>
+            {selectedInstrument.name} ({selectedInstrument.ticker})
+          </p>
         </pre>
       ) : null}
 
-      {selectedInstruments.length === 0 ? (
-        <p>Select one or more instruments.</p>
+      {!selectedInstrument ? (
+        <p>Select an instrument.</p>
       ) : (
         <OrdersList orders={filteredOrders} />
       )}
