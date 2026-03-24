@@ -1,6 +1,6 @@
 'use server';
 
-import { getDistinctInstruments } from '@/lib/composition';
+import { getDistinctInstruments } from '@/lib/server/composition';
 
 export async function getDistinctInstrumentsAction() {
   const result = await getDistinctInstruments();

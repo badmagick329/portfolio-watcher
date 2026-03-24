@@ -76,7 +76,7 @@ export function InstrumentPicker({
       {!selectedInstrument ? (
         <p>Select an instrument.</p>
       ) : (
-        <OrdersList orders={filteredOrders} />
+        <OrdersList key={selectedInstrument.ticker} orders={filteredOrders} />
       )}
     </div>
   );

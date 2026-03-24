@@ -4,7 +4,7 @@ import type { WebHistoricalOrdersFilters } from '@portfolio/domain';
 import {
   getDistinctInstruments,
   getHistoricalOrdersForWeb,
-} from '@/lib/composition';
+} from '@/lib/server/composition';
 
 export async function getOrdersAction(
   filters: WebHistoricalOrdersFilters = {},
