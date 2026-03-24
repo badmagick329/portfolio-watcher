@@ -5,6 +5,7 @@ import type {
   WebHistoricalOrder,
   WebHistoricalOrderInstrument,
 } from '@portfolio/domain';
+import { OrdersList } from '@/app/_components/OrdersList';
 import {
   Combobox,
   ComboboxChip,
@@ -33,7 +34,7 @@ export function InstrumentPicker({
     selectedInstruments.map((instrument) => instrument.ticker)
   );
   const filteredOrders = orders.filter((order) =>
-    selectedTickers.has(order.ticker)
+    selectedTickers.has(order.ticker) && order.status === 'FILLED'
   );
 
   return (
@@ -81,15 +82,11 @@ export function InstrumentPicker({
         </pre>
       ) : null}
 
-      <pre>
-        {selectedInstruments.length === 0 ? (
-          <p>Select one or more instruments.</p>
-        ) : (
-          filteredOrders.map((order) => (
-            <p key={order.id}>{`${order.createdAt} - ${order.ticker}`}</p>
-          ))
-        )}
-      </pre>
+      {selectedInstruments.length === 0 ? (
+        <p>Select one or more instruments.</p>
+      ) : (
+        <OrdersList orders={filteredOrders} />
+      )}
     </div>
   );
 }
