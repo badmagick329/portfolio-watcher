@@ -16,8 +16,9 @@ const eodhdSearchSchema = z.array(
     Exchange: z.string(),
     Name: z.string(),
     Currency: z.string().nullable().optional(),
-    Isin: z.string().nullable().optional(),
+    ISIN: z.string().nullable().optional(),
     Type: z.string().nullable().optional(),
+    isPrimary: z.boolean().optional(),
   }),
 );
 
@@ -59,7 +60,7 @@ const createEodhdInstrumentPriceClient = () => {
         payload.map(
           (item) =>
             ({
-              isin: item.Isin ?? input.isin,
+              isin: item.ISIN ?? input.isin,
               provider: 'eodhd',
               providerSymbol: item.Code,
               providerExchange: item.Exchange,
@@ -67,6 +68,7 @@ const createEodhdInstrumentPriceClient = () => {
               resolvedName: item.Name,
               resolvedCurrency: item.Currency ?? null,
               resolutionConfidence: 0.8,
+              isPrimary: item.isPrimary ?? false,
             }) satisfies InstrumentPriceResolution,
         ),
       ),

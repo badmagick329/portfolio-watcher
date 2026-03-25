@@ -10,17 +10,26 @@ afterEach(() => {
 });
 
 describe('eodhd instrument price client', () => {
-  test('rejects ambiguous or mismatched results by returning null', async () => {
+  test('prefers an exact isin primary listing when multiple listings exist', async () => {
     process.env.EODHD_API_KEY = 'test-key';
     globalThis.fetch = (async () =>
       new Response(
         JSON.stringify([
           {
-            Code: 'BAD',
+            Code: 'AMD.MX',
+            Exchange: 'MX',
+            Name: 'Advanced Micro Devices Inc',
+            Currency: 'MXN',
+            ISIN: 'US0079031078',
+            isPrimary: false,
+          },
+          {
+            Code: 'AMD',
             Exchange: 'US',
-            Name: 'Completely Different',
+            Name: 'Advanced Micro Devices Inc',
             Currency: 'USD',
-            Isin: 'US0000000000',
+            ISIN: 'US0079031078',
+            isPrimary: true,
           },
         ]),
         { status: 200 },
@@ -30,6 +39,92 @@ describe('eodhd instrument price client', () => {
     const result = await client.resolveByIsin({
       isin: 'US0079031078',
       name: 'Advanced Micro Devices',
+      currency: 'USD',
+    });
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toMatchObject({
+        provider: 'eodhd',
+        providerSymbol: 'AMD',
+        providerExchange: 'US',
+        resolvedCurrency: 'USD',
+        isPrimary: true,
+      });
+    }
+  });
+
+  test('prefers a compatible currency match over a non-primary mismatch', async () => {
+    process.env.EODHD_API_KEY = 'test-key';
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify([
+          {
+            Code: 'ABC.DE',
+            Exchange: 'XETRA',
+            Name: 'Example Corp',
+            Currency: 'EUR',
+            ISIN: 'US0000000001',
+            isPrimary: false,
+          },
+          {
+            Code: 'ABC.LSE',
+            Exchange: 'LSE',
+            Name: 'Example Corp plc',
+            Currency: 'GBX',
+            ISIN: 'US0000000001',
+            isPrimary: false,
+          },
+        ]),
+        { status: 200 },
+      )) as unknown as typeof fetch;
+
+    const client = createEodhdInstrumentPriceClient();
+    const result = await client.resolveByIsin({
+      isin: 'US0000000001',
+      name: 'Example Corp',
+      currency: 'GBP',
+    });
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toMatchObject({
+        providerSymbol: 'ABC.LSE',
+        resolvedCurrency: 'GBX',
+        isPrimary: false,
+      });
+    }
+  });
+
+  test('rejects genuinely ambiguous results by returning null', async () => {
+    process.env.EODHD_API_KEY = 'test-key';
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify([
+          {
+            Code: 'AAA',
+            Exchange: 'US',
+            Name: 'Alpha Holdings',
+            Currency: 'USD',
+            ISIN: 'US1111111111',
+            isPrimary: false,
+          },
+          {
+            Code: 'AAB',
+            Exchange: 'LN',
+            Name: 'Alpha Holdings',
+            Currency: 'USD',
+            ISIN: 'US1111111111',
+            isPrimary: false,
+          },
+        ]),
+        { status: 200 },
+      )) as unknown as typeof fetch;
+
+    const client = createEodhdInstrumentPriceClient();
+    const result = await client.resolveByIsin({
+      isin: 'US1111111111',
+      name: 'Alpha Holdings',
       currency: 'USD',
     });
 

@@ -77,6 +77,7 @@ const createFmpInstrumentPriceClient = () => {
               resolvedName: item.name ?? item.companyName ?? input.name,
               resolvedCurrency: item.currency ?? null,
               resolutionConfidence: 0.9,
+              isPrimary: false,
             }) satisfies InstrumentPriceResolution,
         ),
       ),

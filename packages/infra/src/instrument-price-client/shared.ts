@@ -6,11 +6,15 @@ import type {
 } from '@portfolio/domain';
 import { ResultAsync, errAsync, okAsync } from 'neverthrow';
 
+type ResolutionCandidate = InstrumentPriceResolution & {
+  isPrimary: boolean;
+};
+
 const normalizeName = (value: string) =>
   value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\b(inc|corp|corporation|plc|holdings|group|class)\b/g, ' ')
+    .replace(/\b(inc|corp|corporation|plc|holdings|group|class|ag|nv)\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -32,7 +36,7 @@ const currencyCompatible = (
   );
 };
 
-const scoreResolution = (
+const scoreNameMatch = (
   input: ResolveInstrumentPriceByIsinInput,
   candidate: {
     isin?: string | null;
@@ -76,28 +80,51 @@ const scoreResolution = (
   return overlap >= 0.5 ? overlap : -1;
 };
 
-const pickBestResolution = <T extends InstrumentPriceResolution>(
+const pickBestResolution = (
   input: ResolveInstrumentPriceByIsinInput,
-  candidates: T[],
+  candidates: ResolutionCandidate[],
 ) => {
   const scored = candidates
     .map((candidate) => ({
       candidate,
-      score: scoreResolution(input, {
+      exactIsin: candidate.isin === input.isin ? 1 : 0,
+      primary: candidate.isPrimary ? 1 : 0,
+      currency: currencyCompatible(input.currency, candidate.resolvedCurrency)
+        ? 1
+        : 0,
+      nameScore: scoreNameMatch(input, {
         isin: candidate.isin,
         name: candidate.resolvedName,
         currency: candidate.resolvedCurrency,
       }),
     }))
-    .filter((entry) => entry.score >= 0.5)
-    .sort((left, right) => right.score - left.score);
+    .filter((entry) => entry.nameScore >= 0.5)
+    .sort((left, right) => {
+      if (right.exactIsin !== left.exactIsin) {
+        return right.exactIsin - left.exactIsin;
+      }
+      if (right.primary !== left.primary) {
+        return right.primary - left.primary;
+      }
+      if (right.currency !== left.currency) {
+        return right.currency - left.currency;
+      }
+      return right.nameScore - left.nameScore;
+    });
 
   if (scored.length === 0) {
     return null;
   }
 
   const [best, second] = scored;
-  if (best && second && best.score - second.score < 0.1) {
+  if (
+    best &&
+    second &&
+    best.exactIsin === second.exactIsin &&
+    best.primary === second.primary &&
+    best.currency === second.currency &&
+    Math.abs(best.nameScore - second.nameScore) < 0.05
+  ) {
     return null;
   }
 
@@ -106,7 +133,13 @@ const pickBestResolution = <T extends InstrumentPriceResolution>(
 
 const fetchJson = <T>(
   endPoint: string,
-  schema: { safeParse: (value: unknown) => { success: true; data: T } | { success: false; error: { message: string } } },
+  schema: {
+    safeParse: (
+      value: unknown,
+    ) =>
+      | { success: true; data: T }
+      | { success: false; error: { message: string } };
+  },
 ) =>
   ResultAsync.fromPromise(
     fetch(endPoint),

@@ -128,18 +128,19 @@ const processCandidate = ({
   reResolveFailureThreshold: number;
   summary: InstrumentPriceSyncResult;
 }): ResultAsync<InstrumentPriceSyncResult, AppError> => {
+  const resolutionClients = clients.filter((item) => item.provider === 'eodhd');
   const shouldResolve =
     !candidate.priceSource ||
     candidate.priceSource.consecutiveFailures >= reResolveFailureThreshold;
 
   const resolveSource = shouldResolve
-    ? resolveWithFallback(clients, candidate).andThen((resolved) => {
+    ? resolveWithFallback(resolutionClients, candidate).andThen((resolved) => {
         if (!resolved) {
           return okAsync({
             source: null,
             summary: {
               ...summary,
-              failed: summary.failed + 1,
+              unresolved: summary.unresolved + 1,
             },
           });
         }
@@ -151,9 +152,6 @@ const processCandidate = ({
           summary: {
             ...summary,
             resolved: summary.resolved + 1,
-            fallbackResolved:
-              summary.fallbackResolved +
-              (resolved.provider !== clients[0]?.provider ? 1 : 0),
           },
         }));
       })
@@ -171,7 +169,7 @@ const processCandidate = ({
     if (!client) {
       return okAsync({
         ...nextSummary,
-        failed: nextSummary.failed + 1,
+        fetchFailed: nextSummary.fetchFailed + 1,
       });
     }
 
@@ -193,7 +191,7 @@ const processCandidate = ({
         nowIso,
       }).map(() => ({
         ...nextSummary,
-        failed: nextSummary.failed + 1,
+        fetchFailed: nextSummary.fetchFailed + 1,
       })),
     );
   });
@@ -264,7 +262,14 @@ const toPriceSource = (
   value: InstrumentPriceResolution,
   nowIso: string,
 ): InstrumentPriceSource => ({
-  ...value,
+  isin: value.isin,
+  provider: value.provider,
+  providerSymbol: value.providerSymbol,
+  providerExchange: value.providerExchange,
+  providerMic: value.providerMic,
+  resolvedName: value.resolvedName,
+  resolvedCurrency: value.resolvedCurrency,
+  resolutionConfidence: value.resolutionConfidence,
   lastResolvedAt: nowIso,
   lastFetchStatus: null,
   lastFetchError: null,
@@ -293,9 +298,9 @@ const createInitialSummary = (
   attempted,
   refreshed: 0,
   skipped: 0,
-  failed: 0,
   resolved: 0,
-  fallbackResolved: 0,
+  unresolved: 0,
+  fetchFailed: 0,
 });
 
 export { createSyncInstrumentPrices };

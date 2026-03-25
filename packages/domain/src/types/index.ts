@@ -110,6 +110,7 @@ type InstrumentPriceResolution = {
   resolvedName: string;
   resolvedCurrency: string | null;
   resolutionConfidence: number;
+  isPrimary: boolean;
 };
 
 type InstrumentPriceFetchResult = {
@@ -130,9 +131,9 @@ type InstrumentPriceSyncResult = {
   attempted: number;
   refreshed: number;
   skipped: number;
-  failed: number;
   resolved: number;
-  fallbackResolved: number;
+  unresolved: number;
+  fetchFailed: number;
 };
 
 type RateLimitResponse = {

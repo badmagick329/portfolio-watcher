@@ -21,11 +21,12 @@ const baseCandidate: InstrumentPriceRefreshCandidate = {
 const baseResolution = {
   isin: baseCandidate.isin,
   providerSymbol: 'AMD',
-  providerExchange: 'NASDAQ',
+  providerExchange: 'US',
   providerMic: null,
   resolvedName: 'Advanced Micro Devices',
   resolvedCurrency: 'USD',
   resolutionConfidence: 0.95,
+  isPrimary: true,
 };
 
 const baseFetch = {
@@ -36,12 +37,7 @@ const baseFetch = {
   asOf: '2026-03-24',
 };
 
-const createDataManager = (
-  candidates: InstrumentPriceRefreshCandidate[],
-  params: {
-    latestPrice?: InstrumentPriceSnapshot;
-  } = {},
-) => {
+const createDataManager = (candidates: InstrumentPriceRefreshCandidate[]) => {
   const savedSources: InstrumentPriceSource[] = [];
   const savedSnapshots: InstrumentPriceSnapshot[] = [];
 
@@ -63,7 +59,7 @@ const createDataManager = (
 };
 
 describe('syncInstrumentPrices', () => {
-  test('resolves missing mappings and saves a price snapshot', async () => {
+  test('resolves missing mappings with EODHD and saves a price snapshot', async () => {
     const dataManager = createDataManager([baseCandidate]);
     const clients: InstrumentPriceClient[] = [
       {
@@ -81,7 +77,11 @@ describe('syncInstrumentPrices', () => {
       },
       {
         provider: 'eodhd',
-        resolveByIsin: () => okAsync(null),
+        resolveByIsin: () =>
+          okAsync({
+            ...baseResolution,
+            provider: 'eodhd' as const,
+          }),
         fetchLatestPrice: () =>
           okAsync({
             ...baseFetch,
@@ -90,13 +90,11 @@ describe('syncInstrumentPrices', () => {
       },
     ];
 
-    const syncInstrumentPrices = createSyncInstrumentPrices({
+    const result = await createSyncInstrumentPrices({
       clients,
       dataManager: dataManager.api,
       now: () => new Date('2026-03-25T12:00:00.000Z'),
-    });
-
-    const result = await syncInstrumentPrices();
+    })();
 
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
@@ -104,14 +102,14 @@ describe('syncInstrumentPrices', () => {
         attempted: 1,
         refreshed: 1,
         skipped: 0,
-        failed: 0,
         resolved: 1,
-        fallbackResolved: 0,
+        unresolved: 0,
+        fetchFailed: 0,
       });
     }
     expect(dataManager.savedSources).toHaveLength(2);
     expect(dataManager.savedSnapshots).toHaveLength(1);
-    expect(dataManager.savedSnapshots[0]?.provider).toBe('fmp');
+    expect(dataManager.savedSnapshots[0]?.provider).toBe('eodhd');
   });
 
   test('uses an existing healthy mapping without re-resolving', async () => {
@@ -119,9 +117,9 @@ describe('syncInstrumentPrices', () => {
       ...baseCandidate,
       priceSource: {
         isin: baseCandidate.isin,
-        provider: 'fmp',
+        provider: 'eodhd',
         providerSymbol: 'AMD',
-        providerExchange: 'NASDAQ',
+        providerExchange: 'US',
         providerMic: null,
         resolvedName: 'Advanced Micro Devices',
         resolvedCurrency: 'USD',
@@ -139,19 +137,19 @@ describe('syncInstrumentPrices', () => {
 
     const clients: InstrumentPriceClient[] = [
       {
-        provider: 'fmp',
+        provider: 'eodhd',
         resolveByIsin: () => {
           resolveCalls++;
           return okAsync({
             ...baseResolution,
-            provider: 'fmp' as const,
+            provider: 'eodhd' as const,
           });
         },
         fetchLatestPrice: () => {
           fetchCalls++;
           return okAsync({
             ...baseFetch,
-            provider: 'fmp' as const,
+            provider: 'eodhd' as const,
           });
         },
       },
@@ -167,13 +165,20 @@ describe('syncInstrumentPrices', () => {
     expect(fetchCalls).toBe(1);
   });
 
-  test('falls back from FMP to EODHD when FMP cannot resolve', async () => {
+  test('does not use FMP to resolve new mappings', async () => {
     const dataManager = createDataManager([baseCandidate]);
+    let fmpResolveCalls = 0;
 
     const clients: InstrumentPriceClient[] = [
       {
         provider: 'fmp',
-        resolveByIsin: () => okAsync(null),
+        resolveByIsin: () => {
+          fmpResolveCalls++;
+          return okAsync({
+            ...baseResolution,
+            provider: 'fmp' as const,
+          });
+        },
         fetchLatestPrice: () =>
           okAsync({
             ...baseFetch,
@@ -186,7 +191,6 @@ describe('syncInstrumentPrices', () => {
           okAsync({
             ...baseResolution,
             provider: 'eodhd' as const,
-            providerExchange: 'US',
           }),
         fetchLatestPrice: () =>
           okAsync({
@@ -202,9 +206,7 @@ describe('syncInstrumentPrices', () => {
     })();
 
     expect(result.isOk()).toBe(true);
-    if (result.isOk()) {
-      expect(result.value.fallbackResolved).toBe(1);
-    }
+    expect(fmpResolveCalls).toBe(0);
     expect(dataManager.savedSnapshots[0]?.provider).toBe('eodhd');
   });
 
@@ -235,16 +237,27 @@ describe('syncInstrumentPrices', () => {
       {
         provider: 'fmp',
         resolveByIsin: () => {
-          resolved = true;
-          return okAsync({
-            ...baseResolution,
-            provider: 'fmp' as const,
-          });
+          throw new Error('FMP should not be used for resolution');
         },
         fetchLatestPrice: () =>
           okAsync({
             ...baseFetch,
             provider: 'fmp' as const,
+          }),
+      },
+      {
+        provider: 'eodhd',
+        resolveByIsin: () => {
+          resolved = true;
+          return okAsync({
+            ...baseResolution,
+            provider: 'eodhd' as const,
+          });
+        },
+        fetchLatestPrice: () =>
+          okAsync({
+            ...baseFetch,
+            provider: 'eodhd' as const,
           }),
       },
     ];
@@ -258,7 +271,7 @@ describe('syncInstrumentPrices', () => {
     expect(resolved).toBe(true);
   });
 
-  test('continues when one instrument fails', async () => {
+  test('counts unresolved instruments separately from fetch failures', async () => {
     const dataManager = createDataManager([
       baseCandidate,
       {
@@ -267,20 +280,31 @@ describe('syncInstrumentPrices', () => {
         isin: 'US0378331005',
         name: 'Apple',
       },
+      {
+        ...baseCandidate,
+        ticker: 'MSFT_US_EQ',
+        isin: 'US5949181045',
+        name: 'Microsoft',
+      },
     ]);
     let fetchCount = 0;
 
     const clients: InstrumentPriceClient[] = [
       {
-        provider: 'fmp',
-        resolveByIsin: (input) =>
-          okAsync({
+        provider: 'eodhd',
+        resolveByIsin: (input) => {
+          if (input.isin === 'US5949181045') {
+            return okAsync(null);
+          }
+
+          return okAsync({
             ...baseResolution,
             isin: input.isin,
             resolvedName: input.name,
-            provider: 'fmp' as const,
+            provider: 'eodhd' as const,
             providerSymbol: input.isin === baseCandidate.isin ? 'AMD' : 'AAPL',
-          }),
+          });
+        },
         fetchLatestPrice: (source) => {
           fetchCount++;
           if (source.providerSymbol === 'AMD') {
@@ -292,7 +316,7 @@ describe('syncInstrumentPrices', () => {
 
           return okAsync({
             ...baseFetch,
-            provider: 'fmp' as const,
+            provider: 'eodhd' as const,
             providerSymbol: 'AAPL',
           });
         },
@@ -306,8 +330,14 @@ describe('syncInstrumentPrices', () => {
 
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
-      expect(result.value.failed).toBe(1);
-      expect(result.value.refreshed).toBe(1);
+      expect(result.value).toEqual({
+        attempted: 3,
+        refreshed: 1,
+        skipped: 0,
+        resolved: 2,
+        unresolved: 1,
+        fetchFailed: 1,
+      });
     }
     expect(fetchCount).toBe(2);
     expect(dataManager.savedSnapshots).toHaveLength(1);
