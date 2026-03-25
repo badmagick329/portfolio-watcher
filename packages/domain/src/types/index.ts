@@ -70,6 +70,71 @@ type WebHistoricalOrdersResult = {
   filters: WebHistoricalOrdersFilters;
 };
 
+type InstrumentPriceProvider = 'fmp' | 'eodhd';
+
+type InstrumentPriceType = 'eod' | 'delayed_latest';
+
+type InstrumentPriceSource = {
+  isin: string;
+  provider: InstrumentPriceProvider;
+  providerSymbol: string;
+  providerExchange: string;
+  providerMic: string | null;
+  resolvedName: string;
+  resolvedCurrency: string | null;
+  resolutionConfidence: number;
+  lastResolvedAt: string;
+  lastFetchStatus: 'ok' | 'failed' | null;
+  lastFetchError: string | null;
+  lastFetchAttemptedAt: string | null;
+  consecutiveFailures: number;
+};
+
+type InstrumentPriceSnapshot = {
+  isin: string;
+  provider: InstrumentPriceProvider;
+  providerSymbol: string;
+  currency: string;
+  price: number;
+  priceType: InstrumentPriceType;
+  asOf: string;
+  fetchedAt: string;
+};
+
+type InstrumentPriceResolution = {
+  isin: string;
+  provider: InstrumentPriceProvider;
+  providerSymbol: string;
+  providerExchange: string;
+  providerMic: string | null;
+  resolvedName: string;
+  resolvedCurrency: string | null;
+  resolutionConfidence: number;
+};
+
+type InstrumentPriceFetchResult = {
+  provider: InstrumentPriceProvider;
+  providerSymbol: string;
+  currency: string;
+  price: number;
+  priceType: InstrumentPriceType;
+  asOf: string;
+};
+
+type InstrumentPriceRefreshCandidate = WebHistoricalOrderInstrument & {
+  latestPriceFetchedAt: string | null;
+  priceSource: InstrumentPriceSource | null;
+};
+
+type InstrumentPriceSyncResult = {
+  attempted: number;
+  refreshed: number;
+  skipped: number;
+  failed: number;
+  resolved: number;
+  fallbackResolved: number;
+};
+
 type RateLimitResponse = {
   rateLimitLimit: number;
   rateLimitPeriodSec: number;
@@ -94,6 +159,14 @@ type SyncStepResult =
 
 export type {
   AppError,
+  InstrumentPriceFetchResult,
+  InstrumentPriceProvider,
+  InstrumentPriceRefreshCandidate,
+  InstrumentPriceResolution,
+  InstrumentPriceSnapshot,
+  InstrumentPriceSource,
+  InstrumentPriceSyncResult,
+  InstrumentPriceType,
   HistoricalOrdersParams,
   RateLimitResponse,
   SyncStepResult,

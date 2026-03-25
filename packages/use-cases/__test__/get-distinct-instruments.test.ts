@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { BrokerDataManager } from '@portfolio/domain';
 import { okAsync } from 'neverthrow';
-import { createGetDistinctInstruments } from './get-distinct-instruments';
+import { createGetDistinctInstruments } from '../get-distinct-instruments';
 
 describe('getDistinctInstruments', () => {
   test('calls the data manager and returns its wrapper shape unchanged', async () => {
@@ -30,6 +30,11 @@ describe('getDistinctInstruments', () => {
         calls++;
         return okAsync(instruments);
       },
+      saveInstrumentPriceSource: () => okAsync(undefined),
+      getInstrumentPriceSourceByIsin: () => okAsync(undefined),
+      saveInstrumentPriceSnapshot: () => okAsync(undefined),
+      getLatestInstrumentPriceByIsin: () => okAsync(undefined),
+      listInstrumentsNeedingPriceRefresh: () => okAsync([]),
     };
 
     const getDistinctInstruments = createGetDistinctInstruments(dataManager);

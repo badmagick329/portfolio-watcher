@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import type { Cache } from '@portfolio/domain';
 import { ok } from 'neverthrow';
-import { createTrading212Client, createTrading212ClientWithCache } from './index';
+import {
+  createTrading212Client,
+  createTrading212ClientWithCache,
+} from '../index';
 
 const originalFetch = globalThis.fetch;
 

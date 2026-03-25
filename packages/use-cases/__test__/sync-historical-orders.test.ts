@@ -6,7 +6,7 @@ import type {
   OrderSyncStateManager,
 } from '@portfolio/domain';
 import { errAsync, okAsync } from 'neverthrow';
-import { createSyncHistoricalOrders } from './sync-historical-orders';
+import { createSyncHistoricalOrders } from '../sync-historical-orders';
 
 const baseRateLimit = {
   rateLimitLimit: 10,
@@ -47,6 +47,11 @@ describe('syncHistoricalOrders', () => {
       getHistoricalOrdersForWeb: () => okAsync({ items: [], filters: {} }),
       getDistinctInstruments: () => okAsync([]),
       saveHistoricalOrders: () => okAsync(0),
+      saveInstrumentPriceSource: () => okAsync(undefined),
+      getInstrumentPriceSourceByIsin: () => okAsync(undefined),
+      saveInstrumentPriceSnapshot: () => okAsync(undefined),
+      getLatestInstrumentPriceByIsin: () => okAsync(undefined),
+      listInstrumentsNeedingPriceRefresh: () => okAsync([]),
     };
 
     const syncHistoricalOrders = createSyncHistoricalOrders({
@@ -85,6 +90,11 @@ describe('syncHistoricalOrders', () => {
       getHistoricalOrdersForWeb: () => okAsync({ items: [], filters: {} }),
       getDistinctInstruments: () => okAsync([]),
       saveHistoricalOrders: () => okAsync(0),
+      saveInstrumentPriceSource: () => okAsync(undefined),
+      getInstrumentPriceSourceByIsin: () => okAsync(undefined),
+      saveInstrumentPriceSnapshot: () => okAsync(undefined),
+      getLatestInstrumentPriceByIsin: () => okAsync(undefined),
+      listInstrumentsNeedingPriceRefresh: () => okAsync([]),
     };
 
     const syncHistoricalOrders = createSyncHistoricalOrders({

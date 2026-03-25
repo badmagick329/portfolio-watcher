@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { BrokerDataManager, WebHistoricalOrdersFilters } from '@portfolio/domain';
 import { okAsync } from 'neverthrow';
-import { createGetHistoricalOrdersForWeb } from './get-historical-orders-for-web';
+import { createGetHistoricalOrdersForWeb } from '../get-historical-orders-for-web';
 
 describe('getHistoricalOrdersForWeb', () => {
   test('forwards filters to the data manager and returns its wrapper shape', async () => {
@@ -17,6 +17,11 @@ describe('getHistoricalOrdersForWeb', () => {
       saveHistoricalOrders: () => okAsync(0),
       getHistoricalOrders: () => okAsync([]),
       getDistinctInstruments: () => okAsync([]),
+      saveInstrumentPriceSource: () => okAsync(undefined),
+      getInstrumentPriceSourceByIsin: () => okAsync(undefined),
+      saveInstrumentPriceSnapshot: () => okAsync(undefined),
+      getLatestInstrumentPriceByIsin: () => okAsync(undefined),
+      listInstrumentsNeedingPriceRefresh: () => okAsync([]),
       getHistoricalOrdersForWeb: (input = {}) => {
         receivedFilters = input;
 
