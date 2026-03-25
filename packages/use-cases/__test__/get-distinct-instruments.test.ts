@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import type { BrokerDataManager } from '@portfolio/domain';
 import { okAsync } from 'neverthrow';
 import { createGetDistinctInstruments } from '../get-distinct-instruments';

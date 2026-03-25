@@ -4,6 +4,7 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@portfolio/domain": "workspace:*"
+    "@portfolio/domain": "workspace:*",
+    "neverthrow": "^8.2.0"
   }
 }

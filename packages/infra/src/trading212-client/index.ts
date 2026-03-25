@@ -17,7 +17,7 @@ const createCreds = () =>
   Buffer.from(
     `${process.env.API_KEY}:${process.env.API_SECRET}`,
     'utf-8',
-  ).toBase64();
+  ).toString('base64');
 
 const resolveHistoricalOrdersEndpoint = (input: HistoricalOrdersInput) =>
   'nextPagePath' in input
