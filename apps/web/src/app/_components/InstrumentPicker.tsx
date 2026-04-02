@@ -10,14 +10,14 @@ import {
   ComboboxItem,
   ComboboxList,
 } from '@/components/ui/combobox';
+import type { InstrumentWithStoredPrice } from '@/lib/client/instrument-price';
 import type {
   WebHistoricalOrder,
-  WebHistoricalOrderInstrument,
 } from '@portfolio/domain';
 import { useState } from 'react';
 
 type InstrumentPickerProps = {
-  instruments: WebHistoricalOrderInstrument[];
+  instruments: InstrumentWithStoredPrice[];
   orders: WebHistoricalOrder[];
 };
 
@@ -25,8 +25,10 @@ export function InstrumentPicker({
   instruments,
   orders,
 }: InstrumentPickerProps) {
+  const [instrumentOptions, setInstrumentOptions] =
+    useState<InstrumentWithStoredPrice[]>(instruments);
   const [selectedInstrument, setSelectedInstrument] =
-    useState<WebHistoricalOrderInstrument | null>(null);
+    useState<InstrumentWithStoredPrice | null>(null);
   const filteredOrders = orders.filter(
     (order) =>
       order.ticker === selectedInstrument?.ticker && order.status === 'FILLED',
@@ -35,7 +37,7 @@ export function InstrumentPicker({
   return (
     <div className='flex w-full flex-col space-y-3'>
       <Combobox
-        items={instruments}
+        items={instrumentOptions}
         value={selectedInstrument}
         onValueChange={(value) => setSelectedInstrument(value)}
         itemToStringLabel={(instrument) => instrument.name}
@@ -52,7 +54,7 @@ export function InstrumentPicker({
           <ComboboxEmpty>No instruments found.</ComboboxEmpty>
           <ComboboxList>
             <ComboboxCollection>
-              {(instrument: WebHistoricalOrderInstrument) => (
+              {(instrument: InstrumentWithStoredPrice) => (
                 <ComboboxItem key={instrument.isin} value={instrument}>
                   <span className='truncate'>{instrument.name}</span>
                   <span className='ml-auto text-muted-foreground'>
@@ -76,7 +78,30 @@ export function InstrumentPicker({
       {!selectedInstrument ? (
         <p>Select an instrument.</p>
       ) : (
-        <OrdersList key={selectedInstrument.ticker} orders={filteredOrders} />
+        <OrdersList
+          key={selectedInstrument.ticker}
+          orders={filteredOrders}
+          instrumentCurrency={selectedInstrument.currency}
+          instrumentIsin={selectedInstrument.isin}
+          latestStoredPrice={selectedInstrument.latestStoredPrice}
+          onStoredPriceSaved={(latestStoredPrice) => {
+            setInstrumentOptions((current) =>
+              current.map((instrument) =>
+                instrument.isin === selectedInstrument.isin
+                  ? { ...instrument, latestStoredPrice }
+                  : instrument,
+              ),
+            );
+            setSelectedInstrument((current) =>
+              current
+                ? {
+                    ...current,
+                    latestStoredPrice,
+                  }
+                : current,
+            );
+          }}
+        />
       )}
     </div>
   );

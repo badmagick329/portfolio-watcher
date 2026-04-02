@@ -1,0 +1,28 @@
+import type {
+  InstrumentPriceSnapshot,
+  InstrumentPriceType,
+  WebHistoricalOrderInstrument,
+} from '@portfolio/domain';
+
+type InstrumentStoredPrice = Pick<
+  InstrumentPriceSnapshot,
+  'price' | 'currency' | 'asOf' | 'priceType'
+>;
+
+type InstrumentWithStoredPrice = WebHistoricalOrderInstrument & {
+  latestStoredPrice: InstrumentStoredPrice | null;
+};
+
+type EffectiveInstrumentPrice = {
+  source: 'manual' | 'stored' | 'derived_from_fill';
+  value: number;
+  currency: string;
+  asOf?: string;
+  priceType?: InstrumentPriceType;
+};
+
+export type {
+  EffectiveInstrumentPrice,
+  InstrumentStoredPrice,
+  InstrumentWithStoredPrice,
+};

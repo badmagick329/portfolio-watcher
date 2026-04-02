@@ -3,6 +3,7 @@ import {
   createGetDistinctInstruments,
   createGetHistoricalOrdersForWeb,
   createGetLatestInstrumentPrice,
+  createSaveManualInstrumentPrice,
 } from '@portfolio/use-cases';
 
 export const createWebServices = () => {
@@ -12,5 +13,6 @@ export const createWebServices = () => {
     getDistinctInstruments: createGetDistinctInstruments(dataManager),
     getHistoricalOrdersForWeb: createGetHistoricalOrdersForWeb(dataManager),
     getLatestInstrumentPrice: createGetLatestInstrumentPrice(dataManager),
+    saveManualInstrumentPrice: createSaveManualInstrumentPrice({ dataManager }),
   };
 };

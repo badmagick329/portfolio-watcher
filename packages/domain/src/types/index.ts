@@ -70,9 +70,9 @@ type WebHistoricalOrdersResult = {
   filters: WebHistoricalOrdersFilters;
 };
 
-type InstrumentPriceProvider = 'fmp' | 'eodhd';
+type InstrumentPriceProvider = 'fmp' | 'eodhd' | 'manual';
 
-type InstrumentPriceType = 'eod' | 'delayed_latest';
+type InstrumentPriceType = 'eod' | 'delayed_latest' | 'manual';
 
 type InstrumentPriceSource = {
   isin: string;

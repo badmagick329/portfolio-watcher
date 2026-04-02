@@ -4,5 +4,10 @@ import { createWebServices } from '@portfolio/composition';
 
 const webServices = createWebServices();
 
-export const { getDistinctInstruments, getHistoricalOrdersForWeb, getLatestInstrumentPrice } =
+export const {
+  getDistinctInstruments,
+  getHistoricalOrdersForWeb,
+  getLatestInstrumentPrice,
+  saveManualInstrumentPrice,
+} =
   webServices;

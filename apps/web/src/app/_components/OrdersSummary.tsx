@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { formatSignedCurrencyAmount } from '@/lib/client/orders-list-format';
 
 type OrdersSummaryProps = {
@@ -8,6 +9,10 @@ type OrdersSummaryProps = {
   manualPriceInput: string;
   setManualPriceInput: (value: string) => void;
   instrumentPriceCurrency: string | null;
+  canSavePrice: boolean;
+  isSavingPrice: boolean;
+  onSavePrice: () => void;
+  saveError: string | null;
 };
 
 function OrdersSummary({
@@ -18,6 +23,10 @@ function OrdersSummary({
   manualPriceInput,
   setManualPriceInput,
   instrumentPriceCurrency,
+  canSavePrice,
+  isSavingPrice,
+  onSavePrice,
+  saveError,
 }: OrdersSummaryProps) {
   return (
     <div className='flex flex-col items-center gap-1'>
@@ -46,7 +55,16 @@ function OrdersSummary({
               onChange={(event) => setManualPriceInput(event.target.value)}
             />
             <span>{instrumentPriceCurrency ?? ''}</span>
+            <Button
+              type='button'
+              size='sm'
+              onClick={onSavePrice}
+              disabled={!canSavePrice || isSavingPrice}
+            >
+              {isSavingPrice ? 'Saving...' : 'Save'}
+            </Button>
           </label>
+          {saveError ? <p className='text-sm text-destructive'>{saveError}</p> : null}
         </div>
       ) : null}
     </div>

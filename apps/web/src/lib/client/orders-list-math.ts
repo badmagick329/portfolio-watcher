@@ -1,4 +1,12 @@
-import type { WebHistoricalOrder, WebHistoricalOrderFill } from '@portfolio/domain';
+import type {
+  InstrumentPriceType,
+  WebHistoricalOrder,
+  WebHistoricalOrderFill,
+} from '@portfolio/domain';
+import type {
+  EffectiveInstrumentPrice,
+  InstrumentStoredPrice,
+} from './instrument-price';
 
 type DisplayPriceContext = {
   instrumentPriceCurrency: string;
@@ -19,6 +27,9 @@ type OrdersSummary = {
   manualPriceInput: string;
   netCashflow: number;
   parsedManualPrice: number | null;
+  effectiveInstrumentPrice: EffectiveInstrumentPrice | null;
+  fallbackInstrumentPrice: EffectiveInstrumentPrice | null;
+  storedInstrumentPriceUsed: InstrumentStoredPrice | null;
 };
 
 function getLatestFill(order: WebHistoricalOrder): WebHistoricalOrderFill | null {
@@ -43,6 +54,63 @@ function getDisplayPriceContext(order: WebHistoricalOrder): DisplayPriceContext 
     price: latestFill.price,
     priceToWalletRateDivisor: latestFill.walletImpact.fxRate,
   };
+}
+
+function toTimestamp(value: string | undefined | null) {
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+function parseManualPrice(manualPriceInput: string) {
+  if (manualPriceInput.trim() === '') {
+    return null;
+  }
+
+  const value = Number(manualPriceInput);
+  return Number.isFinite(value) ? value : null;
+}
+
+function chooseStoredPrice({
+  storedPrice,
+  derivedPrice,
+  derivedPriceTimestamp,
+  instrumentPriceCurrency,
+}: {
+  storedPrice: InstrumentStoredPrice | null;
+  derivedPrice: number | null;
+  derivedPriceTimestamp: string | null;
+  instrumentPriceCurrency: string | null;
+}) {
+  if (!storedPrice || derivedPrice === null || !instrumentPriceCurrency) {
+    return null;
+  }
+
+  if (storedPrice.currency !== instrumentPriceCurrency) {
+    return null;
+  }
+
+  const storedTimestamp = toTimestamp(storedPrice.asOf);
+  const derivedTimestamp = toTimestamp(derivedPriceTimestamp);
+
+  if (storedTimestamp === null) {
+    return null;
+  }
+
+  if (derivedTimestamp !== null && storedTimestamp <= derivedTimestamp) {
+    return null;
+  }
+
+  return {
+    source: 'stored' as const,
+    value: storedPrice.price,
+    currency: storedPrice.currency,
+    asOf: storedPrice.asOf,
+    priceType: storedPrice.priceType,
+  } satisfies EffectiveInstrumentPrice;
 }
 
 function getOrderQuantity(order: WebHistoricalOrder) {
@@ -90,6 +158,7 @@ function getWeightedDisplayedOrderPrice(order: WebHistoricalOrder) {
 
 function buildOrdersSummary(
   orders: WebHistoricalOrder[],
+  latestStoredPrice: InstrumentStoredPrice | null = null,
   manualPriceInput = '',
 ): OrdersSummary {
   const netCashflow = orders.reduce((sum, order) => {
@@ -173,12 +242,36 @@ function buildOrdersSummary(
     .filter((value): value is number => value !== null);
   const defaultInstrumentPriceUsed =
     latestPrices.length === 1 ? (latestPrices[0] ?? null) : null;
-  const parsedManualPrice =
-    manualPriceInput.trim() === '' ? null : Number(manualPriceInput);
-  const instrumentPriceUsed =
-    parsedManualPrice !== null && Number.isFinite(parsedManualPrice)
-      ? parsedManualPrice
-      : (defaultInstrumentPriceUsed ?? null);
+  const latestFilledAts = Array.from(positionsByTicker.values())
+    .map((position) => position.latestFilledAt)
+    .filter((value): value is string => value !== null);
+  const latestDerivedPriceTimestamp =
+    latestFilledAts.length === 1 ? (latestFilledAts[0] ?? null) : null;
+  const fallbackInstrumentPrice =
+    defaultInstrumentPriceUsed !== null && instrumentPriceCurrencies.length === 1
+      ? chooseStoredPrice({
+          storedPrice: latestStoredPrice,
+          derivedPrice: defaultInstrumentPriceUsed,
+          derivedPriceTimestamp: latestDerivedPriceTimestamp,
+          instrumentPriceCurrency: instrumentPriceCurrencies[0] ?? null,
+        }) ?? {
+          source: 'derived_from_fill' as const,
+          value: defaultInstrumentPriceUsed,
+          currency: instrumentPriceCurrencies[0]!,
+          asOf: latestDerivedPriceTimestamp ?? undefined,
+          priceType: undefined as InstrumentPriceType | undefined,
+        }
+      : null;
+  const parsedManualPrice = parseManualPrice(manualPriceInput);
+  const effectiveInstrumentPrice =
+    parsedManualPrice !== null && instrumentPriceCurrencies.length === 1
+      ? ({
+          source: 'manual',
+          value: parsedManualPrice,
+          currency: instrumentPriceCurrencies[0]!,
+        } satisfies EffectiveInstrumentPrice)
+      : fallbackInstrumentPrice;
+  const instrumentPriceUsed = effectiveInstrumentPrice?.value ?? null;
   const priceToWalletRateDivisor =
     priceToWalletRateDivisors.length === 1
       ? (priceToWalletRateDivisors[0] ?? null)
@@ -203,11 +296,15 @@ function buildOrdersSummary(
     instrumentPriceUsed,
     priceToWalletRateDivisor,
     manualPriceInput:
-      manualPriceInput === '' && defaultInstrumentPriceUsed !== null
-        ? String(defaultInstrumentPriceUsed)
+      manualPriceInput === '' && fallbackInstrumentPrice !== null
+        ? String(fallbackInstrumentPrice.value)
         : manualPriceInput,
     netCashflow,
     parsedManualPrice,
+    effectiveInstrumentPrice,
+    fallbackInstrumentPrice,
+    storedInstrumentPriceUsed:
+      fallbackInstrumentPrice?.source === 'stored' ? latestStoredPrice : null,
   };
 }
 
@@ -216,6 +313,7 @@ export {
   getDisplayPriceContext,
   getLatestFill,
   getOrderQuantity,
+  parseManualPrice,
   getSignedOrderAmount,
   getWeightedDisplayedOrderPrice,
 };
