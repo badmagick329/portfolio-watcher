@@ -1,48 +1,34 @@
 import { Button } from '@/components/ui/button';
 import { formatSignedCurrencyAmount } from '@/lib/client/orders-list-format';
+import type {
+  OrdersSummaryActions,
+  OrdersSummaryViewModel,
+} from '@/lib/client/orders-summary-view-model';
 
 type OrdersSummaryProps = {
-  walletCurrency: string | null;
-  remainingQuantity: number;
-  estimatedTotal: number;
-  estimatedPositionValue: number;
-  manualPriceInput: string;
-  setManualPriceInput: (value: string) => void;
-  instrumentPriceCurrency: string | null;
-  canSavePrice: boolean;
-  isSavingPrice: boolean;
-  onSavePrice: () => void;
-  saveError: string | null;
+  viewModel: OrdersSummaryViewModel;
+  actions: OrdersSummaryActions;
 };
 
-function OrdersSummary({
-  walletCurrency,
-  remainingQuantity,
-  estimatedTotal,
-  estimatedPositionValue,
-  manualPriceInput,
-  setManualPriceInput,
-  instrumentPriceCurrency,
-  canSavePrice,
-  isSavingPrice,
-  onSavePrice,
-  saveError,
-}: OrdersSummaryProps) {
+function OrdersSummary({ viewModel, actions }: OrdersSummaryProps) {
   return (
     <div className='flex flex-col items-center gap-1'>
       <p>
         Estimated total:{' '}
-        {walletCurrency
-          ? formatSignedCurrencyAmount(estimatedTotal, walletCurrency)
+        {viewModel.totals.walletCurrency
+          ? formatSignedCurrencyAmount(
+              viewModel.totals.estimatedTotal,
+              viewModel.totals.walletCurrency,
+            )
           : 'n/a (mixed currencies)'}
       </p>
-      {walletCurrency && remainingQuantity > 0 ? (
+      {viewModel.priceEditor.show ? (
         <div className='flex flex-col items-center gap-1'>
           <p>
-            Holding: {remainingQuantity} shares | Value used:{' '}
+            Holding: {viewModel.totals.remainingQuantity} shares | Value used:{' '}
             {formatSignedCurrencyAmount(
-              estimatedPositionValue,
-              walletCurrency,
+              viewModel.totals.estimatedPositionValue,
+              viewModel.totals.walletCurrency!,
             )}
           </p>
           <label className='flex items-center gap-2'>
@@ -51,20 +37,26 @@ function OrdersSummary({
               className='w-32 border border-input bg-background px-2 py-1 text-sm'
               type='number'
               step='any'
-              value={manualPriceInput}
-              onChange={(event) => setManualPriceInput(event.target.value)}
+              value={viewModel.priceEditor.input}
+              onChange={(event) => actions.setManualPriceInput(event.target.value)}
             />
-            <span>{instrumentPriceCurrency ?? ''}</span>
+            <span>{viewModel.priceEditor.currency ?? ''}</span>
             <Button
               type='button'
               size='sm'
-              onClick={onSavePrice}
-              disabled={!canSavePrice || isSavingPrice}
+              onClick={actions.savePrice}
+              disabled={
+                !viewModel.priceEditor.canSave || viewModel.priceEditor.isSaving
+              }
             >
-              {isSavingPrice ? 'Saving...' : 'Save'}
+              {viewModel.priceEditor.isSaving ? 'Saving...' : 'Save'}
             </Button>
           </label>
-          {saveError ? <p className='text-sm text-destructive'>{saveError}</p> : null}
+          {viewModel.priceEditor.error ? (
+            <p className='text-sm text-destructive'>
+              {viewModel.priceEditor.error}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

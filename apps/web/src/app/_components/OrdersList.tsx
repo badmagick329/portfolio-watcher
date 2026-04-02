@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { saveManualInstrumentPriceAction } from '@/actions/instrument-prices-action';
 import {
   Table,
   TableBody,
@@ -12,7 +10,7 @@ import {
 } from '@/components/ui/table';
 import type { InstrumentStoredPrice } from '@/lib/client/instrument-price';
 import { buildOrdersListRows } from '@/lib/client/orders-list-rows';
-import { buildOrdersSummary, parseManualPrice } from '@/lib/client/orders-list-math';
+import { useOrdersSummaryController } from '@/lib/client/use-orders-summary-controller';
 import type { WebHistoricalOrder } from '@portfolio/domain';
 import { OrdersSummary } from './OrdersSummary';
 
@@ -31,68 +29,18 @@ export function OrdersList({
   instrumentCurrency,
   onStoredPriceSaved,
 }: OrdersListProps) {
-  const [storedPrice, setStoredPrice] = useState(latestStoredPrice);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [isSavingPrice, startSavingPrice] = useTransition();
-  const initialSummary = buildOrdersSummary(orders, storedPrice);
-  const [manualPriceInput, setManualPriceInput] = useState(
-    initialSummary.manualPriceInput,
-  );
-  const summary = buildOrdersSummary(orders, storedPrice, manualPriceInput);
   const rows = buildOrdersListRows(orders);
-  const parsedManualPrice = parseManualPrice(manualPriceInput);
-  const canSavePrice =
-    parsedManualPrice !== null &&
-    parsedManualPrice > 0 &&
-    instrumentCurrency.trim() !== '';
-
-  const handleSavePrice = () => {
-    if (!canSavePrice || parsedManualPrice === null) {
-      return;
-    }
-
-    setSaveError(null);
-    startSavingPrice(async () => {
-      try {
-        const savedSnapshot = await saveManualInstrumentPriceAction({
-          isin: instrumentIsin,
-          price: parsedManualPrice,
-          currency: instrumentCurrency,
-        });
-
-        setStoredPrice({
-          price: savedSnapshot.price,
-          currency: savedSnapshot.currency,
-          asOf: savedSnapshot.asOf,
-          priceType: savedSnapshot.priceType,
-        });
-        onStoredPriceSaved({
-          price: savedSnapshot.price,
-          currency: savedSnapshot.currency,
-          asOf: savedSnapshot.asOf,
-          priceType: savedSnapshot.priceType,
-        });
-      } catch (error) {
-        setSaveError(error instanceof Error ? error.message : 'Failed to save price.');
-      }
-    });
-  };
+  const { viewModel, actions } = useOrdersSummaryController({
+    orders,
+    latestStoredPrice,
+    instrumentIsin,
+    instrumentCurrency,
+    onStoredPriceSaved,
+  });
 
   return (
     <div className='flex flex-col gap-4 items-center'>
-      <OrdersSummary
-        walletCurrency={summary.walletCurrency}
-        remainingQuantity={summary.remainingQuantity}
-        estimatedTotal={summary.estimatedTotal}
-        estimatedPositionValue={summary.estimatedPositionValue}
-        manualPriceInput={manualPriceInput}
-        setManualPriceInput={setManualPriceInput}
-        instrumentPriceCurrency={summary.instrumentPriceCurrency}
-        canSavePrice={canSavePrice}
-        isSavingPrice={isSavingPrice}
-        onSavePrice={handleSavePrice}
-        saveError={saveError}
-      />
+      <OrdersSummary actions={actions} viewModel={viewModel} />
 
       <Table>
         <TableHeader>
