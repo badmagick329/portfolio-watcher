@@ -1,5 +1,9 @@
 'use client';
 
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+
+import { FillDateRangePicker } from '@/app/_components/FillDateRangePicker';
 import { OrdersList } from '@/app/_components/OrdersList';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +15,11 @@ import {
   ComboboxItem,
   ComboboxList,
 } from '@/components/ui/combobox';
+import {
+  filterOrdersByFilledDateRange,
+  getFillDateRangeFilterFromSearchParams,
+  getSearchParamsWithFillDateRange,
+} from '@/lib/client/fill-date-filter';
 import type { InstrumentWithStoredPrice } from '@/lib/client/instrument-price';
 import {
   createInstrumentSelection,
@@ -21,7 +30,6 @@ import {
   toggleInstrumentSelection,
 } from '@/lib/client/instrument-selection';
 import type { WebHistoricalOrder } from '@portfolio/domain';
-import { useState } from 'react';
 
 type InstrumentPickerProps = {
   instruments: InstrumentWithStoredPrice[];
@@ -32,16 +40,24 @@ export function InstrumentPicker({
   instruments,
   orders,
 }: InstrumentPickerProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [instrumentOptions, setInstrumentOptions] =
     useState<InstrumentWithStoredPrice[]>(instruments);
   const [selection, setSelection] = useState<InstrumentSelectionState>(
     createInstrumentSelection(),
   );
+  const fillDateRangeFilter = getFillDateRangeFilterFromSearchParams(searchParams);
   const isAllMode = selection.mode === 'all';
   const selectedInstruments = instrumentOptions.filter((instrument) =>
     selection.selectedIsins.includes(instrument.isin),
   );
-  const filteredOrders = filterOrdersBySelection(orders, selection);
+  const selectionFilteredOrders = filterOrdersBySelection(orders, selection);
+  const filteredOrders = filterOrdersByFilledDateRange(
+    selectionFilteredOrders,
+    fillDateRangeFilter,
+  );
   const activeInstruments = getActiveInstrumentsFromFilteredOrders(
     instrumentOptions,
     filteredOrders,
@@ -54,6 +70,10 @@ export function InstrumentPicker({
         : selectedInstruments.length > 1
           ? `${selectedInstruments.length} instruments selected`
           : null;
+  const emptyMessage =
+    selection.mode === 'include' && selection.selectedIsins.length === 0
+      ? 'Select one or more instruments.'
+      : 'No instruments match the current filter.';
 
   return (
     <div className='flex w-full flex-col space-y-3'>
@@ -95,6 +115,22 @@ export function InstrumentPicker({
           Exclude
         </Button>
       </div>
+
+      <FillDateRangePicker
+        value={fillDateRangeFilter}
+        onChange={(nextFilter) => {
+          const nextSearchParams = getSearchParamsWithFillDateRange(
+            searchParams,
+            nextFilter,
+          );
+          const queryString = nextSearchParams.toString();
+
+          router.replace(
+            queryString ? `${pathname}?${queryString}` : pathname,
+            { scroll: false },
+          );
+        }}
+      />
 
       <Combobox
         multiple
@@ -164,14 +200,10 @@ export function InstrumentPicker({
       ) : null}
 
       {filteredOrders.length === 0 ? (
-        <p>
-          {selection.mode === 'include'
-            ? 'Select one or more instruments.'
-            : 'No instruments match the current filter.'}
-        </p>
+        <p>{emptyMessage}</p>
       ) : (
         <OrdersList
-          key={`${selection.mode}:${activeInstruments
+          key={`${selection.mode}:${fillDateRangeFilter.filledFrom ?? ''}:${fillDateRangeFilter.filledTo ?? ''}:${activeInstruments
             .map((instrument) => instrument.isin)
             .sort()
             .join(',')}`}
