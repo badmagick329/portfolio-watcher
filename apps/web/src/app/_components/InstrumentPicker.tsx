@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { FillDateRangePicker } from '@/app/_components/FillDateRangePicker';
 import { OrdersList } from '@/app/_components/OrdersList';
@@ -48,6 +48,7 @@ export function InstrumentPicker({
   const searchParams = useSearchParams();
   const [instrumentOptions, setInstrumentOptions] =
     useState<InstrumentWithStoredPrice[]>(instruments);
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
   const urlState = getOrdersViewUrlState(searchParams);
   const selection = {
     mode: urlState.mode,
@@ -108,6 +109,12 @@ export function InstrumentPicker({
     });
   };
 
+  useEffect(() => {
+    if (isAllMode) {
+      setIsComboboxOpen(false);
+    }
+  }, [isAllMode]);
+
   return (
     <div className='flex w-full flex-col space-y-3'>
       <div className='flex gap-2'>
@@ -159,9 +166,11 @@ export function InstrumentPicker({
       />
 
       <Combobox
+        open={isComboboxOpen}
         multiple
         items={instrumentOptions}
         value={selectedInstruments}
+        onOpenChange={setIsComboboxOpen}
         onValueChange={(value) => {
           const selectedIsins = isSingleMode
             ? value.length > 0
@@ -176,6 +185,8 @@ export function InstrumentPicker({
             },
             { resetPage: true },
           );
+
+          setIsComboboxOpen(!isSingleMode);
         }}
         itemToStringLabel={(instrument) => instrument.name}
         itemToStringValue={(instrument) => instrument.ticker}
@@ -192,14 +203,32 @@ export function InstrumentPicker({
           <ComboboxEmpty>No instruments found.</ComboboxEmpty>
           <ComboboxList>
             <ComboboxCollection>
-              {(instrument: InstrumentWithStoredPrice) => (
-                <ComboboxItem key={instrument.isin} value={instrument}>
+              {(instrument: InstrumentWithStoredPrice) => {
+                const isSelected = selection.selectedIsins.includes(instrument.isin);
+
+                return (
+                <ComboboxItem
+                  key={instrument.isin}
+                  value={instrument}
+                  className={
+                    !isSingleMode && isSelected
+                      ? 'bg-accent/60 text-accent-foreground'
+                      : undefined
+                  }
+                >
                   <span className='truncate'>{instrument.name}</span>
-                  <span className='ml-auto text-muted-foreground'>
+                  <span
+                    className={`ml-auto ${
+                      !isSingleMode && isSelected
+                        ? 'text-accent-foreground/80'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
                     {instrument.ticker}
                   </span>
                 </ComboboxItem>
-              )}
+                );
+              }}
             </ComboboxCollection>
           </ComboboxList>
         </ComboboxContent>
