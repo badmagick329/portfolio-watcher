@@ -22,12 +22,14 @@ const baseSummary: OrdersSummary = {
   },
   fallbackInstrumentPrice: {
     source: 'stored',
+    provider: 'manual',
     value: 95,
     currency: 'USD',
     asOf: '2026-04-02T10:15:00.000Z',
     priceType: 'manual',
   },
   storedInstrumentPriceUsed: {
+    provider: 'manual',
     price: 95,
     currency: 'USD',
     asOf: '2026-04-02T10:15:00.000Z',

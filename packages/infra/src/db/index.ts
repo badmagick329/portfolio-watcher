@@ -354,9 +354,9 @@ const createBrokerDataManager = () => {
     wrapDb(() => {
       const providerPriority = sql<number>`
         case
-          when ${instrumentPrices.provider} = 'manual' then 3
-          when ${instrumentPrices.provider} = 't212' then 2
-          else 1
+          when ${instrumentPrices.provider} = 'manual' then 2
+          when ${instrumentPrices.provider} = 't212' then 1
+          else 0
         end
       `;
       const row = db
@@ -373,9 +373,9 @@ const createBrokerDataManager = () => {
         .from(instrumentPrices)
         .where(eq(instrumentPrices.isin, isin))
         .orderBy(
-          desc(providerPriority),
           desc(instrumentPrices.asOf),
           desc(instrumentPrices.fetchedAt),
+          desc(providerPriority),
         )
         .get();
 

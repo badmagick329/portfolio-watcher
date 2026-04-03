@@ -10,14 +10,28 @@ import type { EffectiveInstrumentPrice } from './instrument-price';
 
 const getCurrentPriceSourceLabel = (
   source: EffectiveInstrumentPrice['source'] | null | undefined,
+  provider?: EffectiveInstrumentPrice['provider'] | null,
 ) =>
   source === 'manual'
-    ? 'Manual'
+    ? 'Manual override'
     : source === 'stored'
-      ? 'Stored'
+      ? getStoredPriceProviderLabel(provider)
       : source === 'derived_from_fill'
         ? 'Derived from fill'
         : 'n/a';
+
+const getStoredPriceProviderLabel = (
+  provider?: EffectiveInstrumentPrice['provider'] | null,
+) =>
+  provider === 'manual'
+    ? 'Manual (saved)'
+    : provider === 't212'
+      ? 'Trading 212'
+      : provider === 'eodhd'
+        ? 'EODHD'
+        : provider === 'fmp'
+          ? 'FMP'
+          : 'Stored';
 
 const METRIC_HELP_TEXT = {
   averageCost: 'Weighted average cost per share for the shares you still hold.',

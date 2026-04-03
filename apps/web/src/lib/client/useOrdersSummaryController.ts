@@ -102,6 +102,7 @@ function useOrdersSummaryController({
         });
 
         const nextStoredPrice = {
+          provider: savedSnapshot.provider,
           price: savedSnapshot.price,
           currency: savedSnapshot.currency,
           asOf: savedSnapshot.asOf,

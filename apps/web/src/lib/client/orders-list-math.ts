@@ -128,6 +128,7 @@ function chooseStoredPrice({
 
   return {
     source: 'stored' as const,
+    provider: storedPrice.provider,
     value: storedPrice.price,
     currency: storedPrice.currency,
     asOf: storedPrice.asOf,

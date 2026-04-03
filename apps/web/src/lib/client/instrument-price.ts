@@ -6,7 +6,7 @@ import type {
 
 type InstrumentStoredPrice = Pick<
   InstrumentPriceSnapshot,
-  'price' | 'currency' | 'asOf' | 'priceType'
+  'provider' | 'price' | 'currency' | 'asOf' | 'priceType'
 >;
 
 type InstrumentWithStoredPrice = WebHistoricalOrderInstrument & {
@@ -15,6 +15,7 @@ type InstrumentWithStoredPrice = WebHistoricalOrderInstrument & {
 
 type EffectiveInstrumentPrice = {
   source: 'manual' | 'stored' | 'derived_from_fill';
+  provider?: InstrumentPriceSnapshot['provider'];
   value: number;
   currency: string;
   asOf?: string;

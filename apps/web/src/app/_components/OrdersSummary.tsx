@@ -52,6 +52,7 @@ function OrdersSummary({
 }: OrdersSummaryProps) {
   const currentPriceSourceLabel = getCurrentPriceSourceLabel(
     viewModel.positionMetrics.currentPrice?.source,
+    viewModel.positionMetrics.currentPrice?.provider,
   );
   const estimatedTotalLabel = viewModel.totals.walletCurrency
     ? formatSignedCurrencyAmount(

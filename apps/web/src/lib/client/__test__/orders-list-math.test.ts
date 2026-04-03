@@ -53,6 +53,7 @@ const createOrder = (
 describe('buildOrdersSummary', () => {
   test('uses stored price when it is newer than the latest fill timestamp', () => {
     const storedPrice: InstrumentStoredPrice = {
+      provider: 'eodhd',
       price: 120,
       currency: 'USD',
       asOf: '2026-03-25T00:00:00.000Z',
@@ -63,6 +64,7 @@ describe('buildOrdersSummary', () => {
 
     expect(summary.fallbackInstrumentPrice).toEqual({
       source: 'stored',
+      provider: 'eodhd',
       value: 120,
       currency: 'USD',
       asOf: '2026-03-25T00:00:00.000Z',
@@ -72,6 +74,7 @@ describe('buildOrdersSummary', () => {
     expect(summary.manualPriceInput).toBe('120');
     expect(summary.currentPrice).toEqual({
       source: 'stored',
+      provider: 'eodhd',
       value: 120,
       currency: 'USD',
       asOf: '2026-03-25T00:00:00.000Z',
@@ -86,6 +89,7 @@ describe('buildOrdersSummary', () => {
 
   test('falls back to the latest fill-derived price when stored price is older', () => {
     const storedPrice: InstrumentStoredPrice = {
+      provider: 'eodhd',
       price: 120,
       currency: 'USD',
       asOf: '2026-03-23T00:00:00.000Z',
@@ -106,6 +110,7 @@ describe('buildOrdersSummary', () => {
 
   test('ignores stored price when the currency does not match', () => {
     const storedPrice: InstrumentStoredPrice = {
+      provider: 'eodhd',
       price: 120,
       currency: 'EUR',
       asOf: '2026-03-25T00:00:00.000Z',
@@ -120,6 +125,7 @@ describe('buildOrdersSummary', () => {
 
   test('manual input overrides both stored and fill-derived prices', () => {
     const storedPrice: InstrumentStoredPrice = {
+      provider: 'eodhd',
       price: 120,
       currency: 'USD',
       asOf: '2026-03-25T00:00:00.000Z',
@@ -192,6 +198,7 @@ describe('buildOrdersSummary', () => {
 
   test('a saved manual price becomes the stored fallback after the input is cleared', () => {
     const savedManualPrice: InstrumentStoredPrice = {
+      provider: 'manual',
       price: 130,
       currency: 'USD',
       asOf: '2026-04-02T10:15:00.000Z',
@@ -202,6 +209,7 @@ describe('buildOrdersSummary', () => {
 
     expect(summary.fallbackInstrumentPrice).toEqual({
       source: 'stored',
+      provider: 'manual',
       value: 130,
       currency: 'USD',
       asOf: '2026-04-02T10:15:00.000Z',
@@ -344,6 +352,7 @@ describe('buildOrdersSummary', () => {
       {
         ...metaOrder.instrument,
         latestStoredPrice: {
+          provider: 'eodhd',
           price: 120,
           currency: 'USD',
           asOf: '2026-03-25T00:00:00.000Z',

@@ -8,7 +8,13 @@ import {
 
 describe('orders summary presentation', () => {
   test('maps effective price sources to human labels', () => {
-    expect(getCurrentPriceSourceLabel('manual')).toBe('Manual');
+    expect(getCurrentPriceSourceLabel('manual')).toBe('Manual override');
+    expect(getCurrentPriceSourceLabel('stored', 'manual')).toBe(
+      'Manual (saved)',
+    );
+    expect(getCurrentPriceSourceLabel('stored', 't212')).toBe('Trading 212');
+    expect(getCurrentPriceSourceLabel('stored', 'eodhd')).toBe('EODHD');
+    expect(getCurrentPriceSourceLabel('stored', 'fmp')).toBe('FMP');
     expect(getCurrentPriceSourceLabel('stored')).toBe('Stored');
     expect(getCurrentPriceSourceLabel('derived_from_fill')).toBe(
       'Derived from fill',

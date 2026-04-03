@@ -21,6 +21,7 @@ export default async function OrdersExplorer() {
         ...instrument,
         latestStoredPrice: latestStoredPriceResult.value
           ? {
+              provider: latestStoredPriceResult.value.provider,
               price: latestStoredPriceResult.value.price,
               currency: latestStoredPriceResult.value.currency,
               asOf: latestStoredPriceResult.value.asOf,
