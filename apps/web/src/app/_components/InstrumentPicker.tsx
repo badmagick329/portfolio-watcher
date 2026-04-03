@@ -79,10 +79,16 @@ export function InstrumentPicker({
       : 'No instruments match the current filter.';
   const replaceUrlState = (
     partialState: Partial<typeof urlState>,
+    options: { resetPage?: boolean } = {},
   ) => {
     const nextSearchParams = getSearchParamsWithUpdatedOrdersViewUrlState(
       searchParams,
-      partialState,
+      options.resetPage
+        ? {
+            ...partialState,
+            page: 1,
+          }
+        : partialState,
     );
     const queryString = nextSearchParams.toString();
 
@@ -98,7 +104,7 @@ export function InstrumentPicker({
           type='button'
           size='sm'
           variant={selection.mode === 'all' ? 'default' : 'outline'}
-          onClick={() => replaceUrlState({ mode: 'all' })}
+          onClick={() => replaceUrlState({ mode: 'all' }, { resetPage: true })}
         >
           All
         </Button>
@@ -106,7 +112,9 @@ export function InstrumentPicker({
           type='button'
           size='sm'
           variant={selection.mode === 'include' ? 'default' : 'outline'}
-          onClick={() => replaceUrlState({ mode: 'include' })}
+          onClick={() =>
+            replaceUrlState({ mode: 'include' }, { resetPage: true })
+          }
         >
           Include
         </Button>
@@ -114,7 +122,9 @@ export function InstrumentPicker({
           type='button'
           size='sm'
           variant={selection.mode === 'exclude' ? 'default' : 'outline'}
-          onClick={() => replaceUrlState({ mode: 'exclude' })}
+          onClick={() =>
+            replaceUrlState({ mode: 'exclude' }, { resetPage: true })
+          }
         >
           Exclude
         </Button>
@@ -122,7 +132,9 @@ export function InstrumentPicker({
 
       <FillDateRangePicker
         value={fillDateRangeFilter}
-        onChange={(nextFilter) => replaceUrlState(nextFilter)}
+        onChange={(nextFilter) =>
+          replaceUrlState(nextFilter, { resetPage: true })
+        }
       />
 
       <Combobox
@@ -133,7 +145,7 @@ export function InstrumentPicker({
           replaceUrlState({
             mode: selection.mode === 'all' ? 'include' : selection.mode,
             selectedIsins: value.map((instrument) => instrument.isin),
-          })
+          }, { resetPage: true })
         }
         itemToStringLabel={(instrument) => instrument.name}
         itemToStringValue={(instrument) => instrument.ticker}
@@ -179,7 +191,7 @@ export function InstrumentPicker({
                         (value) => value !== instrument.isin,
                       )
                     : [...selection.selectedIsins, instrument.isin],
-                })
+                }, { resetPage: true })
               }
             >
               {instrument.name}
@@ -202,7 +214,9 @@ export function InstrumentPicker({
             .map((instrument) => instrument.isin)
             .sort()
             .join(',')}`}
+          currentPage={urlState.page}
           orders={filteredOrders}
+          onPageChange={(page) => replaceUrlState({ page })}
           selectedInstruments={activeInstruments}
           onStoredPriceSaved={(isin, latestStoredPrice) => {
             setInstrumentOptions((current) =>

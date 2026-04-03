@@ -7,11 +7,13 @@ type OrdersViewUrlState = {
   selectedIsins: string[];
   filledFrom?: string;
   filledTo?: string;
+  page: number;
 };
 
 const DEFAULT_ORDERS_VIEW_URL_STATE: OrdersViewUrlState = {
   mode: 'include',
   selectedIsins: [],
+  page: 1,
 };
 
 const isOrdersViewMode = (value: string | null): value is OrdersViewMode =>
@@ -60,6 +62,20 @@ const getNormalizedSelectedIsins = (value: string | null) =>
     ),
   );
 
+const getNormalizedPage = (value: string | null) => {
+  if (!value) {
+    return DEFAULT_ORDERS_VIEW_URL_STATE.page;
+  }
+
+  const parsedPage = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsedPage) || parsedPage < 1) {
+    return DEFAULT_ORDERS_VIEW_URL_STATE.page;
+  }
+
+  return parsedPage;
+};
+
 const getOrdersViewUrlState = (
   searchParams: URLSearchParams | { get(name: string): string | null },
 ): OrdersViewUrlState => {
@@ -72,6 +88,7 @@ const getOrdersViewUrlState = (
     selectedIsins: getNormalizedSelectedIsins(searchParams.get('isins')),
     filledFrom: parseQueryDate(filledFrom) ? filledFrom ?? undefined : undefined,
     filledTo: parseQueryDate(filledTo) ? filledTo ?? undefined : undefined,
+    page: getNormalizedPage(searchParams.get('page')),
   };
 };
 
@@ -100,6 +117,8 @@ const getSearchParamsWithOrdersViewUrlState = (
   } else {
     nextSearchParams.delete('filledTo');
   }
+
+  nextSearchParams.set('page', `${state.page}`);
 
   return nextSearchParams;
 };

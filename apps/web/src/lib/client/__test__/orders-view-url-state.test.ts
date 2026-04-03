@@ -19,6 +19,7 @@ describe('orders view url state', () => {
       selectedIsins: ['US001', 'US002'],
       filledFrom: '2026-04-01',
       filledTo: '2026-04-03',
+      page: 1,
     });
   });
 
@@ -28,6 +29,7 @@ describe('orders view url state', () => {
     );
 
     expect(state.mode).toBe('include');
+    expect(state.page).toBe(1);
   });
 
   test('drops empty and duplicate isins', () => {
@@ -36,6 +38,7 @@ describe('orders view url state', () => {
     );
 
     expect(state.selectedIsins).toEqual(['US001', 'US002']);
+    expect(state.page).toBe(1);
   });
 
   test('ignores invalid dates', () => {
@@ -48,7 +51,20 @@ describe('orders view url state', () => {
       selectedIsins: [],
       filledFrom: undefined,
       filledTo: undefined,
+      page: 1,
     });
+  });
+
+  test('parses valid page and defaults invalid page to 1', () => {
+    expect(
+      getOrdersViewUrlState(new URLSearchParams('page=3')).page,
+    ).toBe(3);
+    expect(
+      getOrdersViewUrlState(new URLSearchParams('page=0')).page,
+    ).toBe(1);
+    expect(
+      getOrdersViewUrlState(new URLSearchParams('page=not-a-number')).page,
+    ).toBe(1);
   });
 
   test('serializes state to the expected query params', () => {
@@ -59,11 +75,12 @@ describe('orders view url state', () => {
         selectedIsins: ['US001', 'US002'],
         filledFrom: '2026-04-01',
         filledTo: '2026-04-03',
+        page: 2,
       },
     );
 
     expect(searchParams.toString()).toBe(
-      'foo=bar&mode=all&isins=US001%2CUS002&filledFrom=2026-04-01&filledTo=2026-04-03',
+      'foo=bar&mode=all&isins=US001%2CUS002&filledFrom=2026-04-01&filledTo=2026-04-03&page=2',
     );
   });
 
@@ -73,10 +90,11 @@ describe('orders view url state', () => {
       {
         mode: 'exclude',
         selectedIsins: ['US003'],
+        page: 4,
       },
     );
 
-    expect(searchParams.toString()).toBe('foo=bar&mode=exclude&isins=US003');
+    expect(searchParams.toString()).toBe('foo=bar&mode=exclude&isins=US003&page=4');
   });
 
   test('keeps selected isins when switching to all mode', () => {
@@ -87,6 +105,19 @@ describe('orders view url state', () => {
       },
     );
 
-    expect(searchParams.toString()).toBe('mode=all&isins=US001%2CUS002');
+    expect(searchParams.toString()).toBe('mode=all&isins=US001%2CUS002&page=1');
+  });
+
+  test('updates page without dropping unrelated params', () => {
+    const searchParams = getSearchParamsWithUpdatedOrdersViewUrlState(
+      new URLSearchParams('foo=bar&mode=include&isins=US001&page=2'),
+      {
+        page: 3,
+      },
+    );
+
+    expect(searchParams.toString()).toBe(
+      'foo=bar&mode=include&isins=US001&page=3',
+    );
   });
 });

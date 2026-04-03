@@ -1,5 +1,13 @@
 'use client';
 
+import { useEffect } from 'react';
+
+import {
+  Pagination,
+  PaginationButton,
+  PaginationContent,
+  PaginationInfo,
+} from '@/components/ui/pagination';
 import {
   Table,
   TableBody,
@@ -10,12 +18,15 @@ import {
 } from '@/components/ui/table';
 import type { InstrumentStoredPrice, InstrumentWithStoredPrice } from '@/lib/client/instrument-price';
 import { buildOrdersListRows } from '@/lib/client/orders-list-rows';
+import { getOrdersTablePaginationState } from '@/lib/client/orders-table-pagination';
 import { useOrdersSummaryController } from '@/lib/client/useOrdersSummaryController';
 import type { WebHistoricalOrder } from '@portfolio/domain';
 import { OrdersSummary } from './OrdersSummary';
 
 type OrdersListProps = {
+  currentPage: number;
   orders: WebHistoricalOrder[];
+  onPageChange: (page: number) => void;
   selectedInstruments: InstrumentWithStoredPrice[];
   onStoredPriceSaved: (
     isin: string,
@@ -24,16 +35,25 @@ type OrdersListProps = {
 };
 
 export function OrdersList({
+  currentPage,
   orders,
+  onPageChange,
   selectedInstruments,
   onStoredPriceSaved,
 }: OrdersListProps) {
   const rows = buildOrdersListRows(orders);
+  const pagination = getOrdersTablePaginationState(rows, currentPage);
   const { viewModel, actions } = useOrdersSummaryController({
     orders,
     selectedInstruments,
     onStoredPriceSaved,
   });
+
+  useEffect(() => {
+    if (pagination.totalPages > 0 && pagination.currentPage !== currentPage) {
+      onPageChange(pagination.currentPage);
+    }
+  }, [currentPage, onPageChange, pagination.currentPage, pagination.totalPages]);
 
   return (
     <div className='flex w-full flex-col items-center gap-4'>
@@ -52,7 +72,7 @@ export function OrdersList({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row) => (
+            {pagination.rows.map((row) => (
               <TableRow key={row.id}>
                 <TableCell>{row.date}</TableCell>
                 <TableCell>{row.instrumentName}</TableCell>
@@ -65,6 +85,38 @@ export function OrdersList({
           </TableBody>
         </Table>
       </div>
+
+      {pagination.totalPages > 1 ? (
+        <Pagination className='w-full'>
+          <PaginationContent className='flex-col items-start gap-2 sm:flex-row sm:items-center'>
+            <PaginationInfo>
+              Showing {pagination.pageRowsStart}-{pagination.pageRowsEnd} of{' '}
+              {pagination.totalRows}
+            </PaginationInfo>
+            <div className='flex items-center gap-2 self-end sm:self-auto'>
+              <PaginationButton
+                direction='previous'
+                disabled={pagination.currentPage <= 1}
+                onClick={() => onPageChange(pagination.currentPage - 1)}
+                type='button'
+              >
+                Previous
+              </PaginationButton>
+              <PaginationInfo className='min-w-20 text-center'>
+                Page {pagination.currentPage} of {pagination.totalPages}
+              </PaginationInfo>
+              <PaginationButton
+                direction='next'
+                disabled={pagination.currentPage >= pagination.totalPages}
+                onClick={() => onPageChange(pagination.currentPage + 1)}
+                type='button'
+              >
+                Next
+              </PaginationButton>
+            </div>
+          </PaginationContent>
+        </Pagination>
+      ) : null}
     </div>
   );
 }

@@ -147,6 +147,7 @@ describe('fill date filter', () => {
       selectedIsins: [],
       filledFrom: '2026-04-01',
       filledTo: '2026-04-03',
+      page: 1,
     });
   });
 
@@ -160,7 +161,7 @@ describe('fill date filter', () => {
     );
 
     expect(nextSearchParams.toString()).toBe(
-      'mode=include&filledFrom=2026-04-02&filledTo=2026-04-03',
+      'mode=include&filledFrom=2026-04-02&filledTo=2026-04-03&page=1',
     );
   });
 
@@ -173,6 +174,6 @@ describe('fill date filter', () => {
       },
     );
 
-    expect(nextSearchParams.toString()).toBe('mode=include');
+    expect(nextSearchParams.toString()).toBe('mode=include&page=1');
   });
 });
