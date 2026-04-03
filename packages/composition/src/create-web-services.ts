@@ -1,4 +1,4 @@
-import { createBrokerDataManager } from '@portfolio/infra';
+import { createBrokerDataManager, createTrading212Client } from '@portfolio/infra';
 import {
   createGetDistinctInstruments,
   createGetLatestAccountSummarySnapshot,
@@ -6,9 +6,11 @@ import {
   createGetHistoricalOrdersForWeb,
   createGetLatestInstrumentPrice,
   createSaveManualInstrumentPrice,
+  createSyncCurrentPositionPricesFromT212,
 } from '@portfolio/use-cases';
 
 export const createWebServices = () => {
+  const client = createTrading212Client();
   const dataManager = createBrokerDataManager();
 
   return {
@@ -20,5 +22,9 @@ export const createWebServices = () => {
       createGetLatestCurrentPositionSnapshot(dataManager),
     getLatestInstrumentPrice: createGetLatestInstrumentPrice(dataManager),
     saveManualInstrumentPrice: createSaveManualInstrumentPrice({ dataManager }),
+    syncPortfolioState: createSyncCurrentPositionPricesFromT212({
+      client,
+      dataManager,
+    }),
   };
 };

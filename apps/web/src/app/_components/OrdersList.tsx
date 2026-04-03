@@ -18,7 +18,6 @@ import {
 } from '@/components/ui/table';
 import type {
   AccountSummarySnapshot,
-  InstrumentStoredPrice,
   InstrumentWithStoredPrice,
 } from '@/lib/client/instrument-price';
 import { buildOrdersListRows } from '@/lib/client/orders-list-rows';
@@ -36,10 +35,6 @@ type OrdersListProps = {
   onPageChange: (page: number) => void;
   selectionMode: 'all' | 'single' | 'include' | 'exclude';
   selectedInstruments: InstrumentWithStoredPrice[];
-  onStoredPriceSaved: (
-    isin: string,
-    latestStoredPrice: InstrumentStoredPrice,
-  ) => void;
 };
 
 export function OrdersList({
@@ -50,7 +45,6 @@ export function OrdersList({
   onPageChange,
   selectionMode,
   selectedInstruments,
-  onStoredPriceSaved,
 }: OrdersListProps) {
   const rows = buildOrdersListRows(orders);
   const pagination = getOrdersTablePaginationState(rows, currentPage);
@@ -61,7 +55,6 @@ export function OrdersList({
     orders,
     selectionMode,
     selectedInstruments,
-    onStoredPriceSaved,
   });
 
   useEffect(() => {

@@ -11,5 +11,6 @@ export const {
   getLatestCurrentPositionSnapshot,
   getLatestInstrumentPrice,
   saveManualInstrumentPrice,
+  syncPortfolioState,
 } =
   webServices;

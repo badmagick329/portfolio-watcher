@@ -46,8 +46,6 @@ export function InstrumentPicker({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [instrumentOptions, setInstrumentOptions] =
-    useState<InstrumentWithStoredPrice[]>(instruments);
   const [isComboboxOpen, setIsComboboxOpen] = useState(false);
   const urlState = getOrdersViewUrlState(searchParams);
   const selection = {
@@ -62,7 +60,7 @@ export function InstrumentPicker({
     Boolean(fillDateRangeFilter.filledFrom) || Boolean(fillDateRangeFilter.filledTo);
   const isAllMode = selection.mode === 'all';
   const isSingleMode = selection.mode === 'single';
-  const selectedInstruments = instrumentOptions.filter((instrument) =>
+  const selectedInstruments = instruments.filter((instrument) =>
     selection.selectedIsins.includes(instrument.isin),
   );
   const selectionFilteredOrders = filterOrdersBySelection(orders, selection);
@@ -71,7 +69,7 @@ export function InstrumentPicker({
     fillDateRangeFilter,
   );
   const activeInstruments = getActiveInstrumentsFromFilteredOrders(
-    instrumentOptions,
+    instruments,
     filteredOrders,
   );
   const selectionLabel =
@@ -168,7 +166,7 @@ export function InstrumentPicker({
       <Combobox
         open={isComboboxOpen}
         multiple
-        items={instrumentOptions}
+        items={instruments}
         value={selectedInstruments}
         onOpenChange={setIsComboboxOpen}
         onValueChange={(value) => {
@@ -207,26 +205,26 @@ export function InstrumentPicker({
                 const isSelected = selection.selectedIsins.includes(instrument.isin);
 
                 return (
-                <ComboboxItem
-                  key={instrument.isin}
-                  value={instrument}
-                  className={
-                    !isSingleMode && isSelected
-                      ? 'bg-accent/60 text-accent-foreground'
-                      : undefined
-                  }
-                >
-                  <span className='truncate'>{instrument.name}</span>
-                  <span
-                    className={`ml-auto ${
+                  <ComboboxItem
+                    key={instrument.isin}
+                    value={instrument}
+                    className={
                       !isSingleMode && isSelected
-                        ? 'text-accent-foreground/80'
-                        : 'text-muted-foreground'
-                    }`}
+                        ? 'bg-accent/60 text-accent-foreground'
+                        : undefined
+                    }
                   >
-                    {instrument.ticker}
-                  </span>
-                </ComboboxItem>
+                    <span className='truncate'>{instrument.name}</span>
+                    <span
+                      className={`ml-auto ${
+                        !isSingleMode && isSelected
+                          ? 'text-accent-foreground/80'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      {instrument.ticker}
+                    </span>
+                  </ComboboxItem>
                 );
               }}
             </ComboboxCollection>
@@ -282,15 +280,6 @@ export function InstrumentPicker({
           onPageChange={(page) => replaceUrlState({ page })}
           selectionMode={selection.mode}
           selectedInstruments={activeInstruments}
-          onStoredPriceSaved={(isin, latestStoredPrice) => {
-            setInstrumentOptions((current) =>
-              current.map((instrument) =>
-                instrument.isin === isin
-                  ? { ...instrument, latestStoredPrice }
-                  : instrument,
-              ),
-            );
-          }}
         />
       )}
     </div>

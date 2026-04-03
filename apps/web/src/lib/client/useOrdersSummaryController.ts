@@ -1,13 +1,13 @@
 'use client';
 
-import { saveManualInstrumentPriceAction } from '@/actions/instrument-prices-action';
 import type { WebHistoricalOrder } from '@portfolio/domain';
-import { useState, useTransition } from 'react';
+import { useEffect, useState } from 'react';
 import type {
   AccountSummarySnapshot,
   InstrumentStoredPrice,
   InstrumentWithStoredPrice,
 } from './instrument-price';
+import { useSaveManualInstrumentPriceMutation } from './useSaveManualInstrumentPriceMutation';
 import {
   buildAllInstrumentsSummaryFromAccountSummary,
   buildMultiOrdersSummaryFromCurrentPositions,
@@ -28,10 +28,6 @@ type UseOrdersSummaryControllerParams = {
   orders: WebHistoricalOrder[];
   selectionMode: 'all' | 'single' | 'include' | 'exclude';
   selectedInstruments: InstrumentWithStoredPrice[];
-  onStoredPriceSaved: (
-    isin: string,
-    latestStoredPrice: InstrumentStoredPrice,
-  ) => void;
 };
 
 type UseOrdersSummaryControllerResult = {
@@ -45,7 +41,6 @@ function useOrdersSummaryController({
   orders,
   selectionMode,
   selectedInstruments,
-  onStoredPriceSaved,
 }: UseOrdersSummaryControllerParams): UseOrdersSummaryControllerResult {
   const singleSelectedInstrument =
     selectedInstruments.length === 1 ? (selectedInstruments[0] ?? null) : null;
@@ -59,7 +54,7 @@ function useOrdersSummaryController({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [manualPriceOverrideActive, setManualPriceOverrideActive] =
     useState(false);
-  const [isSavingPrice, startSavingPrice] = useTransition();
+  const saveManualInstrumentPriceMutation = useSaveManualInstrumentPriceMutation();
   const initialSummary =
     mode === 'single'
       ? buildOrdersSummary(orders, latestStoredPrice)
@@ -120,20 +115,23 @@ function useOrdersSummaryController({
     parsedDisplayedManualPrice > 0 &&
     instrumentCurrency.trim() !== '';
 
+  useEffect(() => {
+    setStoredPrice(latestStoredPrice);
+  }, [latestStoredPrice]);
+
   const savePrice = () => {
     if (!canSavePrice || parsedDisplayedManualPrice === null) {
       return;
     }
 
     setSaveError(null);
-    startSavingPrice(async () => {
-      try {
-        const savedSnapshot = await saveManualInstrumentPriceAction({
-          isin: instrumentIsin,
-          price: parsedDisplayedManualPrice,
-          currency: instrumentCurrency,
-        });
-
+    void saveManualInstrumentPriceMutation
+      .mutateAsync({
+        isin: instrumentIsin,
+        price: parsedDisplayedManualPrice,
+        currency: instrumentCurrency,
+      })
+      .then((savedSnapshot) => {
         const nextStoredPrice = {
           provider: savedSnapshot.provider,
           price: savedSnapshot.price,
@@ -144,13 +142,12 @@ function useOrdersSummaryController({
 
         setStoredPrice(nextStoredPrice);
         setManualPriceOverrideActive(false);
-        onStoredPriceSaved(instrumentIsin, nextStoredPrice);
-      } catch (error) {
+      })
+      .catch((error) => {
         setSaveError(
           error instanceof Error ? error.message : 'Failed to save price.',
         );
-      }
-    });
+      });
   };
 
   return {
@@ -158,7 +155,7 @@ function useOrdersSummaryController({
       summary,
       manualPriceInput: displayedManualPriceInput,
       canSavePrice,
-      isSavingPrice,
+      isSavingPrice: saveManualInstrumentPriceMutation.isPending,
       saveError,
       mode,
       selectedInstrumentCount: selectedInstruments.length,
