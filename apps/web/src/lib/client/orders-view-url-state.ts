@@ -1,6 +1,6 @@
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-type OrdersViewMode = 'all' | 'include' | 'exclude';
+type OrdersViewMode = 'all' | 'single' | 'include' | 'exclude';
 
 type OrdersViewUrlState = {
   mode: OrdersViewMode;
@@ -17,7 +17,10 @@ const DEFAULT_ORDERS_VIEW_URL_STATE: OrdersViewUrlState = {
 };
 
 const isOrdersViewMode = (value: string | null): value is OrdersViewMode =>
-  value === 'all' || value === 'include' || value === 'exclude';
+  value === 'all' ||
+  value === 'single' ||
+  value === 'include' ||
+  value === 'exclude';
 
 const parseQueryDate = (value?: string | null) => {
   if (!value || !DATE_PATTERN.test(value)) {
@@ -82,10 +85,19 @@ const getOrdersViewUrlState = (
   const mode = searchParams.get('mode');
   const filledFrom = searchParams.get('filledFrom');
   const filledTo = searchParams.get('filledTo');
+  const normalizedMode = isOrdersViewMode(mode)
+    ? mode
+    : DEFAULT_ORDERS_VIEW_URL_STATE.mode;
+  const normalizedSelectedIsins = getNormalizedSelectedIsins(
+    searchParams.get('isins'),
+  );
 
   return {
-    mode: isOrdersViewMode(mode) ? mode : DEFAULT_ORDERS_VIEW_URL_STATE.mode,
-    selectedIsins: getNormalizedSelectedIsins(searchParams.get('isins')),
+    mode: normalizedMode,
+    selectedIsins:
+      normalizedMode === 'single'
+        ? normalizedSelectedIsins.slice(0, 1)
+        : normalizedSelectedIsins,
     filledFrom: parseQueryDate(filledFrom) ? filledFrom ?? undefined : undefined,
     filledTo: parseQueryDate(filledTo) ? filledTo ?? undefined : undefined,
     page: getNormalizedPage(searchParams.get('page')),

@@ -65,6 +65,16 @@ describe('instrument selection', () => {
     expect(afterSecondToggle.selectedIsins).toEqual([]);
   });
 
+  test('single mode keeps only the most recent selection', () => {
+    const selection = setInstrumentSelectionMode(
+      createInstrumentSelection(['US001']),
+      'single',
+    );
+    const nextSelection = toggleInstrumentSelection(selection, 'US002');
+
+    expect(nextSelection.selectedIsins).toEqual(['US002']);
+  });
+
   test('filters filled orders for all selected instruments', () => {
     const selection = createInstrumentSelection(['US001', 'US002']);
     const orders = [
@@ -90,6 +100,22 @@ describe('instrument selection', () => {
     const selection = setInstrumentSelectionMode(
       createInstrumentSelection(['US001']),
       'exclude',
+    );
+    const orders = [
+      createOrder('US001', 'AAA'),
+      createOrder('US002', 'BBB'),
+      createOrder('US003', 'CCC', 'CANCELLED'),
+    ];
+
+    expect(filterOrdersBySelection(orders, selection).map((order) => order.ticker)).toEqual([
+      'BBB',
+    ]);
+  });
+
+  test('single mode returns only the selected filled instrument', () => {
+    const selection = setInstrumentSelectionMode(
+      createInstrumentSelection(['US002']),
+      'single',
     );
     const orders = [
       createOrder('US001', 'AAA'),

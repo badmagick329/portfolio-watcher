@@ -195,7 +195,13 @@ function OrdersSummary({
                   {formatPriceAsOf(viewModel.positionMetrics.currentPrice?.asOf)}
                 </ItemValue>
               </Item>
-              <div className='space-y-2 border border-border p-3'>
+              <form
+                className='space-y-2 border border-border p-3'
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  actions.savePrice();
+                }}
+              >
                 <div className='text-xs uppercase tracking-wide text-muted-foreground'>
                   <MetricLabelWithTooltip
                     label='Price override'
@@ -222,10 +228,9 @@ function OrdersSummary({
                     </InputGroupAddon>
                   </InputGroup>
                   <Button
-                    type='button'
+                    type='submit'
                     size='sm'
                     className='w-full sm:w-auto'
-                    onClick={actions.savePrice}
                     disabled={
                       !viewModel.priceEditor.canSave ||
                       viewModel.priceEditor.isSaving
@@ -239,7 +244,7 @@ function OrdersSummary({
                     {viewModel.priceEditor.error}
                   </p>
                 ) : null}
-              </div>
+              </form>
             </div>
 
             <Separator className='min-[1300px]:hidden' />

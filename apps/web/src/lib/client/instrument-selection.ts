@@ -29,7 +29,9 @@ const toggleInstrumentSelection = (
   ...selection,
   selectedIsins: selection.selectedIsins.includes(isin)
     ? selection.selectedIsins.filter((value) => value !== isin)
-    : [...selection.selectedIsins, isin],
+    : selection.mode === 'single'
+      ? [isin]
+      : [...selection.selectedIsins, isin],
 });
 
 const filterOrdersBySelection = (
@@ -50,6 +52,16 @@ const filterOrdersBySelection = (
     return filledOrders.filter(
       (order) => !selection.selectedIsins.includes(order.instrument.isin),
     );
+  }
+
+  if (selection.mode === 'single') {
+    if (selection.selectedIsins.length === 0) {
+      return [];
+    }
+
+    const selectedIsin = selection.selectedIsins[0];
+
+    return filledOrders.filter((order) => order.instrument.isin === selectedIsin);
   }
 
   if (selection.selectedIsins.length === 0) {

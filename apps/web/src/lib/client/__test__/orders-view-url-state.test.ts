@@ -23,6 +23,20 @@ describe('orders view url state', () => {
     });
   });
 
+  test('single mode keeps only one selected isin from the url', () => {
+    const state = getOrdersViewUrlState(
+      new URLSearchParams('mode=single&isins=US001,US002&page=2'),
+    );
+
+    expect(state).toEqual({
+      mode: 'single',
+      selectedIsins: ['US001'],
+      filledFrom: undefined,
+      filledTo: undefined,
+      page: 2,
+    });
+  });
+
   test('defaults invalid mode to include', () => {
     const state = getOrdersViewUrlState(
       new URLSearchParams('mode=something-else'),

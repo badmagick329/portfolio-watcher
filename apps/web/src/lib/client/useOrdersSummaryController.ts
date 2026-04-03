@@ -132,7 +132,7 @@ function useOrdersSummaryController({
     actions: {
       setManualPriceInput: (value) => {
         setManualPriceInput(value);
-        setManualPriceOverrideActive(value.trim() !== '');
+        setManualPriceOverrideActive(true);
       },
       savePrice,
     },

@@ -53,6 +53,7 @@ export function InstrumentPicker({
     filledTo: urlState.filledTo,
   };
   const isAllMode = selection.mode === 'all';
+  const isSingleMode = selection.mode === 'single';
   const selectedInstruments = instrumentOptions.filter((instrument) =>
     selection.selectedIsins.includes(instrument.isin),
   );
@@ -74,8 +75,11 @@ export function InstrumentPicker({
           ? `${selectedInstruments.length} instruments selected`
           : null;
   const emptyMessage =
-    selection.mode === 'include' && selection.selectedIsins.length === 0
-      ? 'Select one or more instruments.'
+    (selection.mode === 'include' || selection.mode === 'single') &&
+      selection.selectedIsins.length === 0
+      ? selection.mode === 'single'
+        ? 'Select an instrument.'
+        : 'Select one or more instruments.'
       : 'No instruments match the current filter.';
   const replaceUrlState = (
     partialState: Partial<typeof urlState>,
@@ -111,6 +115,16 @@ export function InstrumentPicker({
         <Button
           type='button'
           size='sm'
+          variant={selection.mode === 'single' ? 'default' : 'outline'}
+          onClick={() =>
+            replaceUrlState({ mode: 'single' }, { resetPage: true })
+          }
+        >
+          Single
+        </Button>
+        <Button
+          type='button'
+          size='sm'
           variant={selection.mode === 'include' ? 'default' : 'outline'}
           onClick={() =>
             replaceUrlState({ mode: 'include' }, { resetPage: true })
@@ -141,12 +155,21 @@ export function InstrumentPicker({
         multiple
         items={instrumentOptions}
         value={selectedInstruments}
-        onValueChange={(value) =>
-          replaceUrlState({
-            mode: selection.mode === 'all' ? 'include' : selection.mode,
-            selectedIsins: value.map((instrument) => instrument.isin),
-          }, { resetPage: true })
-        }
+        onValueChange={(value) => {
+          const selectedIsins = isSingleMode
+            ? value.length > 0
+              ? [value[value.length - 1]!.isin]
+              : []
+            : value.map((instrument) => instrument.isin);
+
+          replaceUrlState(
+            {
+              mode: selection.mode === 'all' ? 'single' : selection.mode,
+              selectedIsins,
+            },
+            { resetPage: true },
+          );
+        }}
         itemToStringLabel={(instrument) => instrument.name}
         itemToStringValue={(instrument) => instrument.ticker}
         isItemEqualToValue={(item, value) => item.isin === value.isin}
@@ -190,7 +213,9 @@ export function InstrumentPicker({
                     ? selection.selectedIsins.filter(
                         (value) => value !== instrument.isin,
                       )
-                    : [...selection.selectedIsins, instrument.isin],
+                    : isSingleMode
+                      ? [instrument.isin]
+                      : [...selection.selectedIsins, instrument.isin],
                 }, { resetPage: true })
               }
             >
