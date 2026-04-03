@@ -6,7 +6,7 @@ type OrdersSummaryViewModel = {
   totals: {
     walletCurrency: string | null;
     remainingQuantity: number;
-    estimatedTotal: number;
+    lifetimePnL: number;
     estimatedPositionValue: number;
     selectedInstrumentCount: number;
   };
@@ -24,6 +24,7 @@ type OrdersSummaryViewModel = {
     currentValue: number | null;
     averageCost: number | null;
     costBasis: number | null;
+    realizedPnL: number | null;
     unrealizedPnL: number | null;
     unrealizedPnLPercent: number | null;
     netCashflow: number;
@@ -56,7 +57,7 @@ const buildOrdersSummaryViewModel = ({
   totals: {
     walletCurrency: summary.walletCurrency,
     remainingQuantity: summary.remainingQuantity,
-    estimatedTotal: summary.estimatedTotal,
+    lifetimePnL: summary.lifetimePnL,
     estimatedPositionValue: summary.estimatedPositionValue,
     selectedInstrumentCount,
   },
@@ -77,6 +78,7 @@ const buildOrdersSummaryViewModel = ({
     currentValue: mode === 'single' ? summary.currentValue : null,
     averageCost: mode === 'single' ? summary.averageCost : null,
     costBasis: mode === 'single' ? summary.costBasis : null,
+    realizedPnL: mode === 'single' ? summary.realizedPnL : null,
     unrealizedPnL: mode === 'single' ? summary.unrealizedPnL : null,
     unrealizedPnLPercent:
       mode === 'single' ? summary.unrealizedPnLPercent : null,

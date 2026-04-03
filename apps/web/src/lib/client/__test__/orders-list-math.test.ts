@@ -372,7 +372,7 @@ describe('buildOrdersSummary', () => {
 
     expect(summary.estimatedPositionValue).toBe(1600);
     expect(summary.estimatedCurrentValue).toBe(1500);
-    expect(summary.estimatedTotal).toBe(-1400);
+    expect(summary.lifetimePnL).toBe(-1400);
     expect(summary.instrumentPriceUsed).toBeNull();
     expect(summary.effectiveInstrumentPrice).toBeNull();
     expect(summary.manualPriceInput).toBe('');

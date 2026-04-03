@@ -24,7 +24,7 @@ type OrdersSummary = {
   walletCurrency: string | null;
   remainingQuantity: number;
   estimatedCurrentValue: number;
-  estimatedTotal: number;
+  lifetimePnL: number;
   defaultInstrumentPriceUsed: number | null;
   instrumentPriceCurrency: string | null;
   estimatedPositionValue: number;
@@ -40,6 +40,7 @@ type OrdersSummary = {
   currentValue: number | null;
   averageCost: number | null;
   costBasis: number | null;
+  realizedPnL: number | null;
   unrealizedPnL: number | null;
   unrealizedPnLPercent: number | null;
 };
@@ -374,7 +375,7 @@ function buildOrdersSummary(
     instrumentPriceUsed !== null && priceToWalletRateDivisor !== null
       ? (remainingQuantity * instrumentPriceUsed) / priceToWalletRateDivisor
       : estimatedCurrentValue;
-  const estimatedTotal = netCashflow + estimatedPositionValue;
+  const lifetimePnL = netCashflow + estimatedPositionValue;
   const costBasis =
     remainingQuantity > 0 && positionCostState.costBasis > 0
       ? positionCostState.costBasis
@@ -386,6 +387,8 @@ function buildOrdersSummary(
   const currentValue = remainingQuantity > 0 ? estimatedPositionValue : null;
   const unrealizedPnL =
     currentValue !== null && costBasis !== null ? currentValue - costBasis : null;
+  const realizedPnL =
+    unrealizedPnL !== null ? lifetimePnL - unrealizedPnL : lifetimePnL;
   const unrealizedPnLPercent =
     unrealizedPnL !== null && costBasis !== null && costBasis > 0
       ? unrealizedPnL / costBasis
@@ -395,7 +398,7 @@ function buildOrdersSummary(
     walletCurrency,
     remainingQuantity,
     estimatedCurrentValue,
-    estimatedTotal,
+    lifetimePnL,
     defaultInstrumentPriceUsed,
     instrumentPriceCurrency:
       instrumentPriceCurrencies.length === 1
@@ -418,6 +421,7 @@ function buildOrdersSummary(
     currentValue,
     averageCost,
     costBasis,
+    realizedPnL,
     unrealizedPnL,
     unrealizedPnLPercent,
   };
@@ -460,7 +464,7 @@ function buildMultiOrdersSummary(
       0,
     ),
     estimatedCurrentValue,
-    estimatedTotal: netCashflow + estimatedPositionValue,
+    lifetimePnL: netCashflow + estimatedPositionValue,
     defaultInstrumentPriceUsed: null,
     instrumentPriceCurrency: null,
     estimatedPositionValue,
@@ -476,6 +480,7 @@ function buildMultiOrdersSummary(
     currentValue: null,
     averageCost: null,
     costBasis: null,
+    realizedPnL: null,
     unrealizedPnL: null,
     unrealizedPnLPercent: null,
   };

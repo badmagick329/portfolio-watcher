@@ -6,7 +6,7 @@ const baseSummary: OrdersSummary = {
   walletCurrency: 'USD',
   remainingQuantity: 10,
   estimatedCurrentValue: 1000,
-  estimatedTotal: 1200,
+  lifetimePnL: 1200,
   defaultInstrumentPriceUsed: 100,
   instrumentPriceCurrency: 'USD',
   estimatedPositionValue: 1000,
@@ -43,6 +43,7 @@ const baseSummary: OrdersSummary = {
   currentValue: 1000,
   averageCost: 95,
   costBasis: 950,
+  realizedPnL: 1150,
   unrealizedPnL: 50,
   unrealizedPnLPercent: 50 / 950,
 };
@@ -64,7 +65,7 @@ describe('buildOrdersSummaryViewModel', () => {
       totals: {
         walletCurrency: 'USD',
         remainingQuantity: 10,
-        estimatedTotal: 1200,
+        lifetimePnL: 1200,
         estimatedPositionValue: 1000,
         selectedInstrumentCount: 1,
       },
@@ -90,6 +91,7 @@ describe('buildOrdersSummaryViewModel', () => {
         currentValue: 1000,
         averageCost: 95,
         costBasis: 950,
+        realizedPnL: 1150,
         unrealizedPnL: 50,
         unrealizedPnLPercent: 50 / 950,
         netCashflow: 200,

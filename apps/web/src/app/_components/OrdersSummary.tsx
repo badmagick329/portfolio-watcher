@@ -54,9 +54,9 @@ function OrdersSummary({
     viewModel.positionMetrics.currentPrice?.source,
     viewModel.positionMetrics.currentPrice?.provider,
   );
-  const estimatedTotalLabel = viewModel.totals.walletCurrency
+  const lifetimePnLLabel = viewModel.totals.walletCurrency
     ? formatSignedCurrencyAmount(
-        viewModel.totals.estimatedTotal,
+        viewModel.totals.lifetimePnL,
         viewModel.totals.walletCurrency,
       )
     : 'n/a (mixed currencies)';
@@ -66,10 +66,18 @@ function OrdersSummary({
         viewModel.totals.walletCurrency,
       )
     : 'n/a (mixed currencies)';
-  const estimatedTotalClassName =
-    viewModel.totals.estimatedTotal > 0
+  const lifetimePnLClassName =
+    viewModel.totals.lifetimePnL > 0
       ? 'text-green-600 dark:text-green-400'
-      : viewModel.totals.estimatedTotal < 0
+      : viewModel.totals.lifetimePnL < 0
+        ? 'text-red-600 dark:text-red-400'
+        : '';
+  const realizedPnLClassName =
+    viewModel.positionMetrics.realizedPnL !== null &&
+    viewModel.positionMetrics.realizedPnL > 0
+      ? 'text-green-600 dark:text-green-400'
+      : viewModel.positionMetrics.realizedPnL !== null &&
+          viewModel.positionMetrics.realizedPnL < 0
         ? 'text-red-600 dark:text-red-400'
         : '';
   const unrealizedPnLClassName =
@@ -103,15 +111,15 @@ function OrdersSummary({
         <CardAction className='w-full sm:w-auto'>
           <div className='text-left sm:text-right'>
             <div className='text-xs uppercase tracking-wide text-muted-foreground'>
-              Estimated total
+              Lifetime P/L
             </div>
             <div
               className={cn(
                 'font-heading text-lg font-semibold',
-                estimatedTotalClassName,
+                lifetimePnLClassName,
               )}
             >
-              {estimatedTotalLabel}
+              {lifetimePnLLabel}
             </div>
           </div>
         </CardAction>
@@ -296,6 +304,22 @@ function OrdersSummary({
                 <ItemValue>
                   {formatUnsignedCurrencyAmount(
                     viewModel.positionMetrics.costBasis,
+                    viewModel.totals.walletCurrency!,
+                  )}
+                </ItemValue>
+              </Item>
+              <Item>
+                <ItemContent>
+                  <ItemTitle>
+                    <MetricLabelWithTooltip
+                      label='Realized P/L'
+                      helpText={METRIC_HELP_TEXT.realizedPnL}
+                    />
+                  </ItemTitle>
+                </ItemContent>
+                <ItemValue className={realizedPnLClassName}>
+                  {formatSignedCurrencyAmount(
+                    viewModel.positionMetrics.realizedPnL,
                     viewModel.totals.walletCurrency!,
                   )}
                 </ItemValue>

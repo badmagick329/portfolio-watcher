@@ -36,6 +36,8 @@ const getStoredPriceProviderLabel = (
 const METRIC_HELP_TEXT = {
   averageCost: 'Weighted average cost per share for the shares you still hold.',
   costBasis: 'Total amount allocated to the shares you still hold.',
+  realizedPnL:
+    'Profit or loss already locked in from earlier sells for this instrument.',
   unrealizedPnL:
     'Current value minus cost basis for the shares you still hold.',
   netCashflow: 'Historical money in and out across all buys and sells.',
