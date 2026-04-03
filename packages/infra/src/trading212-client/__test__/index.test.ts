@@ -41,6 +41,30 @@ const historicalOrdersPayload = {
   nextPagePath: null,
 };
 
+const positionsPayload = [
+  {
+    averagePricePaid: 295.12,
+    createdAt: '2026-04-03T18:00:00Z',
+    currentPrice: 300.61,
+    instrument: {
+      ticker: 'AXP_US_EQ',
+      name: 'American Express',
+      isin: 'US0258161092',
+      currencyCode: 'USD',
+    },
+    quantity: 1,
+    quantityAvailableForTrading: 1,
+    quantityInPies: 0,
+    walletImpact: {
+      invested: 199,
+      marketValue: 197.85,
+      result: -1.15,
+      averagePrice: 227.17,
+      currentPrice: 225.86,
+    },
+  },
+];
+
 describe('trading212 client', () => {
   test('fetchHistoricalOrders resolves relative nextPagePath', async () => {
     const requestedUrls: string[] = [];
@@ -107,6 +131,24 @@ describe('trading212 client', () => {
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error.code).toBe('RATE_LIMIT');
+    }
+  });
+
+  test('fetchPositions returns current positions with embedded instrument identity', async () => {
+    globalThis.fetch = ((async () =>
+      new Response(JSON.stringify(positionsPayload), {
+        status: 200,
+      })) as unknown) as typeof fetch;
+
+    const client = createTrading212Client();
+    const result = await client.fetchPositions();
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toEqual(positionsPayload);
+      expect(result.value[0]?.instrument.isin).toBe('US0258161092');
+      expect(result.value[0]?.instrument.ticker).toBe('AXP_US_EQ');
+      expect(result.value[0]?.currentPrice).toBe(300.61);
     }
   });
 });

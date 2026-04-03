@@ -12,6 +12,7 @@ import type {
 } from '../types';
 import type {
   AccountCash,
+  Positions,
   AccountSummary,
   HistoricalOrders,
   HistoricalOrdersItems,
@@ -25,6 +26,7 @@ interface BrokerClient {
   fetchHistoricalOrders: (
     input: HistoricalOrdersInput,
   ) => ResultAsync<HistoricalOrders, AppError>;
+  fetchPositions: () => ResultAsync<Positions, AppError>;
 }
 
 interface ClientCache {

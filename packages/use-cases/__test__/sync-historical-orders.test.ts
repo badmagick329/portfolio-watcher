@@ -22,6 +22,7 @@ const createClient = (
   fetchAccountCash: () => okAsync({} as never),
   fetchAccountSummary: () => okAsync({} as never),
   fetchHistoricalOrders: () => okAsync({ items: [], nextPagePath: null }),
+  fetchPositions: () => okAsync([]),
   ...overrides,
 });
 

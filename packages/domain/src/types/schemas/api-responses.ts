@@ -83,11 +83,39 @@ const historicalOrdersSchema = z.object({
   nextPagePath: z.string().nullable(),
 });
 
+const positionSchema = z
+  .object({
+    averagePricePaid: z.number().optional(),
+    createdAt: z.string().optional(),
+    currentPrice: z.number(),
+    instrument: z
+      .object({
+        ticker: z.string(),
+        name: z.string(),
+        isin: z.string(),
+        currency: z.string().optional(),
+        currencyCode: z.string().optional(),
+      })
+      .transform((instrument) => ({
+        ...instrument,
+        currencyCode: instrument.currencyCode ?? instrument.currency ?? '',
+      })),
+    quantity: z.number().optional(),
+    quantityAvailableForTrading: z.number().optional(),
+    quantityInPies: z.number().optional(),
+    walletImpact: z.unknown().optional(),
+  })
+  .passthrough();
+
+const positionsSchema = z.array(positionSchema);
+
 type AccountCash = z.infer<typeof accountCashSchema>;
 type AccountSummary = z.infer<typeof accountSummarySchema>;
 type HistoricalOrdersItem = z.infer<typeof historicalOrdersItemSchema>;
 type HistoricalOrdersItems = z.infer<typeof historicalOrdersItemsSchema>;
 type HistoricalOrders = z.infer<typeof historicalOrdersSchema>;
+type Position = z.infer<typeof positionSchema>;
+type Positions = z.infer<typeof positionsSchema>;
 
 export type {
   AccountCash,
@@ -95,6 +123,8 @@ export type {
   HistoricalOrders,
   HistoricalOrdersItem,
   HistoricalOrdersItems,
+  Position,
+  Positions,
 };
 export {
   accountCashSchema,
@@ -102,4 +132,6 @@ export {
   historicalOrdersSchema,
   historicalOrdersItemSchema,
   historicalOrdersItemsSchema,
+  positionSchema,
+  positionsSchema,
 };

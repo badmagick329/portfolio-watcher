@@ -8,6 +8,7 @@ import {
   accountCashSchema,
   accountSummarySchema,
   historicalOrdersSchema,
+  positionsSchema,
 } from '@portfolio/domain';
 import { okAsync } from 'neverthrow';
 import { endPoints, resolveEndPoint } from './end-points';
@@ -48,10 +49,18 @@ const createTrading212Client = () => {
       creds,
     });
 
+  const fetchPositions = () =>
+    request({
+      endPoint: endPoints.positions,
+      schema: positionsSchema,
+      creds,
+    });
+
   return {
     fetchAccountCash,
     fetchAccountSummary,
     fetchHistoricalOrders,
+    fetchPositions,
   } satisfies BrokerClient;
 };
 
@@ -92,10 +101,21 @@ const createTrading212ClientWithCache = (cache: Cache) => {
     });
   };
 
+  const fetchPositions = () => {
+    const saved = cache.typesafeGet(endPoints.positions, positionsSchema);
+    if (saved) {
+      return okAsync(saved);
+    }
+    return client.fetchPositions().andTee((json) => {
+      cache.save(endPoints.positions, JSON.stringify(json));
+    });
+  };
+
   return {
     fetchAccountCash,
     fetchAccountSummary,
     fetchHistoricalOrders,
+    fetchPositions,
     resetCache: cache.reset,
   } satisfies BrokerClientWithCache;
 };

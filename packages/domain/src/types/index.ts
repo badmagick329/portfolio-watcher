@@ -70,9 +70,13 @@ type WebHistoricalOrdersResult = {
   filters: WebHistoricalOrdersFilters;
 };
 
-type InstrumentPriceProvider = 'fmp' | 'eodhd' | 'manual';
+type InstrumentPriceProvider = 'fmp' | 'eodhd' | 'manual' | 't212';
 
-type InstrumentPriceType = 'eod' | 'delayed_latest' | 'manual';
+type InstrumentPriceType =
+  | 'eod'
+  | 'delayed_latest'
+  | 'manual'
+  | 'position_current';
 
 type InstrumentPriceSource = {
   isin: string;
@@ -136,6 +140,11 @@ type InstrumentPriceSyncResult = {
   fetchFailed: number;
 };
 
+type CurrentPositionPriceSyncResult = {
+  attempted: number;
+  persisted: number;
+};
+
 type RateLimitResponse = {
   rateLimitLimit: number;
   rateLimitPeriodSec: number;
@@ -168,6 +177,7 @@ export type {
   InstrumentPriceSource,
   InstrumentPriceSyncResult,
   InstrumentPriceType,
+  CurrentPositionPriceSyncResult,
   HistoricalOrdersParams,
   RateLimitResponse,
   SyncStepResult,

@@ -8,6 +8,7 @@ const liveUrl = `${liveBase}/api/v0`;
 const endPoints = {
   accountCash: `${liveUrl}/equity/account/cash`,
   accountSummary: `${liveUrl}/equity/account/summary`,
+  positions: `${liveUrl}/equity/positions`,
   historicalOrders: (params: HistoricalOrdersParams) =>
     `${liveUrl}/equity/history/orders?${new URLSearchParams({
       cursor: params?.cursor || '',

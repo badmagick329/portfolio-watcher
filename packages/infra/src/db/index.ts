@@ -352,6 +352,13 @@ const createBrokerDataManager = () => {
 
   const getLatestInstrumentPriceByIsin = (isin: string) =>
     wrapDb(() => {
+      const providerPriority = sql<number>`
+        case
+          when ${instrumentPrices.provider} = 'manual' then 3
+          when ${instrumentPrices.provider} = 't212' then 2
+          else 1
+        end
+      `;
       const row = db
         .select({
           isin: instrumentPrices.isin,
@@ -365,7 +372,11 @@ const createBrokerDataManager = () => {
         })
         .from(instrumentPrices)
         .where(eq(instrumentPrices.isin, isin))
-        .orderBy(desc(instrumentPrices.asOf), desc(instrumentPrices.fetchedAt))
+        .orderBy(
+          desc(providerPriority),
+          desc(instrumentPrices.asOf),
+          desc(instrumentPrices.fetchedAt),
+        )
         .get();
 
       return row

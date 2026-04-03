@@ -1,8 +1,6 @@
 import {
   createBrokerDataManager,
   createDiskCache,
-  createEodhdInstrumentPriceClient,
-  createFmpInstrumentPriceClient,
   createLoggerFactory,
   createOrderSyncStateManager,
   createTrading212ClientWithCache,
@@ -10,7 +8,7 @@ import {
 import {
   createFetchAccountCash,
   createFetchAccountSummary,
-  createSyncInstrumentPrices,
+  createSyncCurrentPositionPricesFromT212,
   createSyncHistoricalOrders,
 } from '@portfolio/use-cases';
 
@@ -18,10 +16,6 @@ export const createCliServices = () => {
   const loggerCreator = createLoggerFactory('info');
   const syncStateManager = createOrderSyncStateManager();
   const dataManager = createBrokerDataManager();
-  const priceClients = [
-    createFmpInstrumentPriceClient(),
-    createEodhdInstrumentPriceClient(),
-  ];
 
   return createDiskCache({
     cacheFilePath: './data/cache.json',
@@ -32,8 +26,8 @@ export const createCliServices = () => {
     .map((client) => ({
       fetchAccountCash: createFetchAccountCash(client),
       fetchAccountSummary: createFetchAccountSummary(client),
-      syncInstrumentPrices: createSyncInstrumentPrices({
-        clients: priceClients,
+      syncInstrumentPrices: createSyncCurrentPositionPricesFromT212({
+        client,
         dataManager,
       }),
       syncHistoricalOrders: createSyncHistoricalOrders({
