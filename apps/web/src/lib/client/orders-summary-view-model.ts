@@ -19,6 +19,15 @@ type OrdersSummaryViewModel = {
     show: boolean;
   };
   effectivePrice: EffectiveInstrumentPrice | null;
+  positionMetrics: {
+    currentPrice: EffectiveInstrumentPrice | null;
+    currentValue: number | null;
+    averageCost: number | null;
+    costBasis: number | null;
+    unrealizedPnL: number | null;
+    unrealizedPnLPercent: number | null;
+    netCashflow: number;
+  };
 };
 
 type OrdersSummaryActions = {
@@ -63,6 +72,16 @@ const buildOrdersSummaryViewModel = ({
       summary.remainingQuantity > 0,
   },
   effectivePrice: summary.effectiveInstrumentPrice,
+  positionMetrics: {
+    currentPrice: mode === 'single' ? summary.currentPrice : null,
+    currentValue: mode === 'single' ? summary.currentValue : null,
+    averageCost: mode === 'single' ? summary.averageCost : null,
+    costBasis: mode === 'single' ? summary.costBasis : null,
+    unrealizedPnL: mode === 'single' ? summary.unrealizedPnL : null,
+    unrealizedPnLPercent:
+      mode === 'single' ? summary.unrealizedPnLPercent : null,
+    netCashflow: summary.netCashflow,
+  },
 });
 
 export {

@@ -66,6 +66,18 @@ describe('buildOrdersSummary', () => {
     });
     expect(summary.instrumentPriceUsed).toBe(120);
     expect(summary.manualPriceInput).toBe('120');
+    expect(summary.currentPrice).toEqual({
+      source: 'stored',
+      value: 120,
+      currency: 'USD',
+      asOf: '2026-03-25T00:00:00.000Z',
+      priceType: 'eod',
+    });
+    expect(summary.currentValue).toBe(1200);
+    expect(summary.averageCost).toBe(100);
+    expect(summary.costBasis).toBe(1000);
+    expect(summary.unrealizedPnL).toBe(200);
+    expect(summary.unrealizedPnLPercent).toBe(0.2);
   });
 
   test('falls back to the latest fill-derived price when stored price is older', () => {
@@ -118,6 +130,8 @@ describe('buildOrdersSummary', () => {
       currency: 'USD',
     });
     expect(summary.instrumentPriceUsed).toBe(130);
+    expect(summary.currentPrice?.source).toBe('manual');
+    expect(summary.currentValue).toBe(1300);
   });
 
   test('a saved manual price becomes the stored fallback after the input is cleared', () => {
@@ -139,6 +153,105 @@ describe('buildOrdersSummary', () => {
     });
     expect(summary.instrumentPriceUsed).toBe(130);
     expect(summary.manualPriceInput).toBe('130');
+  });
+
+  test('calculates weighted-average cost basis across buys and sells', () => {
+    const summary = buildOrdersSummary([
+      createOrder({
+        id: 1,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        filledValue: 1000,
+        value: 1000,
+        filledQuantity: 10,
+        quantity: 10,
+        fills: [
+          {
+            id: 1,
+            quantity: 10,
+            price: 100,
+            type: 'FILL',
+            tradingMethod: 'MARKET',
+            filledAt: '2026-01-01T00:00:00.000Z',
+            walletImpact: {
+              currency: 'USD',
+              netValue: -1000,
+              fxRate: 1,
+              taxes: [],
+            },
+          },
+        ],
+      }),
+      createOrder({
+        id: 2,
+        createdAt: '2026-01-02T00:00:00.000Z',
+        filledValue: 600,
+        value: 600,
+        filledQuantity: 5,
+        quantity: 5,
+        fills: [
+          {
+            id: 2,
+            quantity: 5,
+            price: 120,
+            type: 'FILL',
+            tradingMethod: 'MARKET',
+            filledAt: '2026-01-02T00:00:00.000Z',
+            walletImpact: {
+              currency: 'USD',
+              netValue: -600,
+              fxRate: 1,
+              taxes: [],
+            },
+          },
+        ],
+      }),
+      createOrder({
+        id: 3,
+        side: 'SELL',
+        createdAt: '2026-01-03T00:00:00.000Z',
+        filledValue: 330,
+        value: 330,
+        filledQuantity: 3,
+        quantity: 3,
+        fills: [
+          {
+            id: 3,
+            quantity: 3,
+            price: 110,
+            type: 'FILL',
+            tradingMethod: 'MARKET',
+            filledAt: '2026-01-03T00:00:00.000Z',
+            walletImpact: {
+              currency: 'USD',
+              netValue: 330,
+              fxRate: 1,
+              taxes: [],
+            },
+          },
+        ],
+      }),
+    ]);
+
+    expect(summary.remainingQuantity).toBe(12);
+    expect(summary.costBasis).toBeCloseTo(1280);
+    expect(summary.averageCost).toBeCloseTo(106.6666666667);
+  });
+
+  test('hides position-only metrics when no holding remains', () => {
+    const summary = buildOrdersSummary([
+      createOrder({
+        side: 'SELL',
+        filledValue: 1000,
+        value: 1000,
+      }),
+    ]);
+
+    expect(summary.remainingQuantity).toBe(-10);
+    expect(summary.currentValue).toBeNull();
+    expect(summary.averageCost).toBeNull();
+    expect(summary.costBasis).toBeNull();
+    expect(summary.unrealizedPnL).toBeNull();
+    expect(summary.unrealizedPnLPercent).toBeNull();
   });
 
   test('builds an aggregate summary across multiple selected instruments', () => {
@@ -198,5 +311,7 @@ describe('buildOrdersSummary', () => {
     expect(summary.instrumentPriceUsed).toBeNull();
     expect(summary.effectiveInstrumentPrice).toBeNull();
     expect(summary.manualPriceInput).toBe('');
+    expect(summary.currentPrice).toBeNull();
+    expect(summary.currentValue).toBeNull();
   });
 });

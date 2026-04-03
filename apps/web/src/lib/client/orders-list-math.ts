@@ -5,8 +5,8 @@ import type {
 } from '@portfolio/domain';
 import type {
   EffectiveInstrumentPrice,
-  InstrumentWithStoredPrice,
   InstrumentStoredPrice,
+  InstrumentWithStoredPrice,
 } from './instrument-price';
 
 type DisplayPriceContext = {
@@ -31,6 +31,17 @@ type OrdersSummary = {
   effectiveInstrumentPrice: EffectiveInstrumentPrice | null;
   fallbackInstrumentPrice: EffectiveInstrumentPrice | null;
   storedInstrumentPriceUsed: InstrumentStoredPrice | null;
+  currentPrice: EffectiveInstrumentPrice | null;
+  currentValue: number | null;
+  averageCost: number | null;
+  costBasis: number | null;
+  unrealizedPnL: number | null;
+  unrealizedPnLPercent: number | null;
+};
+
+type PositionCostState = {
+  quantity: number;
+  costBasis: number;
 };
 
 function getLatestFill(order: WebHistoricalOrder): WebHistoricalOrderFill | null {
@@ -73,6 +84,11 @@ function parseManualPrice(manualPriceInput: string) {
 
   const value = Number(manualPriceInput);
   return Number.isFinite(value) ? value : null;
+}
+
+function roundTo(value: number, decimals: number) {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
 }
 
 function chooseStoredPrice({
@@ -124,6 +140,39 @@ function getOrderQuantity(order: WebHistoricalOrder) {
   return Math.abs(quantity);
 }
 
+function getNextPositionCostState(
+  state: PositionCostState,
+  order: WebHistoricalOrder,
+): PositionCostState {
+  const fill = getLatestFill(order);
+  const quantity = getOrderQuantity(order);
+
+  if (!fill || quantity === null || quantity === 0) {
+    return state;
+  }
+
+  if (order.side === 'BUY') {
+    return {
+      quantity: state.quantity + quantity,
+      costBasis: state.costBasis + Math.abs(fill.walletImpact.netValue),
+    };
+  }
+
+  if (state.quantity === 0) {
+    return state;
+  }
+
+  const averageCost = state.costBasis / state.quantity;
+  const soldQuantity = Math.min(quantity, state.quantity);
+  const nextQuantity = Math.max(0, state.quantity - soldQuantity);
+  const nextCostBasis = Math.max(0, state.costBasis - averageCost * soldQuantity);
+
+  return {
+    quantity: roundTo(nextQuantity, 10),
+    costBasis: roundTo(nextCostBasis, 10),
+  };
+}
+
 function getSignedOrderAmount(order: WebHistoricalOrder) {
   const amount = order.filledValue ?? order.value;
 
@@ -162,11 +211,21 @@ function buildOrdersSummary(
   latestStoredPrice: InstrumentStoredPrice | null = null,
   manualPriceInput = '',
 ): OrdersSummary {
+  const chronologicalOrders = [...orders].sort(
+    (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt),
+  );
   const netCashflow = orders.reduce((sum, order) => {
     const amount = getSignedOrderAmount(order);
 
     return amount === null ? sum : sum + amount;
   }, 0);
+  const positionCostState = chronologicalOrders.reduce(
+    (state, order) => getNextPositionCostState(state, order),
+    {
+      quantity: 0,
+      costBasis: 0,
+    } satisfies PositionCostState,
+  );
   const currencies = new Set(orders.map((order) => order.currency));
   const walletCurrency =
     currencies.size === 1 ? orders[0]?.currency ?? null : null;
@@ -282,6 +341,21 @@ function buildOrdersSummary(
       ? (remainingQuantity * instrumentPriceUsed) / priceToWalletRateDivisor
       : estimatedCurrentValue;
   const estimatedTotal = netCashflow + estimatedPositionValue;
+  const costBasis =
+    remainingQuantity > 0 && positionCostState.costBasis > 0
+      ? positionCostState.costBasis
+      : null;
+  const averageCost =
+    remainingQuantity > 0 && costBasis !== null
+      ? costBasis / remainingQuantity
+      : null;
+  const currentValue = remainingQuantity > 0 ? estimatedPositionValue : null;
+  const unrealizedPnL =
+    currentValue !== null && costBasis !== null ? currentValue - costBasis : null;
+  const unrealizedPnLPercent =
+    unrealizedPnL !== null && costBasis !== null && costBasis > 0
+      ? unrealizedPnL / costBasis
+      : null;
 
   return {
     walletCurrency,
@@ -306,6 +380,12 @@ function buildOrdersSummary(
     fallbackInstrumentPrice,
     storedInstrumentPriceUsed:
       fallbackInstrumentPrice?.source === 'stored' ? latestStoredPrice : null,
+    currentPrice: effectiveInstrumentPrice,
+    currentValue,
+    averageCost,
+    costBasis,
+    unrealizedPnL,
+    unrealizedPnLPercent,
   };
 }
 
@@ -356,6 +436,12 @@ function buildMultiOrdersSummary(
     effectiveInstrumentPrice: null,
     fallbackInstrumentPrice: null,
     storedInstrumentPriceUsed: null,
+    currentPrice: null,
+    currentValue: null,
+    averageCost: null,
+    costBasis: null,
+    unrealizedPnL: null,
+    unrealizedPnLPercent: null,
   };
 }
 

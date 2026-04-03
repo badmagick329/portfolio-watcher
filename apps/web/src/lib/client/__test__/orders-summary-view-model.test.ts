@@ -33,6 +33,16 @@ const baseSummary: OrdersSummary = {
     asOf: '2026-04-02T10:15:00.000Z',
     priceType: 'manual',
   },
+  currentPrice: {
+    source: 'manual',
+    value: 100,
+    currency: 'USD',
+  },
+  currentValue: 1000,
+  averageCost: 95,
+  costBasis: 950,
+  unrealizedPnL: 50,
+  unrealizedPnLPercent: 50 / 950,
 };
 
 describe('buildOrdersSummaryViewModel', () => {
@@ -69,6 +79,19 @@ describe('buildOrdersSummaryViewModel', () => {
         value: 100,
         currency: 'USD',
       },
+      positionMetrics: {
+        currentPrice: {
+          source: 'manual',
+          value: 100,
+          currency: 'USD',
+        },
+        currentValue: 1000,
+        averageCost: 95,
+        costBasis: 950,
+        unrealizedPnL: 50,
+        unrealizedPnLPercent: 50 / 950,
+        netCashflow: 200,
+      },
     });
   });
 
@@ -98,5 +121,6 @@ describe('buildOrdersSummaryViewModel', () => {
       error: 'Failed to save price.',
       show: false,
     });
+    expect(viewModel.positionMetrics.currentPrice).toBeNull();
   });
 });

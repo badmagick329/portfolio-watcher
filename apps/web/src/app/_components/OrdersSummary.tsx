@@ -1,5 +1,11 @@
 import { Button } from '@/components/ui/button';
-import { formatSignedCurrencyAmount } from '@/lib/client/orders-list-format';
+import {
+  formatInstrumentPrice,
+  formatPercentage,
+  formatShareQuantity,
+  formatSignedCurrencyAmount,
+  formatUnsignedCurrencyAmount,
+} from '@/lib/client/orders-list-format';
 import type {
   OrdersSummaryActions,
   OrdersSummaryViewModel,
@@ -11,6 +17,15 @@ type OrdersSummaryProps = {
 };
 
 function OrdersSummary({ viewModel, actions }: OrdersSummaryProps) {
+  const currentPriceSourceLabel =
+    viewModel.positionMetrics.currentPrice?.source === 'manual'
+      ? 'Manual'
+      : viewModel.positionMetrics.currentPrice?.source === 'stored'
+        ? 'Stored'
+        : viewModel.positionMetrics.currentPrice?.source === 'derived_from_fill'
+          ? 'Derived from fill'
+          : null;
+
   return (
     <div className='flex flex-col items-center gap-1'>
       <p>
@@ -37,12 +52,61 @@ function OrdersSummary({ viewModel, actions }: OrdersSummaryProps) {
       {viewModel.priceEditor.show ? (
         <div className='flex flex-col items-center gap-1'>
           <p>
-            Holding: {viewModel.totals.remainingQuantity} shares | Value used:{' '}
-            {formatSignedCurrencyAmount(
-              viewModel.totals.estimatedPositionValue,
-              viewModel.totals.walletCurrency!,
-            )}
+            Holding: {formatShareQuantity(viewModel.totals.remainingQuantity)} shares
           </p>
+          <div className='grid grid-cols-2 gap-x-6 gap-y-1 text-sm'>
+            <span>Current price</span>
+            <span>
+              {formatInstrumentPrice(
+                viewModel.positionMetrics.currentPrice?.value ?? null,
+                viewModel.positionMetrics.currentPrice?.currency ??
+                  viewModel.priceEditor.currency,
+              )}
+            </span>
+            <span>Price source</span>
+            <span>{currentPriceSourceLabel ?? 'n/a'}</span>
+            <span>Price as of</span>
+            <span>{viewModel.positionMetrics.currentPrice?.asOf ?? 'n/a'}</span>
+            <span>Current value</span>
+            <span>
+              {formatUnsignedCurrencyAmount(
+                viewModel.positionMetrics.currentValue,
+                viewModel.totals.walletCurrency!,
+              )}
+            </span>
+            <span>Average cost</span>
+            <span>
+              {formatUnsignedCurrencyAmount(
+                viewModel.positionMetrics.averageCost,
+                viewModel.totals.walletCurrency!,
+              )}
+            </span>
+            <span>Cost basis</span>
+            <span>
+              {formatUnsignedCurrencyAmount(
+                viewModel.positionMetrics.costBasis,
+                viewModel.totals.walletCurrency!,
+              )}
+            </span>
+            <span>Unrealized P/L</span>
+            <span>
+              {formatSignedCurrencyAmount(
+                viewModel.positionMetrics.unrealizedPnL,
+                viewModel.totals.walletCurrency!,
+              )}
+            </span>
+            <span>Unrealized P/L %</span>
+            <span>
+              {formatPercentage(viewModel.positionMetrics.unrealizedPnLPercent)}
+            </span>
+            <span>Net cashflow</span>
+            <span>
+              {formatSignedCurrencyAmount(
+                viewModel.positionMetrics.netCashflow,
+                viewModel.totals.walletCurrency!,
+              )}
+            </span>
+          </div>
           <label className='flex items-center gap-2'>
             <span>Price used:</span>
             <input

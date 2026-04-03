@@ -4,7 +4,11 @@ import { useState, useTransition } from 'react';
 import { saveManualInstrumentPriceAction } from '@/actions/instrument-prices-action';
 import type { WebHistoricalOrder } from '@portfolio/domain';
 import type { InstrumentStoredPrice, InstrumentWithStoredPrice } from './instrument-price';
-import { buildMultiOrdersSummary, buildOrdersSummary } from './orders-list-math';
+import {
+  buildMultiOrdersSummary,
+  buildOrdersSummary,
+  parseManualPrice,
+} from './orders-list-math';
 import {
   buildOrdersSummaryViewModel,
   type OrdersSummaryActions,
@@ -38,6 +42,7 @@ function useOrdersSummaryController({
   const mode = singleSelectedInstrument ? 'single' : 'multi';
   const [storedPrice, setStoredPrice] = useState(latestStoredPrice);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [manualPriceOverrideActive, setManualPriceOverrideActive] = useState(false);
   const [isSavingPrice, startSavingPrice] = useTransition();
   const initialSummary =
     mode === 'single'
@@ -46,19 +51,38 @@ function useOrdersSummaryController({
   const [manualPriceInput, setManualPriceInput] = useState(
     initialSummary.manualPriceInput,
   );
+  const manualInputValue = manualPriceOverrideActive
+    ? manualPriceInput
+    : initialSummary.manualPriceInput;
+  const parsedManualPrice = parseManualPrice(manualInputValue);
+  const manualMatchesStoredPrice =
+    manualPriceOverrideActive &&
+    storedPrice !== null &&
+    parsedManualPrice !== null &&
+    parsedManualPrice === storedPrice.price &&
+    instrumentCurrency === storedPrice.currency;
   const summary =
     mode === 'single'
-      ? buildOrdersSummary(orders, storedPrice, manualPriceInput)
+      ? buildOrdersSummary(
+          orders,
+          storedPrice,
+          manualPriceOverrideActive && !manualMatchesStoredPrice
+            ? manualPriceInput
+            : '',
+        )
       : buildMultiOrdersSummary(orders, selectedInstruments);
-  const parsedManualPrice = summary.parsedManualPrice;
+  const displayedManualPriceInput = manualPriceOverrideActive
+    ? manualPriceInput
+    : summary.manualPriceInput;
+  const parsedDisplayedManualPrice = parseManualPrice(displayedManualPriceInput);
   const canSavePrice =
     mode === 'single' &&
-    parsedManualPrice !== null &&
-    parsedManualPrice > 0 &&
+    parsedDisplayedManualPrice !== null &&
+    parsedDisplayedManualPrice > 0 &&
     instrumentCurrency.trim() !== '';
 
   const savePrice = () => {
-    if (!canSavePrice || parsedManualPrice === null) {
+    if (!canSavePrice || parsedDisplayedManualPrice === null) {
       return;
     }
 
@@ -67,7 +91,7 @@ function useOrdersSummaryController({
       try {
         const savedSnapshot = await saveManualInstrumentPriceAction({
           isin: instrumentIsin,
-          price: parsedManualPrice,
+          price: parsedDisplayedManualPrice,
           currency: instrumentCurrency,
         });
 
@@ -79,6 +103,7 @@ function useOrdersSummaryController({
         } satisfies InstrumentStoredPrice;
 
         setStoredPrice(nextStoredPrice);
+        setManualPriceOverrideActive(false);
         onStoredPriceSaved(instrumentIsin, nextStoredPrice);
       } catch (error) {
         setSaveError(
@@ -91,7 +116,7 @@ function useOrdersSummaryController({
   return {
     viewModel: buildOrdersSummaryViewModel({
       summary,
-      manualPriceInput,
+      manualPriceInput: displayedManualPriceInput,
       canSavePrice,
       isSavingPrice,
       saveError,
@@ -99,7 +124,10 @@ function useOrdersSummaryController({
       selectedInstrumentCount: selectedInstruments.length,
     }),
     actions: {
-      setManualPriceInput,
+      setManualPriceInput: (value) => {
+        setManualPriceInput(value);
+        setManualPriceOverrideActive(value.trim() !== '');
+      },
       savePrice,
     },
   };
