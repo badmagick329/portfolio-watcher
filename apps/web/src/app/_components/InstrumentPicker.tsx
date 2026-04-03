@@ -189,11 +189,9 @@ export function InstrumentPicker({
       ) : null}
 
       {selectionLabel ? (
-        <pre>
-          <p>
-            {selectionLabel}
-          </p>
-        </pre>
+        <div className='max-w-full break-words font-mono text-xl leading-tight sm:text-2xl'>
+          {selectionLabel}
+        </div>
       ) : null}
 
       {filteredOrders.length === 0 ? (
