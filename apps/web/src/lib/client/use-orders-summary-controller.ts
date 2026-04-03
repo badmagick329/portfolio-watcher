@@ -3,8 +3,8 @@
 import { useState, useTransition } from 'react';
 import { saveManualInstrumentPriceAction } from '@/actions/instrument-prices-action';
 import type { WebHistoricalOrder } from '@portfolio/domain';
-import type { InstrumentStoredPrice } from './instrument-price';
-import { buildOrdersSummary } from './orders-list-math';
+import type { InstrumentStoredPrice, InstrumentWithStoredPrice } from './instrument-price';
+import { buildMultiOrdersSummary, buildOrdersSummary } from './orders-list-math';
 import {
   buildOrdersSummaryViewModel,
   type OrdersSummaryActions,
@@ -13,10 +13,11 @@ import {
 
 type UseOrdersSummaryControllerParams = {
   orders: WebHistoricalOrder[];
-  latestStoredPrice: InstrumentStoredPrice | null;
-  instrumentIsin: string;
-  instrumentCurrency: string;
-  onStoredPriceSaved: (latestStoredPrice: InstrumentStoredPrice) => void;
+  selectedInstruments: InstrumentWithStoredPrice[];
+  onStoredPriceSaved: (
+    isin: string,
+    latestStoredPrice: InstrumentStoredPrice,
+  ) => void;
 };
 
 type UseOrdersSummaryControllerResult = {
@@ -26,21 +27,32 @@ type UseOrdersSummaryControllerResult = {
 
 function useOrdersSummaryController({
   orders,
-  latestStoredPrice,
-  instrumentIsin,
-  instrumentCurrency,
+  selectedInstruments,
   onStoredPriceSaved,
 }: UseOrdersSummaryControllerParams): UseOrdersSummaryControllerResult {
+  const singleSelectedInstrument =
+    selectedInstruments.length === 1 ? (selectedInstruments[0] ?? null) : null;
+  const latestStoredPrice = singleSelectedInstrument?.latestStoredPrice ?? null;
+  const instrumentIsin = singleSelectedInstrument?.isin ?? '';
+  const instrumentCurrency = singleSelectedInstrument?.currency ?? '';
+  const mode = singleSelectedInstrument ? 'single' : 'multi';
   const [storedPrice, setStoredPrice] = useState(latestStoredPrice);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSavingPrice, startSavingPrice] = useTransition();
-  const initialSummary = buildOrdersSummary(orders, storedPrice);
+  const initialSummary =
+    mode === 'single'
+      ? buildOrdersSummary(orders, latestStoredPrice)
+      : buildMultiOrdersSummary(orders, selectedInstruments);
   const [manualPriceInput, setManualPriceInput] = useState(
     initialSummary.manualPriceInput,
   );
-  const summary = buildOrdersSummary(orders, storedPrice, manualPriceInput);
+  const summary =
+    mode === 'single'
+      ? buildOrdersSummary(orders, storedPrice, manualPriceInput)
+      : buildMultiOrdersSummary(orders, selectedInstruments);
   const parsedManualPrice = summary.parsedManualPrice;
   const canSavePrice =
+    mode === 'single' &&
     parsedManualPrice !== null &&
     parsedManualPrice > 0 &&
     instrumentCurrency.trim() !== '';
@@ -67,7 +79,7 @@ function useOrdersSummaryController({
         } satisfies InstrumentStoredPrice;
 
         setStoredPrice(nextStoredPrice);
-        onStoredPriceSaved(nextStoredPrice);
+        onStoredPriceSaved(instrumentIsin, nextStoredPrice);
       } catch (error) {
         setSaveError(
           error instanceof Error ? error.message : 'Failed to save price.',
@@ -83,6 +95,8 @@ function useOrdersSummaryController({
       canSavePrice,
       isSavingPrice,
       saveError,
+      mode,
+      selectedInstrumentCount: selectedInstruments.length,
     }),
     actions: {
       setManualPriceInput,

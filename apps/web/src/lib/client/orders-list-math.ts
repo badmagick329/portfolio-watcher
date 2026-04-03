@@ -5,6 +5,7 @@ import type {
 } from '@portfolio/domain';
 import type {
   EffectiveInstrumentPrice,
+  InstrumentWithStoredPrice,
   InstrumentStoredPrice,
 } from './instrument-price';
 
@@ -308,7 +309,58 @@ function buildOrdersSummary(
   };
 }
 
+function buildMultiOrdersSummary(
+  orders: WebHistoricalOrder[],
+  selectedInstruments: InstrumentWithStoredPrice[],
+): OrdersSummary {
+  const instrumentSummaries = selectedInstruments.map((instrument) =>
+    buildOrdersSummary(
+      orders.filter((order) => order.instrument.isin === instrument.isin),
+      instrument.latestStoredPrice,
+      '',
+    ),
+  );
+  const currencies = new Set(orders.map((order) => order.currency));
+  const walletCurrency =
+    currencies.size === 1 ? orders[0]?.currency ?? null : null;
+  const netCashflow = orders.reduce((sum, order) => {
+    const amount = getSignedOrderAmount(order);
+
+    return amount === null ? sum : sum + amount;
+  }, 0);
+  const estimatedCurrentValue = instrumentSummaries.reduce(
+    (sum, summary) => sum + summary.estimatedCurrentValue,
+    0,
+  );
+  const estimatedPositionValue = instrumentSummaries.reduce(
+    (sum, summary) => sum + summary.estimatedPositionValue,
+    0,
+  );
+
+  return {
+    walletCurrency,
+    remainingQuantity: instrumentSummaries.reduce(
+      (sum, summary) => sum + summary.remainingQuantity,
+      0,
+    ),
+    estimatedCurrentValue,
+    estimatedTotal: netCashflow + estimatedPositionValue,
+    defaultInstrumentPriceUsed: null,
+    instrumentPriceCurrency: null,
+    estimatedPositionValue,
+    instrumentPriceUsed: null,
+    priceToWalletRateDivisor: null,
+    manualPriceInput: '',
+    netCashflow,
+    parsedManualPrice: null,
+    effectiveInstrumentPrice: null,
+    fallbackInstrumentPrice: null,
+    storedInstrumentPriceUsed: null,
+  };
+}
+
 export {
+  buildMultiOrdersSummary,
   buildOrdersSummary,
   getDisplayPriceContext,
   getLatestFill,

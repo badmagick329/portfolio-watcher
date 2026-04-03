@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { WebHistoricalOrder } from '@portfolio/domain';
-import type { InstrumentStoredPrice } from '../instrument-price';
-import { buildOrdersSummary } from '../orders-list-math';
+import type { InstrumentStoredPrice, InstrumentWithStoredPrice } from '../instrument-price';
+import { buildMultiOrdersSummary, buildOrdersSummary } from '../orders-list-math';
 
 const createOrder = (
   overrides: Partial<WebHistoricalOrder> = {},
@@ -139,5 +139,64 @@ describe('buildOrdersSummary', () => {
     });
     expect(summary.instrumentPriceUsed).toBe(130);
     expect(summary.manualPriceInput).toBe('130');
+  });
+
+  test('builds an aggregate summary across multiple selected instruments', () => {
+    const metaOrder = createOrder();
+    const appleOrder = createOrder({
+      id: 2,
+      ticker: 'AAPL_US_EQ',
+      value: 2000,
+      filledValue: 2000,
+      instrument: {
+        ticker: 'AAPL_US_EQ',
+        name: 'Apple',
+        isin: 'US0378331005',
+        currency: 'USD',
+      },
+      fills: [
+        {
+          id: 2,
+          quantity: 10,
+          price: 200,
+          type: 'FILL',
+          tradingMethod: 'MARKET',
+          filledAt: '2026-03-23T12:00:00.000Z',
+          walletImpact: {
+            currency: 'USD',
+            netValue: -2000,
+            fxRate: 2,
+            taxes: [],
+          },
+        },
+      ],
+    });
+    const selectedInstruments: InstrumentWithStoredPrice[] = [
+      {
+        ...metaOrder.instrument,
+        latestStoredPrice: {
+          price: 120,
+          currency: 'USD',
+          asOf: '2026-03-25T00:00:00.000Z',
+          priceType: 'eod',
+        },
+      },
+      {
+        ...appleOrder.instrument,
+        latestStoredPrice: null,
+      },
+    ];
+
+    const summary = buildMultiOrdersSummary(
+      [metaOrder, appleOrder],
+      selectedInstruments,
+    );
+
+    expect(summary.estimatedPositionValue).toBe(2200);
+    expect(summary.estimatedCurrentValue).toBe(2000);
+    expect(summary.estimatedTotal).toBe(-800);
+    expect(summary.instrumentPriceUsed).toBeNull();
+    expect(summary.effectiveInstrumentPrice).toBeNull();
+    expect(summary.manualPriceInput).toBe('');
   });
 });

@@ -43,14 +43,18 @@ describe('buildOrdersSummaryViewModel', () => {
       canSavePrice: true,
       isSavingPrice: false,
       saveError: null,
+      mode: 'single',
+      selectedInstrumentCount: 1,
     });
 
     expect(viewModel).toEqual({
+      mode: 'single',
       totals: {
         walletCurrency: 'USD',
         remainingQuantity: 10,
         estimatedTotal: 1200,
         estimatedPositionValue: 1000,
+        selectedInstrumentCount: 1,
       },
       priceEditor: {
         input: '101',
@@ -80,8 +84,12 @@ describe('buildOrdersSummaryViewModel', () => {
       canSavePrice: false,
       isSavingPrice: true,
       saveError: 'Failed to save price.',
+      mode: 'multi',
+      selectedInstrumentCount: 2,
     });
 
+    expect(viewModel.mode).toBe('multi');
+    expect(viewModel.totals.selectedInstrumentCount).toBe(2);
     expect(viewModel.priceEditor).toEqual({
       input: '',
       currency: null,

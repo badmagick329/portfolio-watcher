@@ -1,6 +1,7 @@
 'use client';
 
 import { OrdersList } from '@/app/_components/OrdersList';
+import { Button } from '@/components/ui/button';
 import {
   Combobox,
   ComboboxCollection,
@@ -11,9 +12,15 @@ import {
   ComboboxList,
 } from '@/components/ui/combobox';
 import type { InstrumentWithStoredPrice } from '@/lib/client/instrument-price';
-import type {
-  WebHistoricalOrder,
-} from '@portfolio/domain';
+import {
+  createInstrumentSelection,
+  filterOrdersBySelection,
+  getActiveInstrumentsFromFilteredOrders,
+  type InstrumentSelectionState,
+  setInstrumentSelectionMode,
+  toggleInstrumentSelection,
+} from '@/lib/client/instrument-selection';
+import type { WebHistoricalOrder } from '@portfolio/domain';
 import { useState } from 'react';
 
 type InstrumentPickerProps = {
@@ -27,25 +34,85 @@ export function InstrumentPicker({
 }: InstrumentPickerProps) {
   const [instrumentOptions, setInstrumentOptions] =
     useState<InstrumentWithStoredPrice[]>(instruments);
-  const [selectedInstrument, setSelectedInstrument] =
-    useState<InstrumentWithStoredPrice | null>(null);
-  const filteredOrders = orders.filter(
-    (order) =>
-      order.ticker === selectedInstrument?.ticker && order.status === 'FILLED',
+  const [selection, setSelection] = useState<InstrumentSelectionState>(
+    createInstrumentSelection(),
   );
+  const isAllMode = selection.mode === 'all';
+  const selectedInstruments = instrumentOptions.filter((instrument) =>
+    selection.selectedIsins.includes(instrument.isin),
+  );
+  const filteredOrders = filterOrdersBySelection(orders, selection);
+  const activeInstruments = getActiveInstrumentsFromFilteredOrders(
+    instrumentOptions,
+    filteredOrders,
+  );
+  const selectionLabel =
+    selection.mode === 'all'
+      ? 'All instruments'
+      : selectedInstruments.length === 1
+        ? `${selectedInstruments[0]!.name} (${selectedInstruments[0]!.ticker})`
+        : selectedInstruments.length > 1
+          ? `${selectedInstruments.length} instruments selected`
+          : null;
 
   return (
     <div className='flex w-full flex-col space-y-3'>
+      <div className='flex gap-2'>
+        <Button
+          type='button'
+          size='sm'
+          variant={selection.mode === 'all' ? 'default' : 'outline'}
+          onClick={() =>
+            setSelection((current) =>
+              setInstrumentSelectionMode(current, 'all'),
+            )
+          }
+        >
+          All
+        </Button>
+        <Button
+          type='button'
+          size='sm'
+          variant={selection.mode === 'include' ? 'default' : 'outline'}
+          onClick={() =>
+            setSelection((current) =>
+              setInstrumentSelectionMode(current, 'include'),
+            )
+          }
+        >
+          Include
+        </Button>
+        <Button
+          type='button'
+          size='sm'
+          variant={selection.mode === 'exclude' ? 'default' : 'outline'}
+          onClick={() =>
+            setSelection((current) =>
+              setInstrumentSelectionMode(current, 'exclude'),
+            )
+          }
+        >
+          Exclude
+        </Button>
+      </div>
+
       <Combobox
+        multiple
         items={instrumentOptions}
-        value={selectedInstrument}
-        onValueChange={(value) => setSelectedInstrument(value)}
+        value={selectedInstruments}
+        onValueChange={(value) =>
+          setSelection({
+            mode: selection.mode === 'all' ? 'include' : selection.mode,
+            selectedIsins: value.map((instrument) => instrument.isin),
+          })
+        }
         itemToStringLabel={(instrument) => instrument.name}
         itemToStringValue={(instrument) => instrument.ticker}
         isItemEqualToValue={(item, value) => item.isin === value.isin}
       >
         <ComboboxInput
           className='w-full'
+          disabled={isAllMode}
           placeholder='Select instruments by name'
           showClear
         />
@@ -67,38 +134,56 @@ export function InstrumentPicker({
         </ComboboxContent>
       </Combobox>
 
-      {selectedInstrument ? (
+      {selectedInstruments.length > 0 ? (
+        <div className='flex flex-wrap gap-2'>
+          {selectedInstruments.map((instrument) => (
+            <Button
+              key={instrument.isin}
+              type='button'
+              size='sm'
+              variant='outline'
+              disabled={isAllMode}
+              onClick={() =>
+                setSelection((current) =>
+                  toggleInstrumentSelection(current, instrument.isin),
+                )
+              }
+            >
+              {instrument.name}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+
+      {selectionLabel ? (
         <pre>
           <p>
-            {selectedInstrument.name} ({selectedInstrument.ticker})
+            {selectionLabel}
           </p>
         </pre>
       ) : null}
 
-      {!selectedInstrument ? (
-        <p>Select an instrument.</p>
+      {filteredOrders.length === 0 ? (
+        <p>
+          {selection.mode === 'include'
+            ? 'Select one or more instruments.'
+            : 'No instruments match the current filter.'}
+        </p>
       ) : (
         <OrdersList
-          key={selectedInstrument.ticker}
+          key={`${selection.mode}:${activeInstruments
+            .map((instrument) => instrument.isin)
+            .sort()
+            .join(',')}`}
           orders={filteredOrders}
-          instrumentCurrency={selectedInstrument.currency}
-          instrumentIsin={selectedInstrument.isin}
-          latestStoredPrice={selectedInstrument.latestStoredPrice}
-          onStoredPriceSaved={(latestStoredPrice) => {
+          selectedInstruments={activeInstruments}
+          onStoredPriceSaved={(isin, latestStoredPrice) => {
             setInstrumentOptions((current) =>
               current.map((instrument) =>
-                instrument.isin === selectedInstrument.isin
+                instrument.isin === isin
                   ? { ...instrument, latestStoredPrice }
                   : instrument,
               ),
-            );
-            setSelectedInstrument((current) =>
-              current
-                ? {
-                    ...current,
-                    latestStoredPrice,
-                  }
-                : current,
             );
           }}
         />

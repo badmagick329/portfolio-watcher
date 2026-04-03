@@ -22,6 +22,18 @@ function OrdersSummary({ viewModel, actions }: OrdersSummaryProps) {
             )
           : 'n/a (mixed currencies)'}
       </p>
+      {viewModel.mode === 'multi' &&
+      viewModel.totals.walletCurrency &&
+      viewModel.totals.selectedInstrumentCount > 1 ? (
+        <p>
+          Selected instruments: {viewModel.totals.selectedInstrumentCount} | Value
+          used:{' '}
+          {formatSignedCurrencyAmount(
+            viewModel.totals.estimatedPositionValue,
+            viewModel.totals.walletCurrency,
+          )}
+        </p>
+      ) : null}
       {viewModel.priceEditor.show ? (
         <div className='flex flex-col items-center gap-1'>
           <p>

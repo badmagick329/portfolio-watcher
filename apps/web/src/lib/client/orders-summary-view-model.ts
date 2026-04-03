@@ -2,11 +2,13 @@ import type { EffectiveInstrumentPrice } from './instrument-price';
 import type { OrdersSummary as OrdersSummaryState } from './orders-list-math';
 
 type OrdersSummaryViewModel = {
+  mode: 'single' | 'multi';
   totals: {
     walletCurrency: string | null;
     remainingQuantity: number;
     estimatedTotal: number;
     estimatedPositionValue: number;
+    selectedInstrumentCount: number;
   };
   priceEditor: {
     input: string;
@@ -30,18 +32,24 @@ const buildOrdersSummaryViewModel = ({
   canSavePrice,
   isSavingPrice,
   saveError,
+  mode,
+  selectedInstrumentCount,
 }: {
   summary: OrdersSummaryState;
   manualPriceInput: string;
   canSavePrice: boolean;
   isSavingPrice: boolean;
   saveError: string | null;
+  mode: 'single' | 'multi';
+  selectedInstrumentCount: number;
 }): OrdersSummaryViewModel => ({
+  mode,
   totals: {
     walletCurrency: summary.walletCurrency,
     remainingQuantity: summary.remainingQuantity,
     estimatedTotal: summary.estimatedTotal,
     estimatedPositionValue: summary.estimatedPositionValue,
+    selectedInstrumentCount,
   },
   priceEditor: {
     input: manualPriceInput,
@@ -50,7 +58,9 @@ const buildOrdersSummaryViewModel = ({
     isSaving: isSavingPrice,
     error: saveError,
     show:
-      summary.walletCurrency !== null && summary.remainingQuantity > 0,
+      mode === 'single' &&
+      summary.walletCurrency !== null &&
+      summary.remainingQuantity > 0,
   },
   effectivePrice: summary.effectiveInstrumentPrice,
 });

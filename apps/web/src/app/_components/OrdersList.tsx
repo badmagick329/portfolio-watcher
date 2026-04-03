@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { InstrumentStoredPrice } from '@/lib/client/instrument-price';
+import type { InstrumentStoredPrice, InstrumentWithStoredPrice } from '@/lib/client/instrument-price';
 import { buildOrdersListRows } from '@/lib/client/orders-list-rows';
 import { useOrdersSummaryController } from '@/lib/client/use-orders-summary-controller';
 import type { WebHistoricalOrder } from '@portfolio/domain';
@@ -16,25 +16,22 @@ import { OrdersSummary } from './OrdersSummary';
 
 type OrdersListProps = {
   orders: WebHistoricalOrder[];
-  latestStoredPrice: InstrumentStoredPrice | null;
-  instrumentIsin: string;
-  instrumentCurrency: string;
-  onStoredPriceSaved: (latestStoredPrice: InstrumentStoredPrice) => void;
+  selectedInstruments: InstrumentWithStoredPrice[];
+  onStoredPriceSaved: (
+    isin: string,
+    latestStoredPrice: InstrumentStoredPrice,
+  ) => void;
 };
 
 export function OrdersList({
   orders,
-  latestStoredPrice,
-  instrumentIsin,
-  instrumentCurrency,
+  selectedInstruments,
   onStoredPriceSaved,
 }: OrdersListProps) {
   const rows = buildOrdersListRows(orders);
   const { viewModel, actions } = useOrdersSummaryController({
     orders,
-    latestStoredPrice,
-    instrumentIsin,
-    instrumentCurrency,
+    selectedInstruments,
     onStoredPriceSaved,
   });
 
