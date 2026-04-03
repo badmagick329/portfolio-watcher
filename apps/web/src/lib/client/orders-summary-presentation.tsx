@@ -29,7 +29,7 @@ const METRIC_HELP_TEXT = {
     'Override the current valuation price here. Save stores this value as the latest manual price for this instrument.',
 } as const;
 
-const formatPriceAsOf = (value: string | null | undefined) => {
+const formatDisplayDateTime = (value: string | null | undefined) => {
   if (!value) {
     return 'n/a';
   }
@@ -49,6 +49,38 @@ const formatPriceAsOf = (value: string | null | undefined) => {
     timeZoneName: 'short',
   }).format(parsedDate);
 };
+
+const formatCompactDisplayDateTime = (value: string | null | undefined) => {
+  if (!value) {
+    return 'n/a';
+  }
+
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return 'n/a';
+  }
+
+  const year = parsedDate.getFullYear();
+  const month = `${parsedDate.getMonth() + 1}`.padStart(2, '0');
+  const day = `${parsedDate.getDate()}`.padStart(2, '0');
+  const hours = `${parsedDate.getHours()}`.padStart(2, '0');
+  const minutes = `${parsedDate.getMinutes()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+};
+
+const getCurrentTimeZoneAbbreviation = () => {
+  const parts = new Intl.DateTimeFormat(undefined, {
+    timeZoneName: 'short',
+  }).formatToParts(new Date());
+  const timeZoneNamePart = parts.find((part) => part.type === 'timeZoneName');
+
+  return timeZoneNamePart?.value ?? 'Local';
+};
+
+const formatPriceAsOf = (value: string | null | undefined) =>
+  formatDisplayDateTime(value);
 
 function MetricLabelWithTooltip({
   label,
@@ -80,7 +112,10 @@ function MetricLabelWithTooltip({
 }
 
 export {
+  formatCompactDisplayDateTime,
+  formatDisplayDateTime,
   formatPriceAsOf,
+  getCurrentTimeZoneAbbreviation,
   getCurrentPriceSourceLabel,
   METRIC_HELP_TEXT,
   MetricLabelWithTooltip,

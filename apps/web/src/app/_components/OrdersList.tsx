@@ -19,6 +19,7 @@ import {
 import type { InstrumentStoredPrice, InstrumentWithStoredPrice } from '@/lib/client/instrument-price';
 import { buildOrdersListRows } from '@/lib/client/orders-list-rows';
 import { getOrdersTablePaginationState } from '@/lib/client/orders-table-pagination';
+import { getCurrentTimeZoneAbbreviation } from '@/lib/client/orders-summary-presentation';
 import { useOrdersSummaryController } from '@/lib/client/useOrdersSummaryController';
 import type { WebHistoricalOrder } from '@portfolio/domain';
 import { OrdersSummary } from './OrdersSummary';
@@ -43,6 +44,7 @@ export function OrdersList({
 }: OrdersListProps) {
   const rows = buildOrdersListRows(orders);
   const pagination = getOrdersTablePaginationState(rows, currentPage);
+  const timeColumnLabel = `Time (${getCurrentTimeZoneAbbreviation()})`;
   const { viewModel, actions } = useOrdersSummaryController({
     orders,
     selectedInstruments,
@@ -63,7 +65,7 @@ export function OrdersList({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Date</TableHead>
+              <TableHead>{timeColumnLabel}</TableHead>
               <TableHead>Instrument</TableHead>
               <TableHead>Side</TableHead>
               <TableHead>Quantity</TableHead>
