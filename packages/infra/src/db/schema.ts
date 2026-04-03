@@ -168,6 +168,58 @@ const instrumentPrices = sqliteTable(
   ],
 );
 
+const currentPositionSnapshots = sqliteTable(
+  'current_position_snapshots',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    isin: text('isin').notNull(),
+    providerSymbol: text('provider_symbol').notNull(),
+    quantity: real('quantity').notNull(),
+    currentPrice: real('current_price').notNull(),
+    instrumentCurrency: text('instrument_currency').notNull(),
+    walletCurrency: text('wallet_currency').notNull(),
+    currentValue: real('current_value').notNull(),
+    totalCost: real('total_cost').notNull(),
+    unrealizedProfitLoss: real('unrealized_profit_loss').notNull(),
+    fxImpact: real('fx_impact'),
+    asOf: text('as_of').notNull(),
+    fetchedAt: text('fetched_at').notNull(),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index('current_position_snapshots_isin_idx').on(table.isin),
+    index('current_position_snapshots_fetched_at_idx').on(table.fetchedAt),
+    uniqueIndex('current_position_snapshots_unique_snapshot_idx').on(
+      table.isin,
+      table.asOf,
+    ),
+  ],
+);
+
+const accountSummarySnapshots = sqliteTable(
+  'account_summary_snapshots',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    currency: text('currency').notNull(),
+    currentValue: real('current_value').notNull(),
+    totalCost: real('total_cost').notNull(),
+    realizedProfitLoss: real('realized_profit_loss').notNull(),
+    unrealizedProfitLoss: real('unrealized_profit_loss').notNull(),
+    totalValue: real('total_value').notNull(),
+    asOf: text('as_of').notNull(),
+    fetchedAt: text('fetched_at').notNull(),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index('account_summary_snapshots_fetched_at_idx').on(table.fetchedAt),
+    uniqueIndex('account_summary_snapshots_unique_snapshot_idx').on(table.asOf),
+  ],
+);
+
 type Instrument = typeof instruments.$inferSelect;
 type NewInstrument = typeof instruments.$inferInsert;
 
@@ -189,6 +241,12 @@ type NewInstrumentPriceSource = typeof instrumentPriceSources.$inferInsert;
 type InstrumentPrice = typeof instrumentPrices.$inferSelect;
 type NewInstrumentPrice = typeof instrumentPrices.$inferInsert;
 
+type CurrentPositionSnapshot = typeof currentPositionSnapshots.$inferSelect;
+type NewCurrentPositionSnapshot = typeof currentPositionSnapshots.$inferInsert;
+
+type AccountSummarySnapshot = typeof accountSummarySnapshots.$inferSelect;
+type NewAccountSummarySnapshot = typeof accountSummarySnapshots.$inferInsert;
+
 export type {
   Instrument,
   NewInstrument,
@@ -204,6 +262,10 @@ export type {
   NewInstrumentPriceSource,
   InstrumentPrice,
   NewInstrumentPrice,
+  CurrentPositionSnapshot,
+  NewCurrentPositionSnapshot,
+  AccountSummarySnapshot,
+  NewAccountSummarySnapshot,
 };
 
 export {
@@ -214,4 +276,6 @@ export {
   syncState,
   instrumentPriceSources,
   instrumentPrices,
+  currentPositionSnapshots,
+  accountSummarySnapshots,
 };

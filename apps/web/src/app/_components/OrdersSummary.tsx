@@ -103,9 +103,15 @@ function OrdersSummary({
         <div className='space-y-1'>
           <CardTitle>Position Summary</CardTitle>
           <CardDescription>
-            {viewModel.mode === 'single'
-              ? 'Current valuation and holding metrics for the selected instrument.'
-              : 'Aggregate metrics for the currently filtered instruments.'}
+            {viewModel.summarySource === 't212_account'
+              ? 'Aggregate metrics sourced from Trading 212 account summary.'
+              : viewModel.summarySource === 't212_position'
+                ? viewModel.mode === 'single'
+                  ? 'Current valuation and holding metrics sourced from Trading 212 position data.'
+                  : 'Aggregate metrics sourced from Trading 212 position data for the currently filtered instruments.'
+                : viewModel.mode === 'single'
+                  ? 'Current valuation and holding metrics for the selected instrument.'
+                  : 'Aggregate metrics for the currently filtered instruments.'}
           </CardDescription>
         </div>
         <CardAction className='w-full sm:w-auto'>

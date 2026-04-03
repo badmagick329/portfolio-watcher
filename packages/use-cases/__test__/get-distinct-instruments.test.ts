@@ -33,6 +33,10 @@ describe('getDistinctInstruments', () => {
       saveInstrumentPriceSource: () => okAsync(undefined),
       getInstrumentPriceSourceByIsin: () => okAsync(undefined),
       saveInstrumentPriceSnapshot: () => okAsync(undefined),
+      saveCurrentPositionSnapshot: () => okAsync(undefined),
+      getLatestCurrentPositionSnapshotByIsin: () => okAsync(undefined),
+      saveAccountSummarySnapshot: () => okAsync(undefined),
+      getLatestAccountSummarySnapshot: () => okAsync(undefined),
       getLatestInstrumentPriceByIsin: () => okAsync(undefined),
       listInstrumentsNeedingPriceRefresh: () => okAsync([]),
     };

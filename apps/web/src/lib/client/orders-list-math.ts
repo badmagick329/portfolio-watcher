@@ -1,4 +1,6 @@
 import type {
+  AccountSummarySnapshot,
+  CurrentPositionSnapshot,
   InstrumentPriceType,
   WebHistoricalOrder,
   WebHistoricalOrderFill,
@@ -21,6 +23,7 @@ type LatestFxByCurrencyEntry = {
 };
 
 type OrdersSummary = {
+  summarySource: 'historical' | 't212_position' | 't212_account';
   walletCurrency: string | null;
   remainingQuantity: number;
   estimatedCurrentValue: number;
@@ -395,6 +398,7 @@ function buildOrdersSummary(
       : null;
 
   return {
+    summarySource: 'historical',
     walletCurrency,
     remainingQuantity,
     estimatedCurrentValue,
@@ -458,6 +462,7 @@ function buildMultiOrdersSummary(
   );
 
   return {
+    summarySource: 'historical',
     walletCurrency,
     remainingQuantity: instrumentSummaries.reduce(
       (sum, summary) => sum + summary.remainingQuantity,
@@ -486,8 +491,173 @@ function buildMultiOrdersSummary(
   };
 }
 
+function getPriceToWalletRateDivisorFromCurrentPosition(
+  currentPositionSnapshot: CurrentPositionSnapshot,
+) {
+  if (
+    currentPositionSnapshot.quantity <= 0 ||
+    currentPositionSnapshot.currentPrice <= 0 ||
+    currentPositionSnapshot.currentValue <= 0
+  ) {
+    return null;
+  }
+
+  return (
+    (currentPositionSnapshot.quantity * currentPositionSnapshot.currentPrice) /
+    currentPositionSnapshot.currentValue
+  );
+}
+
+function buildOrdersSummaryFromCurrentPosition(
+  orders: WebHistoricalOrder[],
+  latestStoredPrice: InstrumentStoredPrice | null,
+  currentPositionSnapshot: CurrentPositionSnapshot,
+  manualPriceInput = '',
+): OrdersSummary {
+  const historicalSummary = buildOrdersSummary(
+    orders,
+    latestStoredPrice,
+    manualPriceInput,
+  );
+  const priceToWalletRateDivisor =
+    getPriceToWalletRateDivisorFromCurrentPosition(currentPositionSnapshot);
+  const remainingQuantity = currentPositionSnapshot.quantity;
+  const instrumentPriceUsed = historicalSummary.instrumentPriceUsed;
+  const currentValue =
+    instrumentPriceUsed !== null && priceToWalletRateDivisor !== null
+      ? (remainingQuantity * instrumentPriceUsed) / priceToWalletRateDivisor
+      : currentPositionSnapshot.currentValue;
+  const costBasis = currentPositionSnapshot.totalCost;
+  const averageCost =
+    remainingQuantity > 0 ? costBasis / remainingQuantity : null;
+  const unrealizedPnL = currentValue - costBasis;
+  const unrealizedPnLPercent =
+    costBasis > 0 ? unrealizedPnL / costBasis : null;
+  const realizedPnL = historicalSummary.realizedPnL ?? 0;
+  const lifetimePnL = realizedPnL + unrealizedPnL;
+
+  return {
+    ...historicalSummary,
+    summarySource: 't212_position',
+    walletCurrency: currentPositionSnapshot.walletCurrency,
+    remainingQuantity,
+    estimatedCurrentValue: currentValue,
+    lifetimePnL,
+    estimatedPositionValue: currentValue,
+    priceToWalletRateDivisor,
+    currentValue,
+    averageCost,
+    costBasis,
+    realizedPnL,
+    unrealizedPnL,
+    unrealizedPnLPercent,
+  };
+}
+
+function buildMultiOrdersSummaryFromCurrentPositions({
+  orders,
+  selectedInstruments,
+}: {
+  orders: WebHistoricalOrder[];
+  selectedInstruments: InstrumentWithStoredPrice[];
+}): OrdersSummary {
+  const historicalSummary = buildMultiOrdersSummary(orders, selectedInstruments);
+  const historicalRealizedPnL = selectedInstruments.reduce((sum, instrument) => {
+    const instrumentSummary = buildOrdersSummary(
+      orders.filter((order) => order.instrument.isin === instrument.isin),
+      instrument.latestStoredPrice,
+    );
+
+    return sum + (instrumentSummary.realizedPnL ?? 0);
+  }, 0);
+  const activePositionSnapshots = selectedInstruments
+    .map((instrument) => instrument.latestPositionSnapshot)
+    .filter((snapshot): snapshot is CurrentPositionSnapshot => snapshot !== null);
+
+  if (activePositionSnapshots.length === 0) {
+    return historicalSummary;
+  }
+
+  const walletCurrencies = new Set(
+    activePositionSnapshots.map((snapshot) => snapshot.walletCurrency),
+  );
+  const walletCurrency =
+    walletCurrencies.size === 1
+      ? (activePositionSnapshots[0]?.walletCurrency ?? null)
+      : null;
+  const remainingQuantity = activePositionSnapshots.reduce(
+    (sum, snapshot) => sum + snapshot.quantity,
+    0,
+  );
+  const currentValue = activePositionSnapshots.reduce(
+    (sum, snapshot) => sum + snapshot.currentValue,
+    0,
+  );
+  const costBasis = activePositionSnapshots.reduce(
+    (sum, snapshot) => sum + snapshot.totalCost,
+    0,
+  );
+  const unrealizedPnL = activePositionSnapshots.reduce(
+    (sum, snapshot) => sum + snapshot.unrealizedProfitLoss,
+    0,
+  );
+  const lifetimePnL = historicalRealizedPnL + unrealizedPnL;
+
+  return {
+    ...historicalSummary,
+    summarySource: 't212_position',
+    walletCurrency,
+    remainingQuantity,
+    estimatedCurrentValue: currentValue,
+    lifetimePnL,
+    estimatedPositionValue: currentValue,
+    currentValue: null,
+    averageCost: null,
+    costBasis: null,
+    realizedPnL: null,
+    unrealizedPnL: null,
+    unrealizedPnLPercent: null,
+  };
+}
+
+function buildAllInstrumentsSummaryFromAccountSummary(
+  accountSummarySnapshot: AccountSummarySnapshot,
+  selectedInstrumentCount: number,
+): OrdersSummary {
+  return {
+    summarySource: 't212_account',
+    walletCurrency: accountSummarySnapshot.currency,
+    remainingQuantity: selectedInstrumentCount,
+    estimatedCurrentValue: accountSummarySnapshot.currentValue,
+    lifetimePnL:
+      accountSummarySnapshot.realizedProfitLoss +
+      accountSummarySnapshot.unrealizedProfitLoss,
+    defaultInstrumentPriceUsed: null,
+    instrumentPriceCurrency: null,
+    estimatedPositionValue: accountSummarySnapshot.currentValue,
+    instrumentPriceUsed: null,
+    priceToWalletRateDivisor: null,
+    manualPriceInput: '',
+    netCashflow: 0,
+    parsedManualPrice: null,
+    effectiveInstrumentPrice: null,
+    fallbackInstrumentPrice: null,
+    storedInstrumentPriceUsed: null,
+    currentPrice: null,
+    currentValue: null,
+    averageCost: null,
+    costBasis: null,
+    realizedPnL: null,
+    unrealizedPnL: null,
+    unrealizedPnLPercent: null,
+  };
+}
+
 export {
+  buildAllInstrumentsSummaryFromAccountSummary,
+  buildMultiOrdersSummaryFromCurrentPositions,
   buildMultiOrdersSummary,
+  buildOrdersSummaryFromCurrentPosition,
   buildOrdersSummary,
   getDisplayPriceContext,
   getLatestFill,

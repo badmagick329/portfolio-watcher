@@ -15,6 +15,8 @@ import {
   mapDbHistoricalOrdersToWeb,
 } from './mappers';
 import {
+  accountSummarySnapshots,
+  currentPositionSnapshots,
   fillTaxes,
   fills,
   instrumentPrices,
@@ -350,6 +352,108 @@ const createBrokerDataManager = () => {
         .run();
     }, 'save instrument price snapshot');
 
+  const saveCurrentPositionSnapshot = (
+    snapshot: import('@portfolio/domain').CurrentPositionSnapshot,
+  ) =>
+    wrapDb(() => {
+      db.insert(currentPositionSnapshots)
+        .values({
+          isin: snapshot.isin,
+          providerSymbol: snapshot.providerSymbol,
+          quantity: snapshot.quantity,
+          currentPrice: snapshot.currentPrice,
+          instrumentCurrency: snapshot.instrumentCurrency,
+          walletCurrency: snapshot.walletCurrency,
+          currentValue: snapshot.currentValue,
+          totalCost: snapshot.totalCost,
+          unrealizedProfitLoss: snapshot.unrealizedProfitLoss,
+          fxImpact: snapshot.fxImpact,
+          asOf: snapshot.asOf,
+          fetchedAt: snapshot.fetchedAt,
+        })
+        .onConflictDoNothing()
+        .run();
+    }, 'save current position snapshot');
+
+  const getLatestCurrentPositionSnapshotByIsin = (isin: string) =>
+    wrapDb(() => {
+      const row = db
+        .select({
+          isin: currentPositionSnapshots.isin,
+          providerSymbol: currentPositionSnapshots.providerSymbol,
+          quantity: currentPositionSnapshots.quantity,
+          currentPrice: currentPositionSnapshots.currentPrice,
+          instrumentCurrency: currentPositionSnapshots.instrumentCurrency,
+          walletCurrency: currentPositionSnapshots.walletCurrency,
+          currentValue: currentPositionSnapshots.currentValue,
+          totalCost: currentPositionSnapshots.totalCost,
+          unrealizedProfitLoss: currentPositionSnapshots.unrealizedProfitLoss,
+          fxImpact: currentPositionSnapshots.fxImpact,
+          asOf: currentPositionSnapshots.asOf,
+          fetchedAt: currentPositionSnapshots.fetchedAt,
+        })
+        .from(currentPositionSnapshots)
+        .where(eq(currentPositionSnapshots.isin, isin))
+        .orderBy(
+          desc(currentPositionSnapshots.asOf),
+          desc(currentPositionSnapshots.fetchedAt),
+        )
+        .get();
+
+      return row
+        ? ({
+            ...row,
+            fxImpact: row.fxImpact ?? null,
+          } satisfies import('@portfolio/domain').CurrentPositionSnapshot)
+        : undefined;
+    }, 'get latest current position snapshot by isin');
+
+  const saveAccountSummarySnapshot = (
+    snapshot: import('@portfolio/domain').AccountSummarySnapshot,
+  ) =>
+    wrapDb(() => {
+      db.insert(accountSummarySnapshots)
+        .values({
+          currency: snapshot.currency,
+          currentValue: snapshot.currentValue,
+          totalCost: snapshot.totalCost,
+          realizedProfitLoss: snapshot.realizedProfitLoss,
+          unrealizedProfitLoss: snapshot.unrealizedProfitLoss,
+          totalValue: snapshot.totalValue,
+          asOf: snapshot.asOf,
+          fetchedAt: snapshot.fetchedAt,
+        })
+        .onConflictDoNothing()
+        .run();
+    }, 'save account summary snapshot');
+
+  const getLatestAccountSummarySnapshot = () =>
+    wrapDb(() => {
+      const row = db
+        .select({
+          currency: accountSummarySnapshots.currency,
+          currentValue: accountSummarySnapshots.currentValue,
+          totalCost: accountSummarySnapshots.totalCost,
+          realizedProfitLoss: accountSummarySnapshots.realizedProfitLoss,
+          unrealizedProfitLoss: accountSummarySnapshots.unrealizedProfitLoss,
+          totalValue: accountSummarySnapshots.totalValue,
+          asOf: accountSummarySnapshots.asOf,
+          fetchedAt: accountSummarySnapshots.fetchedAt,
+        })
+        .from(accountSummarySnapshots)
+        .orderBy(
+          desc(accountSummarySnapshots.asOf),
+          desc(accountSummarySnapshots.fetchedAt),
+        )
+        .get();
+
+      return row
+        ? ({
+            ...row,
+          } satisfies import('@portfolio/domain').AccountSummarySnapshot)
+        : undefined;
+    }, 'get latest account summary snapshot');
+
   const getLatestInstrumentPriceByIsin = (isin: string) =>
     wrapDb(() => {
       const providerPriority = sql<number>`
@@ -490,6 +594,10 @@ const createBrokerDataManager = () => {
     saveInstrumentPriceSource,
     getInstrumentPriceSourceByIsin,
     saveInstrumentPriceSnapshot,
+    saveCurrentPositionSnapshot,
+    getLatestCurrentPositionSnapshotByIsin,
+    saveAccountSummarySnapshot,
+    getLatestAccountSummarySnapshot,
     getLatestInstrumentPriceByIsin,
     listInstrumentsNeedingPriceRefresh,
   } satisfies BrokerDataManager;

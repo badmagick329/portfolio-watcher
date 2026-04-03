@@ -3,6 +3,7 @@ import { buildOrdersSummaryViewModel } from '../orders-summary-view-model';
 import type { OrdersSummary } from '../orders-list-math';
 
 const baseSummary: OrdersSummary = {
+  summarySource: 'historical',
   walletCurrency: 'USD',
   remainingQuantity: 10,
   estimatedCurrentValue: 1000,
@@ -62,6 +63,7 @@ describe('buildOrdersSummaryViewModel', () => {
 
     expect(viewModel).toEqual({
       mode: 'single',
+      summarySource: 'historical',
       totals: {
         walletCurrency: 'USD',
         remainingQuantity: 10,
@@ -116,6 +118,7 @@ describe('buildOrdersSummaryViewModel', () => {
     });
 
     expect(viewModel.mode).toBe('multi');
+    expect(viewModel.summarySource).toBe('historical');
     expect(viewModel.totals.selectedInstrumentCount).toBe(2);
     expect(viewModel.priceEditor).toEqual({
       input: '',

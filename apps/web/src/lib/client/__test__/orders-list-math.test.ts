@@ -1,8 +1,18 @@
 import { describe, expect, test } from 'vitest';
-import type { WebHistoricalOrder } from '@portfolio/domain';
-import type { InstrumentStoredPrice, InstrumentWithStoredPrice } from '../instrument-price';
+import type {
+  AccountSummarySnapshot,
+  CurrentPositionSnapshot,
+  WebHistoricalOrder,
+} from '@portfolio/domain';
+import type {
+  InstrumentStoredPrice,
+  InstrumentWithStoredPrice,
+} from '../instrument-price';
 import {
+  buildAllInstrumentsSummaryFromAccountSummary,
+  buildMultiOrdersSummaryFromCurrentPositions,
   buildMultiOrdersSummary,
+  buildOrdersSummaryFromCurrentPosition,
   buildOrdersSummary,
   getLatestFxByCurrency,
 } from '../orders-list-math';
@@ -85,6 +95,7 @@ describe('buildOrdersSummary', () => {
     expect(summary.costBasis).toBe(1000);
     expect(summary.unrealizedPnL).toBe(200);
     expect(summary.unrealizedPnLPercent).toBe(0.2);
+    expect(summary.summarySource).toBe('historical');
   });
 
   test('falls back to the latest fill-derived price when stored price is older', () => {
@@ -358,10 +369,12 @@ describe('buildOrdersSummary', () => {
           asOf: '2026-03-25T00:00:00.000Z',
           priceType: 'eod',
         },
+        latestPositionSnapshot: null,
       },
       {
         ...appleOrder.instrument,
         latestStoredPrice: null,
+        latestPositionSnapshot: null,
       },
     ];
 
@@ -378,6 +391,121 @@ describe('buildOrdersSummary', () => {
     expect(summary.manualPriceInput).toBe('');
     expect(summary.currentPrice).toBeNull();
     expect(summary.currentValue).toBeNull();
+    expect(summary.summarySource).toBe('historical');
+  });
+
+  test('uses t212 current-position wallet metrics for single-instrument valuation', () => {
+    const currentPositionSnapshot: CurrentPositionSnapshot = {
+      isin: 'US0079031078',
+      providerSymbol: 'AMD_US_EQ',
+      quantity: 10,
+      currentPrice: 100,
+      instrumentCurrency: 'USD',
+      walletCurrency: 'GBP',
+      currentValue: 500,
+      totalCost: 550,
+      unrealizedProfitLoss: -50,
+      fxImpact: null,
+      asOf: '2026-04-03T20:00:00.000Z',
+      fetchedAt: '2026-04-03T20:00:00.000Z',
+    };
+
+    const summary = buildOrdersSummaryFromCurrentPosition(
+      [createOrder()],
+      null,
+      currentPositionSnapshot,
+      '110',
+    );
+
+    expect(summary.summarySource).toBe('t212_position');
+    expect(summary.remainingQuantity).toBe(10);
+    expect(summary.currentValue).toBe(550);
+    expect(summary.costBasis).toBe(550);
+    expect(summary.unrealizedPnL).toBe(0);
+    expect(summary.lifetimePnL).toBeCloseTo(0);
+  });
+
+  test('uses t212 account summary for the unfiltered all-instruments view', () => {
+    const accountSummarySnapshot: AccountSummarySnapshot = {
+      currency: 'GBP',
+      currentValue: 1000,
+      totalCost: 1200,
+      realizedProfitLoss: 150,
+      unrealizedProfitLoss: -200,
+      totalValue: 3000,
+      asOf: '2026-04-03T20:00:00.000Z',
+      fetchedAt: '2026-04-03T20:00:00.000Z',
+    };
+
+    const summary = buildAllInstrumentsSummaryFromAccountSummary(
+      accountSummarySnapshot,
+      5,
+    );
+
+    expect(summary.summarySource).toBe('t212_account');
+    expect(summary.estimatedPositionValue).toBe(1000);
+    expect(summary.lifetimePnL).toBe(-50);
+  });
+
+  test('uses t212 current-position wallet metrics for aggregate filtered views', () => {
+    const metaOrder = createOrder();
+    const appleOrder = createOrder({
+      id: 2,
+      ticker: 'AAPL_US_EQ',
+      instrument: {
+        ticker: 'AAPL_US_EQ',
+        name: 'Apple',
+        isin: 'US0378331005',
+        currency: 'USD',
+      },
+    });
+    const selectedInstruments: InstrumentWithStoredPrice[] = [
+      {
+        ...metaOrder.instrument,
+        latestStoredPrice: null,
+        latestPositionSnapshot: {
+          isin: metaOrder.instrument.isin,
+          providerSymbol: metaOrder.instrument.ticker,
+          quantity: 10,
+          currentPrice: 100,
+          instrumentCurrency: 'USD',
+          walletCurrency: 'GBP',
+          currentValue: 500,
+          totalCost: 550,
+          unrealizedProfitLoss: -50,
+          fxImpact: null,
+          asOf: '2026-04-03T20:00:00.000Z',
+          fetchedAt: '2026-04-03T20:00:00.000Z',
+        },
+      },
+      {
+        ...appleOrder.instrument,
+        latestStoredPrice: null,
+        latestPositionSnapshot: {
+          isin: appleOrder.instrument.isin,
+          providerSymbol: appleOrder.instrument.ticker,
+          quantity: 10,
+          currentPrice: 200,
+          instrumentCurrency: 'USD',
+          walletCurrency: 'GBP',
+          currentValue: 900,
+          totalCost: 850,
+          unrealizedProfitLoss: 50,
+          fxImpact: null,
+          asOf: '2026-04-03T20:00:00.000Z',
+          fetchedAt: '2026-04-03T20:00:00.000Z',
+        },
+      },
+    ];
+
+    const summary = buildMultiOrdersSummaryFromCurrentPositions({
+      orders: [metaOrder, appleOrder],
+      selectedInstruments,
+    });
+
+    expect(summary.summarySource).toBe('t212_position');
+    expect(summary.estimatedPositionValue).toBe(1400);
+    expect(summary.lifetimePnL).toBeCloseTo(0);
   });
 
   test('manual override still changes only the price, not the selected fx source', () => {

@@ -1,4 +1,6 @@
 import type {
+  AccountSummarySnapshot,
+  CurrentPositionSnapshot,
   InstrumentPriceSnapshot,
   InstrumentPriceType,
   WebHistoricalOrderInstrument,
@@ -11,6 +13,7 @@ type InstrumentStoredPrice = Pick<
 
 type InstrumentWithStoredPrice = WebHistoricalOrderInstrument & {
   latestStoredPrice: InstrumentStoredPrice | null;
+  latestPositionSnapshot: CurrentPositionSnapshot | null;
 };
 
 type EffectiveInstrumentPrice = {
@@ -23,6 +26,8 @@ type EffectiveInstrumentPrice = {
 };
 
 export type {
+  AccountSummarySnapshot,
+  CurrentPositionSnapshot,
   EffectiveInstrumentPrice,
   InstrumentStoredPrice,
   InstrumentWithStoredPrice,

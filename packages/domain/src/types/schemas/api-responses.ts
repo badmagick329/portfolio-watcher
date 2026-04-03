@@ -103,7 +103,15 @@ const positionSchema = z
     quantity: z.number().optional(),
     quantityAvailableForTrading: z.number().optional(),
     quantityInPies: z.number().optional(),
-    walletImpact: z.unknown().optional(),
+    walletImpact: z
+      .object({
+        currency: z.string(),
+        totalCost: z.number(),
+        currentValue: z.number(),
+        unrealizedProfitLoss: z.number(),
+        fxImpact: z.number().nullable().optional(),
+      })
+      .optional(),
   })
   .passthrough();
 

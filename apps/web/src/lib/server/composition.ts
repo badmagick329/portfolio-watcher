@@ -7,6 +7,8 @@ const webServices = createWebServices();
 export const {
   getDistinctInstruments,
   getHistoricalOrdersForWeb,
+  getLatestAccountSummarySnapshot,
+  getLatestCurrentPositionSnapshot,
   getLatestInstrumentPrice,
   saveManualInstrumentPrice,
 } =

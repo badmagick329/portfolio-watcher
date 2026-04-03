@@ -173,6 +173,7 @@ describe('instrument selection', () => {
         isin: 'US001',
         currency: 'USD',
         latestStoredPrice: null,
+        latestPositionSnapshot: null,
       },
       {
         ticker: 'BBB',
@@ -180,6 +181,7 @@ describe('instrument selection', () => {
         isin: 'US002',
         currency: 'USD',
         latestStoredPrice: null,
+        latestPositionSnapshot: null,
       },
     ];
     const filteredOrders = [createOrder('US002', 'BBB')];

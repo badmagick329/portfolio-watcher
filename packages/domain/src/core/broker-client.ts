@@ -12,11 +12,15 @@ import type {
 } from '../types';
 import type {
   AccountCash,
-  Positions,
   AccountSummary,
+  Positions,
   HistoricalOrders,
   HistoricalOrdersItems,
 } from '../types/schemas/api-responses';
+import type {
+  AccountSummarySnapshot,
+  CurrentPositionSnapshot,
+} from '../types';
 
 type HistoricalOrdersInput = HistoricalOrdersParams | { nextPagePath: string };
 
@@ -51,6 +55,19 @@ interface BrokerDataManager {
   saveInstrumentPriceSnapshot(
     snapshot: InstrumentPriceSnapshot,
   ): ResultAsync<void, AppError>;
+  saveCurrentPositionSnapshot(
+    snapshot: CurrentPositionSnapshot,
+  ): ResultAsync<void, AppError>;
+  getLatestCurrentPositionSnapshotByIsin(
+    isin: string,
+  ): ResultAsync<CurrentPositionSnapshot | undefined, AppError>;
+  saveAccountSummarySnapshot(
+    snapshot: AccountSummarySnapshot,
+  ): ResultAsync<void, AppError>;
+  getLatestAccountSummarySnapshot(): ResultAsync<
+    AccountSummarySnapshot | undefined,
+    AppError
+  >;
   getLatestInstrumentPriceByIsin(
     isin: string,
   ): ResultAsync<InstrumentPriceSnapshot | undefined, AppError>;

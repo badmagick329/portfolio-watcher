@@ -56,11 +56,11 @@ const positionsPayload = [
     quantityAvailableForTrading: 1,
     quantityInPies: 0,
     walletImpact: {
-      invested: 199,
-      marketValue: 197.85,
-      result: -1.15,
-      averagePrice: 227.17,
-      currentPrice: 225.86,
+      currency: 'GBP',
+      totalCost: 199,
+      currentValue: 197.85,
+      unrealizedProfitLoss: -1.15,
+      fxImpact: 0.2,
     },
   },
 ];

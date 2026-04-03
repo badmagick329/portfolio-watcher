@@ -36,6 +36,13 @@
       "when": 1775000000000,
       "tag": "0005_tan_price_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1775248751487,
+      "tag": "0005_shiny_hulk",
+      "breakpoints": true
     }
   ]
 }

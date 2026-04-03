@@ -4,11 +4,15 @@ import { saveManualInstrumentPriceAction } from '@/actions/instrument-prices-act
 import type { WebHistoricalOrder } from '@portfolio/domain';
 import { useState, useTransition } from 'react';
 import type {
+  AccountSummarySnapshot,
   InstrumentStoredPrice,
   InstrumentWithStoredPrice,
 } from './instrument-price';
 import {
+  buildAllInstrumentsSummaryFromAccountSummary,
+  buildMultiOrdersSummaryFromCurrentPositions,
   buildMultiOrdersSummary,
+  buildOrdersSummaryFromCurrentPosition,
   buildOrdersSummary,
   parseManualPrice,
 } from './orders-list-math';
@@ -19,7 +23,10 @@ import {
 } from './orders-summary-view-model';
 
 type UseOrdersSummaryControllerParams = {
+  hasActiveFillDateFilter: boolean;
+  latestAccountSummarySnapshot: AccountSummarySnapshot | null;
   orders: WebHistoricalOrder[];
+  selectionMode: 'all' | 'single' | 'include' | 'exclude';
   selectedInstruments: InstrumentWithStoredPrice[];
   onStoredPriceSaved: (
     isin: string,
@@ -33,7 +40,10 @@ type UseOrdersSummaryControllerResult = {
 };
 
 function useOrdersSummaryController({
+  hasActiveFillDateFilter,
+  latestAccountSummarySnapshot,
   orders,
+  selectionMode,
   selectedInstruments,
   onStoredPriceSaved,
 }: UseOrdersSummaryControllerParams): UseOrdersSummaryControllerResult {
@@ -42,6 +52,8 @@ function useOrdersSummaryController({
   const latestStoredPrice = singleSelectedInstrument?.latestStoredPrice ?? null;
   const instrumentIsin = singleSelectedInstrument?.isin ?? '';
   const instrumentCurrency = singleSelectedInstrument?.currency ?? '';
+  const latestPositionSnapshot =
+    singleSelectedInstrument?.latestPositionSnapshot ?? null;
   const mode = singleSelectedInstrument ? 'single' : 'multi';
   const [storedPrice, setStoredPrice] = useState(latestStoredPrice);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -66,15 +78,36 @@ function useOrdersSummaryController({
     parsedManualPrice === storedPrice.price &&
     instrumentCurrency === storedPrice.currency;
   const summary =
-    mode === 'single'
-      ? buildOrdersSummary(
-          orders,
-          storedPrice,
-          manualPriceOverrideActive && !manualMatchesStoredPrice
-            ? manualPriceInput
-            : '',
+    !hasActiveFillDateFilter &&
+    selectionMode === 'all' &&
+    latestAccountSummarySnapshot !== null
+      ? buildAllInstrumentsSummaryFromAccountSummary(
+          latestAccountSummarySnapshot,
+          selectedInstruments.length,
         )
-      : buildMultiOrdersSummary(orders, selectedInstruments);
+      : mode === 'single'
+        ? latestPositionSnapshot !== null && !hasActiveFillDateFilter
+          ? buildOrdersSummaryFromCurrentPosition(
+              orders,
+              storedPrice,
+              latestPositionSnapshot,
+              manualPriceOverrideActive && !manualMatchesStoredPrice
+                ? manualPriceInput
+                : '',
+            )
+          : buildOrdersSummary(
+              orders,
+              storedPrice,
+              manualPriceOverrideActive && !manualMatchesStoredPrice
+                ? manualPriceInput
+                : '',
+            )
+        : !hasActiveFillDateFilter
+          ? buildMultiOrdersSummaryFromCurrentPositions({
+              orders,
+              selectedInstruments,
+            })
+          : buildMultiOrdersSummary(orders, selectedInstruments);
   const displayedManualPriceInput = manualPriceOverrideActive
     ? manualPriceInput
     : summary.manualPriceInput;

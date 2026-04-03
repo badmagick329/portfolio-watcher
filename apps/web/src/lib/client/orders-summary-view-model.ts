@@ -3,6 +3,7 @@ import type { OrdersSummary as OrdersSummaryState } from './orders-list-math';
 
 type OrdersSummaryViewModel = {
   mode: 'single' | 'multi';
+  summarySource: OrdersSummaryState['summarySource'];
   totals: {
     walletCurrency: string | null;
     remainingQuantity: number;
@@ -54,6 +55,7 @@ const buildOrdersSummaryViewModel = ({
   selectedInstrumentCount: number;
 }): OrdersSummaryViewModel => ({
   mode,
+  summarySource: summary.summarySource,
   totals: {
     walletCurrency: summary.walletCurrency,
     remainingQuantity: summary.remainingQuantity,

@@ -16,7 +16,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { InstrumentStoredPrice, InstrumentWithStoredPrice } from '@/lib/client/instrument-price';
+import type {
+  AccountSummarySnapshot,
+  InstrumentStoredPrice,
+  InstrumentWithStoredPrice,
+} from '@/lib/client/instrument-price';
 import { buildOrdersListRows } from '@/lib/client/orders-list-rows';
 import { getOrdersTablePaginationState } from '@/lib/client/orders-table-pagination';
 import { getCurrentTimeZoneAbbreviation } from '@/lib/client/orders-summary-presentation';
@@ -26,8 +30,11 @@ import { OrdersSummary } from './OrdersSummary';
 
 type OrdersListProps = {
   currentPage: number;
+  hasActiveFillDateFilter: boolean;
+  latestAccountSummarySnapshot: AccountSummarySnapshot | null;
   orders: WebHistoricalOrder[];
   onPageChange: (page: number) => void;
+  selectionMode: 'all' | 'single' | 'include' | 'exclude';
   selectedInstruments: InstrumentWithStoredPrice[];
   onStoredPriceSaved: (
     isin: string,
@@ -37,8 +44,11 @@ type OrdersListProps = {
 
 export function OrdersList({
   currentPage,
+  hasActiveFillDateFilter,
+  latestAccountSummarySnapshot,
   orders,
   onPageChange,
+  selectionMode,
   selectedInstruments,
   onStoredPriceSaved,
 }: OrdersListProps) {
@@ -46,7 +56,10 @@ export function OrdersList({
   const pagination = getOrdersTablePaginationState(rows, currentPage);
   const timeColumnLabel = `Time (${getCurrentTimeZoneAbbreviation()})`;
   const { viewModel, actions } = useOrdersSummaryController({
+    hasActiveFillDateFilter,
+    latestAccountSummarySnapshot,
     orders,
+    selectionMode,
     selectedInstruments,
     onStoredPriceSaved,
   });

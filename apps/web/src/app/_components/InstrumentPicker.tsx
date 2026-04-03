@@ -18,7 +18,10 @@ import {
 import {
   filterOrdersByFilledDateRange,
 } from '@/lib/client/fill-date-filter';
-import type { InstrumentWithStoredPrice } from '@/lib/client/instrument-price';
+import type {
+  AccountSummarySnapshot,
+  InstrumentWithStoredPrice,
+} from '@/lib/client/instrument-price';
 import {
   filterOrdersBySelection,
   getActiveInstrumentsFromFilteredOrders,
@@ -31,11 +34,13 @@ import type { WebHistoricalOrder } from '@portfolio/domain';
 
 type InstrumentPickerProps = {
   instruments: InstrumentWithStoredPrice[];
+  latestAccountSummarySnapshot: AccountSummarySnapshot | null;
   orders: WebHistoricalOrder[];
 };
 
 export function InstrumentPicker({
   instruments,
+  latestAccountSummarySnapshot,
   orders,
 }: InstrumentPickerProps) {
   const pathname = usePathname();
@@ -52,6 +57,8 @@ export function InstrumentPicker({
     filledFrom: urlState.filledFrom,
     filledTo: urlState.filledTo,
   };
+  const hasActiveFillDateFilter =
+    Boolean(fillDateRangeFilter.filledFrom) || Boolean(fillDateRangeFilter.filledTo);
   const isAllMode = selection.mode === 'all';
   const isSingleMode = selection.mode === 'single';
   const selectedInstruments = instrumentOptions.filter((instrument) =>
@@ -239,9 +246,12 @@ export function InstrumentPicker({
             .map((instrument) => instrument.isin)
             .sort()
             .join(',')}`}
+          hasActiveFillDateFilter={hasActiveFillDateFilter}
           currentPage={urlState.page}
+          latestAccountSummarySnapshot={latestAccountSummarySnapshot}
           orders={filteredOrders}
           onPageChange={(page) => replaceUrlState({ page })}
+          selectionMode={selection.mode}
           selectedInstruments={activeInstruments}
           onStoredPriceSaved={(isin, latestStoredPrice) => {
             setInstrumentOptions((current) =>

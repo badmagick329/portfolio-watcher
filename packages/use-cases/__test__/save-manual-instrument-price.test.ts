@@ -18,6 +18,10 @@ describe('saveManualInstrumentPrice', () => {
         savedSnapshot = snapshot;
         return okAsync(undefined);
       },
+      saveCurrentPositionSnapshot: () => okAsync(undefined),
+      getLatestCurrentPositionSnapshotByIsin: () => okAsync(undefined),
+      saveAccountSummarySnapshot: () => okAsync(undefined),
+      getLatestAccountSummarySnapshot: () => okAsync(undefined),
       getLatestInstrumentPriceByIsin: () => okAsync(undefined),
       listInstrumentsNeedingPriceRefresh: () => okAsync([]),
     };

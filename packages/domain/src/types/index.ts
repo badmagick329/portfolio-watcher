@@ -70,6 +70,32 @@ type WebHistoricalOrdersResult = {
   filters: WebHistoricalOrdersFilters;
 };
 
+type CurrentPositionSnapshot = {
+  isin: string;
+  providerSymbol: string;
+  quantity: number;
+  currentPrice: number;
+  instrumentCurrency: string;
+  walletCurrency: string;
+  currentValue: number;
+  totalCost: number;
+  unrealizedProfitLoss: number;
+  fxImpact: number | null;
+  asOf: string;
+  fetchedAt: string;
+};
+
+type AccountSummarySnapshot = {
+  currency: string;
+  currentValue: number;
+  totalCost: number;
+  realizedProfitLoss: number;
+  unrealizedProfitLoss: number;
+  totalValue: number;
+  asOf: string;
+  fetchedAt: string;
+};
+
 type InstrumentPriceProvider = 'fmp' | 'eodhd' | 'manual' | 't212';
 
 type InstrumentPriceType =
@@ -145,6 +171,13 @@ type CurrentPositionPriceSyncResult = {
   persisted: number;
 };
 
+type PortfolioStateSyncResult = {
+  attemptedPositions: number;
+  persistedPrices: number;
+  persistedPositions: number;
+  persistedAccountSummaries: number;
+};
+
 type RateLimitResponse = {
   rateLimitLimit: number;
   rateLimitPeriodSec: number;
@@ -169,6 +202,8 @@ type SyncStepResult =
 
 export type {
   AppError,
+  AccountSummarySnapshot,
+  CurrentPositionSnapshot,
   InstrumentPriceFetchResult,
   InstrumentPriceProvider,
   InstrumentPriceRefreshCandidate,
@@ -178,6 +213,7 @@ export type {
   InstrumentPriceSyncResult,
   InstrumentPriceType,
   CurrentPositionPriceSyncResult,
+  PortfolioStateSyncResult,
   HistoricalOrdersParams,
   RateLimitResponse,
   SyncStepResult,
