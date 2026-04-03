@@ -17,18 +17,16 @@ import {
 } from '@/components/ui/combobox';
 import {
   filterOrdersByFilledDateRange,
-  getFillDateRangeFilterFromSearchParams,
-  getSearchParamsWithFillDateRange,
 } from '@/lib/client/fill-date-filter';
 import type { InstrumentWithStoredPrice } from '@/lib/client/instrument-price';
 import {
-  createInstrumentSelection,
   filterOrdersBySelection,
   getActiveInstrumentsFromFilteredOrders,
-  type InstrumentSelectionState,
-  setInstrumentSelectionMode,
-  toggleInstrumentSelection,
 } from '@/lib/client/instrument-selection';
+import {
+  getOrdersViewUrlState,
+  getSearchParamsWithUpdatedOrdersViewUrlState,
+} from '@/lib/client/orders-view-url-state';
 import type { WebHistoricalOrder } from '@portfolio/domain';
 
 type InstrumentPickerProps = {
@@ -45,10 +43,15 @@ export function InstrumentPicker({
   const searchParams = useSearchParams();
   const [instrumentOptions, setInstrumentOptions] =
     useState<InstrumentWithStoredPrice[]>(instruments);
-  const [selection, setSelection] = useState<InstrumentSelectionState>(
-    createInstrumentSelection(),
-  );
-  const fillDateRangeFilter = getFillDateRangeFilterFromSearchParams(searchParams);
+  const urlState = getOrdersViewUrlState(searchParams);
+  const selection = {
+    mode: urlState.mode,
+    selectedIsins: urlState.selectedIsins,
+  };
+  const fillDateRangeFilter = {
+    filledFrom: urlState.filledFrom,
+    filledTo: urlState.filledTo,
+  };
   const isAllMode = selection.mode === 'all';
   const selectedInstruments = instrumentOptions.filter((instrument) =>
     selection.selectedIsins.includes(instrument.isin),
@@ -74,6 +77,19 @@ export function InstrumentPicker({
     selection.mode === 'include' && selection.selectedIsins.length === 0
       ? 'Select one or more instruments.'
       : 'No instruments match the current filter.';
+  const replaceUrlState = (
+    partialState: Partial<typeof urlState>,
+  ) => {
+    const nextSearchParams = getSearchParamsWithUpdatedOrdersViewUrlState(
+      searchParams,
+      partialState,
+    );
+    const queryString = nextSearchParams.toString();
+
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
+  };
 
   return (
     <div className='flex w-full flex-col space-y-3'>
@@ -82,11 +98,7 @@ export function InstrumentPicker({
           type='button'
           size='sm'
           variant={selection.mode === 'all' ? 'default' : 'outline'}
-          onClick={() =>
-            setSelection((current) =>
-              setInstrumentSelectionMode(current, 'all'),
-            )
-          }
+          onClick={() => replaceUrlState({ mode: 'all' })}
         >
           All
         </Button>
@@ -94,11 +106,7 @@ export function InstrumentPicker({
           type='button'
           size='sm'
           variant={selection.mode === 'include' ? 'default' : 'outline'}
-          onClick={() =>
-            setSelection((current) =>
-              setInstrumentSelectionMode(current, 'include'),
-            )
-          }
+          onClick={() => replaceUrlState({ mode: 'include' })}
         >
           Include
         </Button>
@@ -106,11 +114,7 @@ export function InstrumentPicker({
           type='button'
           size='sm'
           variant={selection.mode === 'exclude' ? 'default' : 'outline'}
-          onClick={() =>
-            setSelection((current) =>
-              setInstrumentSelectionMode(current, 'exclude'),
-            )
-          }
+          onClick={() => replaceUrlState({ mode: 'exclude' })}
         >
           Exclude
         </Button>
@@ -118,18 +122,7 @@ export function InstrumentPicker({
 
       <FillDateRangePicker
         value={fillDateRangeFilter}
-        onChange={(nextFilter) => {
-          const nextSearchParams = getSearchParamsWithFillDateRange(
-            searchParams,
-            nextFilter,
-          );
-          const queryString = nextSearchParams.toString();
-
-          router.replace(
-            queryString ? `${pathname}?${queryString}` : pathname,
-            { scroll: false },
-          );
-        }}
+        onChange={(nextFilter) => replaceUrlState(nextFilter)}
       />
 
       <Combobox
@@ -137,7 +130,7 @@ export function InstrumentPicker({
         items={instrumentOptions}
         value={selectedInstruments}
         onValueChange={(value) =>
-          setSelection({
+          replaceUrlState({
             mode: selection.mode === 'all' ? 'include' : selection.mode,
             selectedIsins: value.map((instrument) => instrument.isin),
           })
@@ -180,9 +173,13 @@ export function InstrumentPicker({
               variant='outline'
               disabled={isAllMode}
               onClick={() =>
-                setSelection((current) =>
-                  toggleInstrumentSelection(current, instrument.isin),
-                )
+                replaceUrlState({
+                  selectedIsins: selection.selectedIsins.includes(instrument.isin)
+                    ? selection.selectedIsins.filter(
+                        (value) => value !== instrument.isin,
+                      )
+                    : [...selection.selectedIsins, instrument.isin],
+                })
               }
             >
               {instrument.name}

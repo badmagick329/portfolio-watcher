@@ -1,18 +1,21 @@
 'use client';
 
-import { useState, useTransition } from 'react';
 import { saveManualInstrumentPriceAction } from '@/actions/instrument-prices-action';
 import type { WebHistoricalOrder } from '@portfolio/domain';
-import type { InstrumentStoredPrice, InstrumentWithStoredPrice } from './instrument-price';
+import { useState, useTransition } from 'react';
+import type {
+  InstrumentStoredPrice,
+  InstrumentWithStoredPrice,
+} from './instrument-price';
 import {
   buildMultiOrdersSummary,
   buildOrdersSummary,
   parseManualPrice,
 } from './orders-list-math';
 import {
-  buildOrdersSummaryViewModel,
   type OrdersSummaryActions,
   type OrdersSummaryViewModel,
+  buildOrdersSummaryViewModel,
 } from './orders-summary-view-model';
 
 type UseOrdersSummaryControllerParams = {
@@ -42,7 +45,8 @@ function useOrdersSummaryController({
   const mode = singleSelectedInstrument ? 'single' : 'multi';
   const [storedPrice, setStoredPrice] = useState(latestStoredPrice);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [manualPriceOverrideActive, setManualPriceOverrideActive] = useState(false);
+  const [manualPriceOverrideActive, setManualPriceOverrideActive] =
+    useState(false);
   const [isSavingPrice, startSavingPrice] = useTransition();
   const initialSummary =
     mode === 'single'
@@ -74,7 +78,9 @@ function useOrdersSummaryController({
   const displayedManualPriceInput = manualPriceOverrideActive
     ? manualPriceInput
     : summary.manualPriceInput;
-  const parsedDisplayedManualPrice = parseManualPrice(displayedManualPriceInput);
+  const parsedDisplayedManualPrice = parseManualPrice(
+    displayedManualPriceInput,
+  );
   const canSavePrice =
     mode === 'single' &&
     parsedDisplayedManualPrice !== null &&

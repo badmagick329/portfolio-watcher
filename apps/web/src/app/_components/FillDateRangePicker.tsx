@@ -9,17 +9,19 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   formatQueryDate,
   parseQueryDate,
-  type FillDateRangeFilter,
-} from '@/lib/client/fill-date-filter';
+  type OrdersViewUrlState,
+} from '@/lib/client/orders-view-url-state';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
 type FillDateRangePickerProps = {
-  value: FillDateRangeFilter;
-  onChange: (value: FillDateRangeFilter) => void;
+  value: Pick<OrdersViewUrlState, 'filledFrom' | 'filledTo'>;
+  onChange: (
+    value: Pick<OrdersViewUrlState, 'filledFrom' | 'filledTo'>,
+  ) => void;
 };
 
-const getRangeLabel = (value: FillDateRangeFilter) => {
+const getRangeLabel = (value: Pick<OrdersViewUrlState, 'filledFrom' | 'filledTo'>) => {
   const fromDate = parseQueryDate(value.filledFrom);
   const toDate = parseQueryDate(value.filledTo);
 
@@ -85,7 +87,7 @@ export function FillDateRangePicker({
         size='sm'
         variant='outline'
         disabled={!hasValue}
-        onClick={() => onChange({})}
+        onClick={() => onChange({ filledFrom: undefined, filledTo: undefined })}
       >
         <XIcon />
         Clear

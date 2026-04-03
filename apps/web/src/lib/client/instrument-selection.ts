@@ -1,10 +1,11 @@
 import type { InstrumentWithStoredPrice } from './instrument-price';
+import type { OrdersViewUrlState } from './orders-view-url-state';
 import type { WebHistoricalOrder } from '@portfolio/domain';
 
-type InstrumentSelectionState = {
-  mode: 'all' | 'include' | 'exclude';
-  selectedIsins: string[];
-};
+type InstrumentSelectionState = Pick<
+  OrdersViewUrlState,
+  'mode' | 'selectedIsins'
+>;
 
 const createInstrumentSelection = (
   selectedIsins: string[] = [],

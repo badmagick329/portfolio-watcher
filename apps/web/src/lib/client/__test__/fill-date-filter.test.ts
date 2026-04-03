@@ -3,9 +3,11 @@ import type { WebHistoricalOrder } from '@portfolio/domain';
 
 import {
   filterOrdersByFilledDateRange,
-  getFillDateRangeFilterFromSearchParams,
-  getSearchParamsWithFillDateRange,
 } from '../fill-date-filter';
+import {
+  getOrdersViewUrlState,
+  getSearchParamsWithUpdatedOrdersViewUrlState,
+} from '../orders-view-url-state';
 
 const createOrder = (
   filledAt: string,
@@ -136,18 +138,20 @@ describe('fill date filter', () => {
   });
 
   test('reads valid range values from search params', () => {
-    const filter = getFillDateRangeFilterFromSearchParams(
+    const filter = getOrdersViewUrlState(
       new URLSearchParams('filledFrom=2026-04-01&filledTo=2026-04-03'),
     );
 
     expect(filter).toEqual({
+      mode: 'include',
+      selectedIsins: [],
       filledFrom: '2026-04-01',
       filledTo: '2026-04-03',
     });
   });
 
   test('updates search params and preserves unrelated values', () => {
-    const nextSearchParams = getSearchParamsWithFillDateRange(
+    const nextSearchParams = getSearchParamsWithUpdatedOrdersViewUrlState(
       new URLSearchParams('mode=include&filledFrom=2026-04-01'),
       {
         filledFrom: '2026-04-02',
@@ -161,9 +165,12 @@ describe('fill date filter', () => {
   });
 
   test('removes date params when the range is cleared', () => {
-    const nextSearchParams = getSearchParamsWithFillDateRange(
+    const nextSearchParams = getSearchParamsWithUpdatedOrdersViewUrlState(
       new URLSearchParams('mode=include&filledFrom=2026-04-01&filledTo=2026-04-03'),
-      {},
+      {
+        filledFrom: undefined,
+        filledTo: undefined,
+      },
     );
 
     expect(nextSearchParams.toString()).toBe('mode=include');
