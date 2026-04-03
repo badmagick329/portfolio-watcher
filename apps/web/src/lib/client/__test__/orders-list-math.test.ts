@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import type { WebHistoricalOrder } from '@portfolio/domain';
 import type { InstrumentStoredPrice, InstrumentWithStoredPrice } from '../instrument-price';
-import { buildMultiOrdersSummary, buildOrdersSummary } from '../orders-list-math';
+import {
+  buildMultiOrdersSummary,
+  buildOrdersSummary,
+  getLatestFxByCurrency,
+} from '../orders-list-math';
 
 const createOrder = (
   overrides: Partial<WebHistoricalOrder> = {},
@@ -132,6 +136,58 @@ describe('buildOrdersSummary', () => {
     expect(summary.instrumentPriceUsed).toBe(130);
     expect(summary.currentPrice?.source).toBe('manual');
     expect(summary.currentValue).toBe(1300);
+  });
+
+  test('uses the latest observed fx for the instrument currency across all orders', () => {
+    const summary = buildOrdersSummary([
+      createOrder({
+        id: 1,
+        fills: [
+          {
+            id: 1,
+            quantity: 10,
+            price: 100,
+            type: 'FILL',
+            tradingMethod: 'MARKET',
+            filledAt: '2026-03-20T12:00:00.000Z',
+            walletImpact: {
+              currency: 'GBP',
+              netValue: -1000,
+              fxRate: 2,
+              taxes: [],
+            },
+          },
+        ],
+      }),
+      createOrder({
+        id: 2,
+        ticker: 'MSFT_US_EQ',
+        instrument: {
+          ticker: 'MSFT_US_EQ',
+          name: 'Microsoft',
+          isin: 'US5949181045',
+          currency: 'USD',
+        },
+        fills: [
+          {
+            id: 2,
+            quantity: 1,
+            price: 200,
+            type: 'FILL',
+            tradingMethod: 'MARKET',
+            filledAt: '2026-03-25T12:00:00.000Z',
+            walletImpact: {
+              currency: 'GBP',
+              netValue: -100,
+              fxRate: 4,
+              taxes: [],
+            },
+          },
+        ],
+      }),
+    ]);
+
+    expect(summary.estimatedCurrentValue).toBe(750);
   });
 
   test('a saved manual price becomes the stored fallback after the input is cleared', () => {
@@ -274,7 +330,7 @@ describe('buildOrdersSummary', () => {
           price: 200,
           type: 'FILL',
           tradingMethod: 'MARKET',
-          filledAt: '2026-03-23T12:00:00.000Z',
+          filledAt: '2026-03-26T12:00:00.000Z',
           walletImpact: {
             currency: 'USD',
             netValue: -2000,
@@ -305,13 +361,103 @@ describe('buildOrdersSummary', () => {
       selectedInstruments,
     );
 
-    expect(summary.estimatedPositionValue).toBe(2200);
-    expect(summary.estimatedCurrentValue).toBe(2000);
-    expect(summary.estimatedTotal).toBe(-800);
+    expect(summary.estimatedPositionValue).toBe(1600);
+    expect(summary.estimatedCurrentValue).toBe(1500);
+    expect(summary.estimatedTotal).toBe(-1400);
     expect(summary.instrumentPriceUsed).toBeNull();
     expect(summary.effectiveInstrumentPrice).toBeNull();
     expect(summary.manualPriceInput).toBe('');
     expect(summary.currentPrice).toBeNull();
     expect(summary.currentValue).toBeNull();
+  });
+
+  test('manual override still changes only the price, not the selected fx source', () => {
+    const latestFxByCurrency = getLatestFxByCurrency([
+      createOrder({
+        id: 2,
+        ticker: 'AAPL_US_EQ',
+        instrument: {
+          ticker: 'AAPL_US_EQ',
+          name: 'Apple',
+          isin: 'US0378331005',
+          currency: 'USD',
+        },
+        filledQuantity: 1,
+        quantity: 1,
+        fills: [
+          {
+            id: 2,
+            quantity: 1,
+            price: 150,
+            type: 'FILL',
+            tradingMethod: 'MARKET',
+            filledAt: '2026-03-25T12:00:00.000Z',
+            walletImpact: {
+              currency: 'GBP',
+              netValue: -75,
+              fxRate: 4,
+              taxes: [],
+            },
+          },
+        ],
+      }),
+    ]);
+    const summary = buildOrdersSummary(
+      [
+        createOrder({
+          id: 1,
+          filledQuantity: 10,
+          quantity: 10,
+          fills: [
+            {
+              id: 1,
+              quantity: 10,
+              price: 100,
+              type: 'FILL',
+              tradingMethod: 'MARKET',
+              filledAt: '2026-03-20T12:00:00.000Z',
+              walletImpact: {
+                currency: 'GBP',
+                netValue: -1000,
+                fxRate: 2,
+                taxes: [],
+              },
+            },
+          ],
+        }),
+      ],
+      null,
+      '120',
+      latestFxByCurrency,
+    );
+
+    expect(summary.currentPrice?.source).toBe('manual');
+    expect(summary.estimatedPositionValue).toBe(300);
+  });
+
+  test('falls back to instrument-level fx when no broader currency entry exists', () => {
+    const order = createOrder({
+      fills: [
+        {
+          id: 1,
+          quantity: 10,
+          price: 100,
+          type: 'FILL',
+          tradingMethod: 'MARKET',
+          filledAt: '2026-03-24T12:00:00.000Z',
+          walletImpact: {
+            currency: 'GBP',
+            netValue: -500,
+            fxRate: 2,
+            taxes: [],
+          },
+        },
+      ],
+    });
+
+    const latestFxByCurrency = getLatestFxByCurrency([]);
+    const summary = buildOrdersSummary([order], null, '', latestFxByCurrency);
+
+    expect(summary.estimatedPositionValue).toBe(500);
   });
 });

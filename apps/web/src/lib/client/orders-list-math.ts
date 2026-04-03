@@ -15,6 +15,11 @@ type DisplayPriceContext = {
   priceToWalletRateDivisor: number;
 };
 
+type LatestFxByCurrencyEntry = {
+  filledAt: string;
+  fxRate: number;
+};
+
 type OrdersSummary = {
   walletCurrency: string | null;
   remainingQuantity: number;
@@ -206,10 +211,29 @@ function getWeightedDisplayedOrderPrice(order: WebHistoricalOrder) {
   );
 }
 
+function getLatestFxByCurrency(orders: WebHistoricalOrder[]) {
+  return orders.reduce<Map<string, LatestFxByCurrencyEntry>>((latestFx, order) => {
+    order.fills.forEach((fill) => {
+      const currency = order.instrument.currency;
+      const existing = latestFx.get(currency);
+
+      if (!existing || fill.filledAt > existing.filledAt) {
+        latestFx.set(currency, {
+          filledAt: fill.filledAt,
+          fxRate: fill.walletImpact.fxRate,
+        });
+      }
+    });
+
+    return latestFx;
+  }, new Map<string, LatestFxByCurrencyEntry>());
+}
+
 function buildOrdersSummary(
   orders: WebHistoricalOrder[],
   latestStoredPrice: InstrumentStoredPrice | null = null,
   manualPriceInput = '',
+  latestFxByCurrency = getLatestFxByCurrency(orders),
 ): OrdersSummary {
   const chronologicalOrders = [...orders].sort(
     (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt),
@@ -272,17 +296,23 @@ function buildOrdersSummary(
 
   const estimatedCurrentValue = Array.from(positionsByTicker.values()).reduce(
     (sum, position) => {
-      if (
-        position.latestPrice === null ||
-        position.priceToWalletRateDivisor === null
-      ) {
+      if (position.latestPrice === null) {
+        return sum;
+      }
+
+      const latestCurrencyFx = position.instrumentPriceCurrency
+        ? latestFxByCurrency.get(position.instrumentPriceCurrency)?.fxRate ?? null
+        : null;
+      const priceToWalletRateDivisor =
+        latestCurrencyFx ?? position.priceToWalletRateDivisor;
+
+      if (priceToWalletRateDivisor === null) {
         return sum;
       }
 
       return (
         sum +
-        (position.quantity * position.latestPrice) /
-          position.priceToWalletRateDivisor
+        (position.quantity * position.latestPrice) / priceToWalletRateDivisor
       );
     },
     0,
@@ -333,8 +363,11 @@ function buildOrdersSummary(
       : fallbackInstrumentPrice;
   const instrumentPriceUsed = effectiveInstrumentPrice?.value ?? null;
   const priceToWalletRateDivisor =
-    priceToWalletRateDivisors.length === 1
-      ? (priceToWalletRateDivisors[0] ?? null)
+    instrumentPriceCurrencies.length === 1
+      ? latestFxByCurrency.get(instrumentPriceCurrencies[0]!)?.fxRate ??
+        (priceToWalletRateDivisors.length === 1
+          ? (priceToWalletRateDivisors[0] ?? null)
+          : null)
       : null;
   const estimatedPositionValue =
     instrumentPriceUsed !== null && priceToWalletRateDivisor !== null
@@ -393,11 +426,13 @@ function buildMultiOrdersSummary(
   orders: WebHistoricalOrder[],
   selectedInstruments: InstrumentWithStoredPrice[],
 ): OrdersSummary {
+  const latestFxByCurrency = getLatestFxByCurrency(orders);
   const instrumentSummaries = selectedInstruments.map((instrument) =>
     buildOrdersSummary(
       orders.filter((order) => order.instrument.isin === instrument.isin),
       instrument.latestStoredPrice,
       '',
+      latestFxByCurrency,
     ),
   );
   const currencies = new Set(orders.map((order) => order.currency));
@@ -450,9 +485,10 @@ export {
   buildOrdersSummary,
   getDisplayPriceContext,
   getLatestFill,
+  getLatestFxByCurrency,
   getOrderQuantity,
   parseManualPrice,
   getSignedOrderAmount,
   getWeightedDisplayedOrderPrice,
 };
-export type { DisplayPriceContext, OrdersSummary };
+export type { DisplayPriceContext, LatestFxByCurrencyEntry, OrdersSummary };
