@@ -17,7 +17,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck:web": "tsc --noEmit -p apps/web/tsconfig.json",
-    "typecheck": "pnpm typecheck:web"
+    "typecheck:cli": "tsc --noEmit -p apps/cli/tsconfig.json",
+    "typecheck": "pnpm typecheck:web && pnpm typecheck:cli"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.57.2",

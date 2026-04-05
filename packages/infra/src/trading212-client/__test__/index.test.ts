@@ -65,6 +65,25 @@ const positionsPayload = [
   },
 ];
 
+const instrumentMetadataPayload = [
+  {
+    ticker: 'AAPL_US_EQ',
+    isin: 'US0378331005',
+    name: 'Apple',
+    currencyCode: 'USD',
+  },
+];
+
+const marketOrderResponsePayload = {
+  id: 123,
+  ticker: 'AAPL_US_EQ',
+  quantity: 1.5,
+  filledQuantity: 1.5,
+  status: 'filled',
+  side: 'buy',
+  createdAt: '2026-04-04T10:00:00Z',
+};
+
 describe('trading212 client', () => {
   test('fetchHistoricalOrders resolves relative nextPagePath', async () => {
     const requestedUrls: string[] = [];
@@ -149,6 +168,67 @@ describe('trading212 client', () => {
       expect(result.value[0]?.instrument.isin).toBe('US0258161092');
       expect(result.value[0]?.instrument.ticker).toBe('AXP_US_EQ');
       expect(result.value[0]?.currentPrice).toBe(300.61);
+    }
+  });
+
+  test('fetchInstrumentsMetadata uses the demo metadata endpoint', async () => {
+    const requestedUrls: string[] = [];
+    globalThis.fetch = ((async (input: string | URL | Request) => {
+      requestedUrls.push(String(input));
+      return new Response(JSON.stringify(instrumentMetadataPayload), {
+        status: 200,
+      });
+    }) as unknown) as typeof fetch;
+
+    const client = createTrading212Client();
+    const result = await client.fetchInstrumentsMetadata();
+
+    expect(result.isOk()).toBe(true);
+    expect(requestedUrls).toEqual([
+      'https://demo.trading212.com/api/v0/equity/metadata/instruments',
+    ]);
+    if (result.isOk()) {
+      expect(result.value[0]?.ticker).toBe('AAPL_US_EQ');
+      expect(result.value[0]?.isin).toBe('US0378331005');
+    }
+  });
+
+  test('placeMarketOrder posts signed quantity to the demo market order endpoint', async () => {
+    const requests: Array<{ url: string; method: string; body: string }> = [];
+    globalThis.fetch = ((async (input: string | URL | Request, init?: RequestInit) => {
+      requests.push({
+        url: String(input),
+        method: init?.method ?? 'GET',
+        body: String(init?.body ?? ''),
+      });
+
+      return new Response(JSON.stringify(marketOrderResponsePayload), {
+        status: 200,
+      });
+    }) as unknown) as typeof fetch;
+
+    const client = createTrading212Client();
+    const result = await client.placeMarketOrder({
+      ticker: 'AAPL_US_EQ',
+      quantity: -1.5,
+      extendedHours: false,
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(requests).toEqual([
+      {
+        url: 'https://demo.trading212.com/api/v0/equity/orders/market',
+        method: 'POST',
+        body: JSON.stringify({
+          ticker: 'AAPL_US_EQ',
+          quantity: -1.5,
+          extendedHours: false,
+        }),
+      },
+    ]);
+    if (result.isOk()) {
+      expect(result.value.id).toBe(123);
+      expect(result.value.side).toBe('buy');
     }
   });
 });

@@ -10,7 +10,11 @@
     "jsx": "react-jsx",
     "incremental": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@portfolio/domain": ["../../packages/domain/src/index.ts"],
+      "@portfolio/infra": ["../../packages/infra/src/index.ts"],
+      "@portfolio/use-cases": ["../../packages/use-cases/src/index.ts"],
+      "@portfolio/composition": ["../../packages/composition/src/index.ts"]
     },
     "plugins": [
       {

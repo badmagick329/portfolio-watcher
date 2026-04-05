@@ -8,6 +8,8 @@ import {
   accountCashSchema,
   accountSummarySchema,
   historicalOrdersSchema,
+  instrumentsMetadataSchema,
+  marketOrderResponseSchema,
   positionsSchema,
 } from '@portfolio/domain';
 import { okAsync } from 'neverthrow';
@@ -49,6 +51,26 @@ const createTrading212Client = () => {
       creds,
     });
 
+  const fetchInstrumentsMetadata = () =>
+    request({
+      endPoint: endPoints.demoInstrumentsMetadata,
+      schema: instrumentsMetadataSchema,
+      creds,
+    });
+
+  const placeMarketOrder = (input: {
+    ticker: string;
+    quantity: number;
+    extendedHours: boolean;
+  }) =>
+    request({
+      endPoint: endPoints.demoMarketOrders,
+      schema: marketOrderResponseSchema,
+      creds,
+      method: 'POST',
+      body: input,
+    });
+
   const fetchPositions = () =>
     request({
       endPoint: endPoints.positions,
@@ -60,6 +82,8 @@ const createTrading212Client = () => {
     fetchAccountCash,
     fetchAccountSummary,
     fetchHistoricalOrders,
+    fetchInstrumentsMetadata,
+    placeMarketOrder,
     fetchPositions,
   } satisfies BrokerClient;
 };
@@ -115,6 +139,8 @@ const createTrading212ClientWithCache = (cache: Cache) => {
     fetchAccountCash,
     fetchAccountSummary,
     fetchHistoricalOrders,
+    fetchInstrumentsMetadata: client.fetchInstrumentsMetadata,
+    placeMarketOrder: client.placeMarketOrder,
     fetchPositions,
     resetCache: cache.reset,
   } satisfies BrokerClientWithCache;

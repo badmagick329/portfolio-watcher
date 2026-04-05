@@ -13,13 +13,17 @@ import type {
 import type {
   AccountCash,
   AccountSummary,
-  Positions,
   HistoricalOrders,
   HistoricalOrdersItems,
+  InstrumentsMetadata,
+  MarketOrderResponse,
+  Positions,
 } from '../types/schemas/api-responses';
 import type {
   AccountSummarySnapshot,
+  OrderExecutionAttempt,
   CurrentPositionSnapshot,
+  T212MarketOrderRequest,
 } from '../types';
 
 type HistoricalOrdersInput = HistoricalOrdersParams | { nextPagePath: string };
@@ -30,6 +34,10 @@ interface BrokerClient {
   fetchHistoricalOrders: (
     input: HistoricalOrdersInput,
   ) => ResultAsync<HistoricalOrders, AppError>;
+  fetchInstrumentsMetadata: () => ResultAsync<InstrumentsMetadata, AppError>;
+  placeMarketOrder: (
+    input: T212MarketOrderRequest,
+  ) => ResultAsync<MarketOrderResponse, AppError>;
   fetchPositions: () => ResultAsync<Positions, AppError>;
 }
 
@@ -63,6 +71,9 @@ interface BrokerDataManager {
   ): ResultAsync<CurrentPositionSnapshot | undefined, AppError>;
   saveAccountSummarySnapshot(
     snapshot: AccountSummarySnapshot,
+  ): ResultAsync<void, AppError>;
+  saveOrderExecutionAttempt(
+    attempt: OrderExecutionAttempt,
   ): ResultAsync<void, AppError>;
   getLatestAccountSummarySnapshot(): ResultAsync<
     AccountSummarySnapshot | undefined,

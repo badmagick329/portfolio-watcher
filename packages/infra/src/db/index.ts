@@ -22,6 +22,7 @@ import {
   instrumentPrices,
   instrumentPriceSources,
   instruments,
+  orderExecutionAttempts,
   orders,
   syncState,
 } from './schema';
@@ -427,6 +428,34 @@ const createBrokerDataManager = () => {
         .run();
     }, 'save account summary snapshot');
 
+  const saveOrderExecutionAttempt = (
+    attempt: import('@portfolio/domain').OrderExecutionAttempt,
+  ) =>
+    wrapDb(() => {
+      db.insert(orderExecutionAttempts)
+        .values({
+          environment: attempt.environment,
+          instrumentInput: attempt.instrumentInput,
+          resolvedTicker: attempt.resolvedTicker,
+          resolvedIsin: attempt.resolvedIsin,
+          resolvedName: attempt.resolvedName,
+          side: attempt.side,
+          requestedMode: attempt.requestedMode,
+          requestedQuantity: attempt.requestedQuantity,
+          requestedValue: attempt.requestedValue,
+          derivedQuantity: attempt.derivedQuantity,
+          referencePrice: attempt.referencePrice,
+          extendedHours: attempt.extendedHours,
+          executionMode: attempt.executionMode,
+          brokerRequestPayload: attempt.brokerRequestPayload,
+          brokerResponsePayload: attempt.brokerResponsePayload,
+          errorCode: attempt.errorCode,
+          errorMessage: attempt.errorMessage,
+          attemptedAt: attempt.attemptedAt,
+        })
+        .run();
+    }, 'save order execution attempt');
+
   const getLatestAccountSummarySnapshot = () =>
     wrapDb(() => {
       const row = db
@@ -597,6 +626,7 @@ const createBrokerDataManager = () => {
     saveCurrentPositionSnapshot,
     getLatestCurrentPositionSnapshotByIsin,
     saveAccountSummarySnapshot,
+    saveOrderExecutionAttempt,
     getLatestAccountSummarySnapshot,
     getLatestInstrumentPriceByIsin,
     listInstrumentsNeedingPriceRefresh,

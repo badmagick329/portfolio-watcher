@@ -96,6 +96,81 @@ type AccountSummarySnapshot = {
   fetchedAt: string;
 };
 
+type BrokerEnvironment = 'live' | 'demo';
+
+type T212InstrumentMetadataItem = {
+  ticker: string;
+  isin: string;
+  name: string;
+  currencyCode: string;
+};
+
+type T212MarketOrderRequest = {
+  ticker: string;
+  quantity: number;
+  extendedHours: boolean;
+};
+
+type T212MarketOrderResponse = {
+  id: number;
+  ticker: string;
+  quantity: number | null;
+  filledQuantity: number | null;
+  status: string;
+  side: string;
+  createdAt: string;
+};
+
+type OrderExecutionAttempt = {
+  environment: BrokerEnvironment;
+  instrumentInput: string;
+  resolvedTicker: string;
+  resolvedIsin: string;
+  resolvedName: string;
+  side: 'buy' | 'sell';
+  requestedMode: 'quantity' | 'value';
+  requestedQuantity: number | null;
+  requestedValue: number | null;
+  derivedQuantity: number;
+  referencePrice: number | null;
+  extendedHours: boolean;
+  executionMode: 'dry_run' | 'submitted';
+  brokerRequestPayload: string;
+  brokerResponsePayload: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  attemptedAt: string;
+};
+
+type ResolvedOrderInstrument = {
+  ticker: string;
+  isin: string;
+  name: string;
+  currencyCode: string;
+};
+
+type PlaceMarketOrderInput = {
+  instrument: string;
+  side: 'buy' | 'sell';
+  quantity?: number;
+  value?: number;
+  extendedHours?: boolean;
+  confirm?: boolean;
+};
+
+type PlaceMarketOrderResult = {
+  environment: 'demo';
+  executionMode: 'dry_run' | 'submitted';
+  resolvedInstrument: ResolvedOrderInstrument;
+  requestedMode: 'quantity' | 'value';
+  requestedQuantity: number | null;
+  requestedValue: number | null;
+  derivedQuantity: number;
+  referencePrice: number | null;
+  extendedHours: boolean;
+  brokerOrder: T212MarketOrderResponse | null;
+};
+
 type InstrumentPriceProvider = 'fmp' | 'eodhd' | 'manual' | 't212';
 
 type InstrumentPriceType =
@@ -189,6 +264,7 @@ type RateLimitResponse = {
 type AppError =
   | { code: 'FILE_IO'; message: string }
   | { code: 'API'; message: string }
+  | { code: 'VALIDATION'; message: string }
   | { code: 'NETWORK'; message: string }
   | { code: 'RATE_LIMIT'; message: string; rateLimitResponse: RateLimitResponse }
   | { code: 'FORBIDDEN'; message: string }
@@ -203,6 +279,14 @@ type SyncStepResult =
 export type {
   AppError,
   AccountSummarySnapshot,
+  BrokerEnvironment,
+  T212InstrumentMetadataItem,
+  T212MarketOrderRequest,
+  T212MarketOrderResponse,
+  OrderExecutionAttempt,
+  PlaceMarketOrderInput,
+  PlaceMarketOrderResult,
+  ResolvedOrderInstrument,
   CurrentPositionSnapshot,
   InstrumentPriceFetchResult,
   InstrumentPriceProvider,

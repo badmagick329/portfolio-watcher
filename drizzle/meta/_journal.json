@@ -43,6 +43,13 @@
       "when": 1775248751487,
       "tag": "0005_shiny_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1775342340556,
+      "tag": "0006_fuzzy_scourge",
+      "breakpoints": true
     }
   ]
 }

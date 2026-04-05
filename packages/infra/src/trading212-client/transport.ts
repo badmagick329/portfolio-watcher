@@ -14,10 +14,14 @@ const request = <T>({
   endPoint,
   schema,
   creds,
+  method,
+  body,
 }: FetchParams<T>): ResultAsync<T, AppError> =>
   fetchRequestRaw({
     endPoint,
     creds,
+    method,
+    body,
   }).andThen((json): ResultAsync<T, AppError> => {
     const parsed = schema.safeParse(json);
     return parsed.success
@@ -31,10 +35,22 @@ const request = <T>({
 const fetchRequestRaw = <T>({
   endPoint,
   creds,
+  method = 'GET',
+  body,
 }: Omit<FetchParams<T>, 'schema'>): ResultAsync<unknown, AppError> => {
+  const headers: HeadersInit = {
+    Authorization: `Basic ${creds}`,
+  };
+
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   return ResultAsync.fromPromise(
     fetch(endPoint, {
-      headers: { Authorization: `Basic ${creds}` },
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
     }),
     (e): AppError => ({
       code: 'NETWORK',

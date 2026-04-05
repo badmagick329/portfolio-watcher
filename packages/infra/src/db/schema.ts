@@ -220,6 +220,38 @@ const accountSummarySnapshots = sqliteTable(
   ],
 );
 
+const orderExecutionAttempts = sqliteTable(
+  'order_execution_attempts',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    environment: text('environment').notNull(),
+    instrumentInput: text('instrument_input').notNull(),
+    resolvedTicker: text('resolved_ticker').notNull(),
+    resolvedIsin: text('resolved_isin').notNull(),
+    resolvedName: text('resolved_name').notNull(),
+    side: text('side').notNull(),
+    requestedMode: text('requested_mode').notNull(),
+    requestedQuantity: real('requested_quantity'),
+    requestedValue: real('requested_value'),
+    derivedQuantity: real('derived_quantity').notNull(),
+    referencePrice: real('reference_price'),
+    extendedHours: integer('extended_hours', { mode: 'boolean' }).notNull(),
+    executionMode: text('execution_mode').notNull(),
+    brokerRequestPayload: text('broker_request_payload').notNull(),
+    brokerResponsePayload: text('broker_response_payload'),
+    errorCode: text('error_code'),
+    errorMessage: text('error_message'),
+    attemptedAt: text('attempted_at').notNull(),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index('order_execution_attempts_attempted_at_idx').on(table.attemptedAt),
+    index('order_execution_attempts_resolved_ticker_idx').on(table.resolvedTicker),
+  ],
+);
+
 type Instrument = typeof instruments.$inferSelect;
 type NewInstrument = typeof instruments.$inferInsert;
 
@@ -247,6 +279,9 @@ type NewCurrentPositionSnapshot = typeof currentPositionSnapshots.$inferInsert;
 type AccountSummarySnapshot = typeof accountSummarySnapshots.$inferSelect;
 type NewAccountSummarySnapshot = typeof accountSummarySnapshots.$inferInsert;
 
+type OrderExecutionAttempt = typeof orderExecutionAttempts.$inferSelect;
+type NewOrderExecutionAttempt = typeof orderExecutionAttempts.$inferInsert;
+
 export type {
   Instrument,
   NewInstrument,
@@ -266,6 +301,8 @@ export type {
   NewCurrentPositionSnapshot,
   AccountSummarySnapshot,
   NewAccountSummarySnapshot,
+  OrderExecutionAttempt,
+  NewOrderExecutionAttempt,
 };
 
 export {
@@ -278,4 +315,5 @@ export {
   instrumentPrices,
   currentPositionSnapshots,
   accountSummarySnapshots,
+  orderExecutionAttempts,
 };

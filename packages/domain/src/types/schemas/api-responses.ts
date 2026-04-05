@@ -117,6 +117,39 @@ const positionSchema = z
 
 const positionsSchema = z.array(positionSchema);
 
+const instrumentMetadataItemSchema = z
+  .object({
+    ticker: z.string(),
+    isin: z.string(),
+    name: z.string(),
+    currencyCode: z.string().optional(),
+    currency: z.string().optional(),
+  })
+  .passthrough()
+  .transform((instrument) => ({
+    ...instrument,
+    currencyCode: instrument.currencyCode ?? instrument.currency ?? '',
+  }));
+
+const instrumentsMetadataSchema = z.array(instrumentMetadataItemSchema);
+
+const marketOrderResponseSchema = z
+  .object({
+    id: z.number(),
+    ticker: z.string(),
+    quantity: z.number().optional(),
+    filledQuantity: z.number().optional(),
+    status: z.string(),
+    side: z.string(),
+    createdAt: z.string(),
+  })
+  .passthrough()
+  .transform((order) => ({
+    ...order,
+    quantity: order.quantity ?? null,
+    filledQuantity: order.filledQuantity ?? null,
+  }));
+
 type AccountCash = z.infer<typeof accountCashSchema>;
 type AccountSummary = z.infer<typeof accountSummarySchema>;
 type HistoricalOrdersItem = z.infer<typeof historicalOrdersItemSchema>;
@@ -124,6 +157,9 @@ type HistoricalOrdersItems = z.infer<typeof historicalOrdersItemsSchema>;
 type HistoricalOrders = z.infer<typeof historicalOrdersSchema>;
 type Position = z.infer<typeof positionSchema>;
 type Positions = z.infer<typeof positionsSchema>;
+type InstrumentMetadataItem = z.infer<typeof instrumentMetadataItemSchema>;
+type InstrumentsMetadata = z.infer<typeof instrumentsMetadataSchema>;
+type MarketOrderResponse = z.infer<typeof marketOrderResponseSchema>;
 
 export type {
   AccountCash,
@@ -133,6 +169,9 @@ export type {
   HistoricalOrdersItems,
   Position,
   Positions,
+  InstrumentMetadataItem,
+  InstrumentsMetadata,
+  MarketOrderResponse,
 };
 export {
   accountCashSchema,
@@ -142,4 +181,7 @@ export {
   historicalOrdersItemsSchema,
   positionSchema,
   positionsSchema,
+  instrumentMetadataItemSchema,
+  instrumentsMetadataSchema,
+  marketOrderResponseSchema,
 };

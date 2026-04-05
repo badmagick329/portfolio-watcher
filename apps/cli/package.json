@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@portfolio/composition": "workspace:*"
+    "@portfolio/composition": "workspace:*",
+    "@portfolio/domain": "workspace:*"
   }
 }
