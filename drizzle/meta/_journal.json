@@ -50,6 +50,13 @@
       "when": 1775342340556,
       "tag": "0006_fuzzy_scourge",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1775498763374,
+      "tag": "0007_workable_spencer_smythe",
+      "breakpoints": true
     }
   ]
 }

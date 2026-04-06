@@ -1,10 +1,21 @@
 import type {
   AppError,
   BrokerClient,
+  BrokerDataManager,
   ResolvedOrderInstrument,
+  T212InstrumentCatalogItem,
   T212InstrumentMetadataItem,
 } from '@portfolio/domain';
-import { type ResultAsync, errAsync, okAsync } from 'neverthrow';
+import { errAsync, okAsync, type ResultAsync } from 'neverthrow';
+
+type Params = {
+  client: Pick<BrokerClient, 'fetchInstrumentsMetadata'>;
+  dataManager: Pick<
+    BrokerDataManager,
+    'findT212InstrumentCatalogMatches' | 'saveT212InstrumentCatalogItems'
+  >;
+  now?: () => Date;
+};
 
 const normalize = (value: string) => value.trim().toLowerCase();
 const validationError = (message: string): AppError => ({
@@ -12,9 +23,11 @@ const validationError = (message: string): AppError => ({
   message,
 });
 
-const createResolveInstrumentForOrder = (
-  client: Pick<BrokerClient, 'fetchInstrumentsMetadata'>,
-) => {
+const createResolveInstrumentForOrder = ({
+  client,
+  dataManager,
+  now = () => new Date(),
+}: Params) => {
   const resolveInstrumentForOrder = (
     instrumentInput: string,
   ): ResultAsync<ResolvedOrderInstrument, AppError> => {
@@ -24,70 +37,187 @@ const createResolveInstrumentForOrder = (
       return errAsync(validationError('Instrument input is required.'));
     }
 
-    return client.fetchInstrumentsMetadata().andThen((instruments) => {
-      const exactTickerMatch = instruments.find(
-        (instrument) => normalize(instrument.ticker) === normalizedInput,
-      );
+    return dataManager
+      .findT212InstrumentCatalogMatches(instrumentInput)
+      .andThen((catalogMatches) => {
+        const rankedLocalMatches = rankMatches(catalogMatches, normalizedInput);
+        const bestLocalMatch = selectBestMatch(rankedLocalMatches);
 
-      if (exactTickerMatch) {
-        return okAsync(toResolvedOrderInstrument(exactTickerMatch));
-      }
+        if (bestLocalMatch) {
+          return okAsync(toResolvedOrderInstrument(bestLocalMatch));
+        }
 
-      const exactIsinMatch = instruments.find(
-        (instrument) => normalize(instrument.isin) === normalizedInput,
-      );
+        if (rankedLocalMatches.length > 1) {
+          return errAsync(buildAmbiguityError(instrumentInput, rankedLocalMatches));
+        }
 
-      if (exactIsinMatch) {
-        return okAsync(toResolvedOrderInstrument(exactIsinMatch));
-      }
+        const fetchedAt = now().toISOString();
 
-      const matches = instruments.filter((instrument) => {
-        const ticker = normalize(instrument.ticker);
-        const publicTicker = normalize(instrument.ticker.split('_')[0] ?? '');
-        const name = normalize(instrument.name);
+        return client.fetchInstrumentsMetadata().andThen((metadataItems) => {
+          const catalogItems = metadataItems.map((item) =>
+            toCatalogItem(item, fetchedAt),
+          );
 
-        return (
-          ticker.includes(normalizedInput) ||
-          publicTicker === normalizedInput ||
-          name.includes(normalizedInput)
-        );
+          return dataManager
+            .saveT212InstrumentCatalogItems(catalogItems)
+            .andThen(() =>
+              dataManager.findT212InstrumentCatalogMatches(instrumentInput),
+            )
+            .andThen((refreshedMatches) => {
+              const rankedRefreshedMatches = rankMatches(
+                refreshedMatches,
+                normalizedInput,
+              );
+              const bestRefreshedMatch = selectBestMatch(rankedRefreshedMatches);
+
+              if (bestRefreshedMatch) {
+                return okAsync(toResolvedOrderInstrument(bestRefreshedMatch));
+              }
+
+              if (rankedRefreshedMatches.length === 0) {
+                return errAsync(
+                  validationError(
+                    `No Trading 212 instrument matched "${instrumentInput}".`,
+                  ),
+                );
+              }
+
+              return errAsync(
+                buildAmbiguityError(instrumentInput, rankedRefreshedMatches),
+              );
+            });
+        });
       });
-
-      if (matches.length === 1) {
-        return okAsync(toResolvedOrderInstrument(matches[0]!));
-      }
-
-      if (matches.length === 0) {
-        return errAsync(
-          validationError(
-            `No Trading 212 instrument matched "${instrumentInput}".`,
-          ),
-        );
-      }
-
-      const suggestions = matches
-        .slice(0, 20)
-        .map((instrument) => `${instrument.name} (${instrument.ticker})`)
-        .join('\n');
-
-      return errAsync(
-        validationError(
-          `Multiple instruments matched "${instrumentInput}": ${suggestions}. Use the exact Trading 212 ticker.`,
-        ),
-      );
-    });
   };
 
   return resolveInstrumentForOrder;
 };
 
+const rankMatches = (
+  matches: T212InstrumentCatalogItem[],
+  normalizedInput: string,
+) =>
+  matches
+    .map((item) => ({
+      item,
+      score: rankMatch(item, normalizedInput),
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => {
+      if (left.score !== right.score) {
+        return left.score - right.score;
+      }
+
+      return left.item.ticker.localeCompare(right.item.ticker);
+    })
+    .map((entry) => ({
+      item: entry.item,
+      score: entry.score,
+    }));
+
+const selectBestMatch = (
+  rankedMatches: Array<{ item: T212InstrumentCatalogItem; score: number }>,
+): T212InstrumentCatalogItem | null => {
+  const best = rankedMatches[0];
+  const second = rankedMatches[1];
+
+  if (!best) {
+    return null;
+  }
+
+  if (!second || best.score < second.score) {
+    return best.item;
+  }
+
+  return null;
+};
+
+const rankMatch = (
+  item: T212InstrumentCatalogItem,
+  normalizedInput: string,
+): number => {
+  const ticker = normalize(item.ticker);
+  const publicTicker = normalize(item.ticker.split('_')[0] ?? '');
+  const isin = normalize(item.isin);
+  const name = normalize(item.name);
+  const shortName = normalize(item.shortName ?? '');
+
+  if (ticker === normalizedInput) {
+    return 1;
+  }
+
+  if (publicTicker === normalizedInput) {
+    return item.instrumentType === 'STOCK' || item.instrumentType === 'ETF'
+      ? 2
+      : 3;
+  }
+
+  if (isin === normalizedInput) {
+    return 4;
+  }
+
+  if (name === normalizedInput || shortName === normalizedInput) {
+    return 5;
+  }
+
+  if (ticker.startsWith(normalizedInput) || publicTicker.startsWith(normalizedInput)) {
+    return item.instrumentType === 'STOCK' || item.instrumentType === 'ETF'
+      ? 6
+      : 7;
+  }
+
+  if (name.startsWith(normalizedInput) || shortName.startsWith(normalizedInput)) {
+    return 8;
+  }
+
+  if (ticker.includes(normalizedInput)) {
+    return 9;
+  }
+
+  if (name.includes(normalizedInput) || shortName.includes(normalizedInput)) {
+    return 10;
+  }
+
+  return 0;
+};
+
+const buildAmbiguityError = (
+  instrumentInput: string,
+  matches: Array<{ item: T212InstrumentCatalogItem; score: number }>,
+): AppError => {
+  const suggestions = matches
+    .slice(0, 20)
+    .map(({ item }) => `${item.name} (${item.ticker})`)
+    .join('\n');
+
+  return validationError(
+    `Multiple instruments matched "${instrumentInput}": ${suggestions}. Use the exact Trading 212 ticker.`,
+  );
+};
+
+const toCatalogItem = (
+  item: T212InstrumentMetadataItem,
+  fetchedAt: string,
+): T212InstrumentCatalogItem => ({
+  ticker: item.ticker,
+  isin: item.isin,
+  name: item.name,
+  shortName: item.shortName,
+  instrumentType: item.type,
+  currencyCode: item.currencyCode,
+  extendedHours: item.extendedHours,
+  maxOpenQuantity: item.maxOpenQuantity,
+  addedOn: item.addedOn,
+  fetchedAt,
+});
+
 const toResolvedOrderInstrument = (
-  instrument: T212InstrumentMetadataItem,
+  item: T212InstrumentCatalogItem,
 ): ResolvedOrderInstrument => ({
-  ticker: instrument.ticker,
-  isin: instrument.isin,
-  name: instrument.name,
-  currencyCode: instrument.currencyCode,
+  ticker: item.ticker,
+  isin: item.isin,
+  name: item.name,
+  currencyCode: item.currencyCode,
 });
 
 export { createResolveInstrumentForOrder };

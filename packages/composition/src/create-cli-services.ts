@@ -13,6 +13,7 @@ import {
   createResolveInstrumentForOrder,
   createSyncCurrentPositionPricesFromT212,
   createSyncHistoricalOrders,
+  createSyncT212InstrumentCatalog,
 } from '@portfolio/use-cases';
 
 export const createCliServices = () => {
@@ -33,10 +34,17 @@ export const createCliServices = () => {
       placeDemoMarketOrder: createPlaceDemoMarketOrder({
         client: demoClient,
         dataManager,
-        resolveInstrumentForOrder: createResolveInstrumentForOrder(demoClient),
+        resolveInstrumentForOrder: createResolveInstrumentForOrder({
+          client: demoClient,
+          dataManager,
+        }),
       }),
       syncInstrumentPrices: createSyncCurrentPositionPricesFromT212({
         client,
+        dataManager,
+      }),
+      syncT212InstrumentCatalog: createSyncT212InstrumentCatalog({
+        client: demoClient,
         dataManager,
       }),
       syncHistoricalOrders: createSyncHistoricalOrders({

@@ -61,6 +61,15 @@ const main = async () => {
         return;
       }
 
+      if (command === 'sync-instruments') {
+        await ops.syncT212InstrumentCatalog().match(
+          (count) => console.log('t212_instrument_catalog', { saved: count }),
+          (e: AppError) => console.error(e),
+        );
+
+        return;
+      }
+
       console.error(`Unknown command: ${command}`);
     },
     (e: AppError) => {

@@ -23,6 +23,7 @@ import type {
   AccountSummarySnapshot,
   OrderExecutionAttempt,
   CurrentPositionSnapshot,
+  T212InstrumentCatalogItem,
   T212MarketOrderRequest,
 } from '../types';
 
@@ -75,6 +76,12 @@ interface BrokerDataManager {
   saveOrderExecutionAttempt(
     attempt: OrderExecutionAttempt,
   ): ResultAsync<void, AppError>;
+  saveT212InstrumentCatalogItems(
+    items: T212InstrumentCatalogItem[],
+  ): ResultAsync<number, AppError>;
+  findT212InstrumentCatalogMatches(
+    input: string,
+  ): ResultAsync<T212InstrumentCatalogItem[], AppError>;
   getLatestAccountSummarySnapshot(): ResultAsync<
     AccountSummarySnapshot | undefined,
     AppError

@@ -25,6 +25,7 @@ import {
   orderExecutionAttempts,
   orders,
   syncState,
+  t212InstrumentCatalog,
 } from './schema';
 import Database from 'better-sqlite3';
 import { desc, eq, sql } from 'drizzle-orm';
@@ -456,6 +457,93 @@ const createBrokerDataManager = () => {
         .run();
     }, 'save order execution attempt');
 
+  const saveT212InstrumentCatalogItems = (
+    items: import('@portfolio/domain').T212InstrumentCatalogItem[],
+  ) =>
+    wrapDb(() => {
+      items.forEach((item) => {
+        db.insert(t212InstrumentCatalog)
+          .values({
+            ticker: item.ticker,
+            isin: item.isin,
+            name: item.name,
+            shortName: item.shortName,
+            instrumentType: item.instrumentType,
+            currencyCode: item.currencyCode,
+            extendedHours: item.extendedHours,
+            maxOpenQuantity: item.maxOpenQuantity,
+            addedOn: item.addedOn,
+            fetchedAt: item.fetchedAt,
+          })
+          .onConflictDoUpdate({
+            target: t212InstrumentCatalog.ticker,
+            set: {
+              isin: item.isin,
+              name: item.name,
+              shortName: item.shortName,
+              instrumentType: item.instrumentType,
+              currencyCode: item.currencyCode,
+              extendedHours: item.extendedHours,
+              maxOpenQuantity: item.maxOpenQuantity,
+              addedOn: item.addedOn,
+              fetchedAt: item.fetchedAt,
+              updatedAt: sql`CURRENT_TIMESTAMP`,
+            },
+          })
+          .run();
+      });
+
+      return items.length;
+    }, 'save t212 instrument catalog items');
+
+  const findT212InstrumentCatalogMatches = (input: string) =>
+    wrapDb(() => {
+      const normalizedInput = input.trim().toLowerCase();
+
+      if (normalizedInput.length === 0) {
+        return [];
+      }
+
+      const rows = db
+        .select({
+          ticker: t212InstrumentCatalog.ticker,
+          isin: t212InstrumentCatalog.isin,
+          name: t212InstrumentCatalog.name,
+          shortName: t212InstrumentCatalog.shortName,
+          instrumentType: t212InstrumentCatalog.instrumentType,
+          currencyCode: t212InstrumentCatalog.currencyCode,
+          extendedHours: t212InstrumentCatalog.extendedHours,
+          maxOpenQuantity: t212InstrumentCatalog.maxOpenQuantity,
+          addedOn: t212InstrumentCatalog.addedOn,
+          fetchedAt: t212InstrumentCatalog.fetchedAt,
+        })
+        .from(t212InstrumentCatalog)
+        .all();
+
+      return rows.filter((row) => {
+        const ticker = row.ticker.trim().toLowerCase();
+        const publicTicker = (row.ticker.split('_')[0] ?? '').trim().toLowerCase();
+        const isin = row.isin.trim().toLowerCase();
+        const name = row.name.trim().toLowerCase();
+        const shortName = row.shortName?.trim().toLowerCase() ?? '';
+
+        return (
+          ticker === normalizedInput ||
+          publicTicker === normalizedInput ||
+          isin === normalizedInput ||
+          name === normalizedInput ||
+          shortName === normalizedInput ||
+          ticker.startsWith(normalizedInput) ||
+          publicTicker.startsWith(normalizedInput) ||
+          name.startsWith(normalizedInput) ||
+          shortName.startsWith(normalizedInput) ||
+          ticker.includes(normalizedInput) ||
+          name.includes(normalizedInput) ||
+          shortName.includes(normalizedInput)
+        );
+      });
+    }, 'find t212 instrument catalog matches');
+
   const getLatestAccountSummarySnapshot = () =>
     wrapDb(() => {
       const row = db
@@ -627,6 +715,8 @@ const createBrokerDataManager = () => {
     getLatestCurrentPositionSnapshotByIsin,
     saveAccountSummarySnapshot,
     saveOrderExecutionAttempt,
+    saveT212InstrumentCatalogItems,
+    findT212InstrumentCatalogMatches,
     getLatestAccountSummarySnapshot,
     getLatestInstrumentPriceByIsin,
     listInstrumentsNeedingPriceRefresh,

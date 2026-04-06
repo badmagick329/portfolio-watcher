@@ -99,10 +99,28 @@ type AccountSummarySnapshot = {
 type BrokerEnvironment = 'live' | 'demo';
 
 type T212InstrumentMetadataItem = {
+  addedOn: string | null;
+  extendedHours: boolean;
+  ticker: string;
+  isin: string;
+  maxOpenQuantity: number | null;
+  name: string;
+  shortName: string | null;
+  type: string | null;
+  currencyCode: string;
+};
+
+type T212InstrumentCatalogItem = {
   ticker: string;
   isin: string;
   name: string;
+  shortName: string | null;
+  instrumentType: string | null;
   currencyCode: string;
+  extendedHours: boolean;
+  maxOpenQuantity: number | null;
+  addedOn: string | null;
+  fetchedAt: string;
 };
 
 type T212MarketOrderRequest = {
@@ -281,6 +299,7 @@ export type {
   AccountSummarySnapshot,
   BrokerEnvironment,
   T212InstrumentMetadataItem,
+  T212InstrumentCatalogItem,
   T212MarketOrderRequest,
   T212MarketOrderResponse,
   OrderExecutionAttempt,

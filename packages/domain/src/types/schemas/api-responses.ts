@@ -119,16 +119,26 @@ const positionsSchema = z.array(positionSchema);
 
 const instrumentMetadataItemSchema = z
   .object({
+    addedOn: z.string().nullable().optional(),
+    extendedHours: z.boolean().optional(),
     ticker: z.string(),
     isin: z.string(),
+    maxOpenQuantity: z.number().nullable().optional(),
     name: z.string(),
+    shortName: z.string().nullable().optional(),
+    type: z.string().nullable().optional(),
     currencyCode: z.string().optional(),
     currency: z.string().optional(),
   })
   .passthrough()
   .transform((instrument) => ({
+    addedOn: instrument.addedOn ?? null,
+    extendedHours: instrument.extendedHours ?? false,
     ...instrument,
     currencyCode: instrument.currencyCode ?? instrument.currency ?? '',
+    maxOpenQuantity: instrument.maxOpenQuantity ?? null,
+    shortName: instrument.shortName ?? null,
+    type: instrument.type ?? null,
   }));
 
 const instrumentsMetadataSchema = z.array(instrumentMetadataItemSchema);

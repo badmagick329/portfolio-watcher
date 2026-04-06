@@ -252,6 +252,29 @@ const orderExecutionAttempts = sqliteTable(
   ],
 );
 
+const t212InstrumentCatalog = sqliteTable(
+  't212_instrument_catalog',
+  {
+    ticker: text('ticker').primaryKey(),
+    isin: text('isin').notNull(),
+    name: text('name').notNull(),
+    shortName: text('short_name'),
+    instrumentType: text('instrument_type'),
+    currencyCode: text('currency_code').notNull(),
+    extendedHours: integer('extended_hours', { mode: 'boolean' }).notNull(),
+    maxOpenQuantity: real('max_open_quantity'),
+    addedOn: text('added_on'),
+    fetchedAt: text('fetched_at').notNull(),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index('t212_instrument_catalog_isin_idx').on(table.isin),
+    index('t212_instrument_catalog_name_idx').on(table.name),
+  ],
+);
+
 type Instrument = typeof instruments.$inferSelect;
 type NewInstrument = typeof instruments.$inferInsert;
 
@@ -281,6 +304,8 @@ type NewAccountSummarySnapshot = typeof accountSummarySnapshots.$inferInsert;
 
 type OrderExecutionAttempt = typeof orderExecutionAttempts.$inferSelect;
 type NewOrderExecutionAttempt = typeof orderExecutionAttempts.$inferInsert;
+type T212InstrumentCatalogItem = typeof t212InstrumentCatalog.$inferSelect;
+type NewT212InstrumentCatalogItem = typeof t212InstrumentCatalog.$inferInsert;
 
 export type {
   Instrument,
@@ -303,6 +328,8 @@ export type {
   NewAccountSummarySnapshot,
   OrderExecutionAttempt,
   NewOrderExecutionAttempt,
+  T212InstrumentCatalogItem,
+  NewT212InstrumentCatalogItem,
 };
 
 export {
@@ -316,4 +343,5 @@ export {
   currentPositionSnapshots,
   accountSummarySnapshots,
   orderExecutionAttempts,
+  t212InstrumentCatalog,
 };
