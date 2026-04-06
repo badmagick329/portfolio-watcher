@@ -4,7 +4,7 @@ import type {
   ResolvedOrderInstrument,
   T212InstrumentMetadataItem,
 } from '@portfolio/domain';
-import { errAsync, okAsync, type ResultAsync } from 'neverthrow';
+import { type ResultAsync, errAsync, okAsync } from 'neverthrow';
 
 const normalize = (value: string) => value.trim().toLowerCase();
 const validationError = (message: string): AppError => ({
@@ -66,9 +66,9 @@ const createResolveInstrumentForOrder = (
       }
 
       const suggestions = matches
-        .slice(0, 5)
+        .slice(0, 20)
         .map((instrument) => `${instrument.name} (${instrument.ticker})`)
-        .join(', ');
+        .join('\n');
 
       return errAsync(
         validationError(
