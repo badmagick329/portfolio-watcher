@@ -1,0 +1,3 @@
+setup:
+  - project: portfolio-watcher
+    config: dev
