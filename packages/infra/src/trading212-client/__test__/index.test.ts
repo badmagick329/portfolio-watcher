@@ -171,7 +171,7 @@ describe('trading212 client', () => {
     }
   });
 
-  test('fetchInstrumentsMetadata uses the demo metadata endpoint', async () => {
+  test('fetchInstrumentsMetadata uses the live metadata endpoint', async () => {
     const requestedUrls: string[] = [];
     globalThis.fetch = ((async (input: string | URL | Request) => {
       requestedUrls.push(String(input));
@@ -185,7 +185,7 @@ describe('trading212 client', () => {
 
     expect(result.isOk()).toBe(true);
     expect(requestedUrls).toEqual([
-      'https://demo.trading212.com/api/v0/equity/metadata/instruments',
+      'https://live.trading212.com/api/v0/equity/metadata/instruments',
     ]);
     if (result.isOk()) {
       expect(result.value[0]?.ticker).toBe('AAPL_US_EQ');

@@ -38,7 +38,7 @@ const fetchRequestRaw = <T>({
   method = 'GET',
   body,
 }: Omit<FetchParams<T>, 'schema'>): ResultAsync<unknown, AppError> => {
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     Authorization: `Basic ${creds}`,
   };
 

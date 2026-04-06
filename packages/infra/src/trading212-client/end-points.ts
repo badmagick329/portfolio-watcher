@@ -1,15 +1,15 @@
 import type { HistoricalOrdersParams } from '@portfolio/domain';
 
-const paperBase = 'https://demo.trading212.com';
+const demoBase = 'https://demo.trading212.com';
 const liveBase = 'https://live.trading212.com';
-const paperUrl = `${paperBase}/api/v0`;
+const demoUrl = `${demoBase}/api/v0`;
 const liveUrl = `${liveBase}/api/v0`;
 
 const endPoints = {
   accountCash: `${liveUrl}/equity/account/cash`,
   accountSummary: `${liveUrl}/equity/account/summary`,
-  demoInstrumentsMetadata: `${paperUrl}/equity/metadata/instruments`,
-  demoMarketOrders: `${paperUrl}/equity/orders/market`,
+  instrumentsMetadata: `${liveUrl}/equity/metadata/instruments`,
+  demoMarketOrders: `${demoUrl}/equity/orders/market`,
   positions: `${liveUrl}/equity/positions`,
   historicalOrders: (params: HistoricalOrdersParams) =>
     `${liveUrl}/equity/history/orders?${new URLSearchParams({
@@ -20,6 +20,6 @@ const endPoints = {
 };
 
 const resolveEndPoint = (path: string, isLive: boolean = true) =>
-  path.startsWith('http') ? path : `${isLive ? liveBase : paperBase}${path}`;
+  path.startsWith('http') ? path : `${isLive ? liveBase : demoBase}${path}`;
 
 export { endPoints, resolveEndPoint };

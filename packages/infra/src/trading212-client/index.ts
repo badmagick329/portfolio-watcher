@@ -53,7 +53,7 @@ const createTrading212Client = () => {
 
   const fetchInstrumentsMetadata = () =>
     request({
-      endPoint: endPoints.demoInstrumentsMetadata,
+      endPoint: endPoints.instrumentsMetadata,
       schema: instrumentsMetadataSchema,
       creds,
     });
