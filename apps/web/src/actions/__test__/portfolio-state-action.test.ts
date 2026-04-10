@@ -20,7 +20,11 @@ describe('syncPortfolioStateAction', () => {
       '@/actions/portfolio-state-action'
     );
 
-    await expect(syncPortfolioStateAction()).resolves.toEqual({ ok: true });
+    await expect(syncPortfolioStateAction()).resolves.toEqual({
+      ok: true,
+      kind: 'portfolio-state',
+      message: 'Portfolio state synced.',
+    });
   });
 
   it('returns ok false when the sync fails', async () => {
@@ -34,7 +38,11 @@ describe('syncPortfolioStateAction', () => {
       '@/actions/portfolio-state-action'
     );
 
-    await expect(syncPortfolioStateAction()).resolves.toEqual({ ok: false });
+    await expect(syncPortfolioStateAction()).resolves.toEqual({
+      ok: false,
+      kind: 'portfolio-state',
+      message: 'Portfolio state sync failed.',
+    });
 
     warnSpy.mockRestore();
   });

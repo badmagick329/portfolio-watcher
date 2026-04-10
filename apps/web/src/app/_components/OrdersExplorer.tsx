@@ -1,6 +1,7 @@
 'use client';
 
 import { InstrumentPicker } from '@/app/_components/InstrumentPicker';
+import { OrdersSyncMenu } from '@/app/_components/OrdersSyncMenu';
 import { useOrdersExplorerQuery } from '@/lib/client/useOrdersExplorerQuery';
 import { usePortfolioStateSync } from '@/lib/client/usePortfolioStateSync';
 
@@ -21,6 +22,16 @@ export default function OrdersExplorer() {
 
   return (
     <div className='flex w-full grow flex-col items-stretch gap-12'>
+      <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+        <div className='space-y-1'>
+          <h1 className='font-mono text-2xl sm:text-3xl'>Orders</h1>
+          <p className='text-sm text-muted-foreground'>
+            Explore positions and trigger syncs.
+          </p>
+        </div>
+        <OrdersSyncMenu />
+      </div>
+
       <InstrumentPicker
         instruments={data.instruments}
         latestAccountSummarySnapshot={data.latestAccountSummarySnapshot}
