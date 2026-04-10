@@ -1,7 +1,7 @@
 import type { AppError, PlaceMarketOrderInput } from '@portfolio/domain';
 
 const PLACE_ORDER_USAGE =
-  'Usage: pnpm cli -- place-order --instrument <value> --side <buy|sell> (--quantity <number> | --value <number>) [--extended-hours] [--confirm]';
+  'Usage: pnpm cli -- place-live-order --instrument <value> --side <buy|sell> (--quantity <number> | --value <number>) [--extended-hours] [--confirm]';
 
 const parsePlaceOrderArgs = (
   args: string[],

@@ -5,7 +5,7 @@ export { createGetLatestAccountSummarySnapshot } from '../get-latest-account-sum
 export { createGetLatestCurrentPositionSnapshot } from '../get-latest-current-position-snapshot';
 export { createGetHistoricalOrdersForWeb } from '../get-historical-orders-for-web';
 export { createGetLatestInstrumentPrice } from '../get-latest-instrument-price';
-export { createPlaceDemoMarketOrder } from '../place-demo-market-order';
+export { createPlaceLiveMarketOrder } from '../place-live-market-order';
 export { createResolveInstrumentForOrder } from '../resolve-instrument-for-order';
 export { createSaveManualInstrumentPrice } from '../save-manual-instrument-price';
 export { createSyncCurrentPositionPricesFromT212 } from '../sync-current-position-prices-from-t212';

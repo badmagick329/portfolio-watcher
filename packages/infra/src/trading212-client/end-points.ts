@@ -9,7 +9,7 @@ const endPoints = {
   accountCash: `${liveUrl}/equity/account/cash`,
   accountSummary: `${liveUrl}/equity/account/summary`,
   instrumentsMetadata: `${liveUrl}/equity/metadata/instruments`,
-  demoMarketOrders: `${demoUrl}/equity/orders/market`,
+  liveMarketOrders: `${liveUrl}/equity/orders/market`,
   positions: `${liveUrl}/equity/positions`,
   historicalOrders: (params: HistoricalOrdersParams) =>
     `${liveUrl}/equity/history/orders?${new URLSearchParams({

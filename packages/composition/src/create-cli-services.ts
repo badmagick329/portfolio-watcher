@@ -9,7 +9,7 @@ import {
 import {
   createFetchAccountCash,
   createFetchAccountSummary,
-  createPlaceDemoMarketOrder,
+  createPlaceLiveMarketOrder,
   createResolveInstrumentForOrder,
   createSyncCurrentPositionPricesFromT212,
   createSyncHistoricalOrders,
@@ -20,7 +20,7 @@ export const createCliServices = () => {
   const loggerCreator = createLoggerFactory('info');
   const syncStateManager = createOrderSyncStateManager();
   const dataManager = createBrokerDataManager();
-  const demoClient = createTrading212Client();
+  const liveClient = createTrading212Client();
 
   return createDiskCache({
     cacheFilePath: './data/cache.json',
@@ -31,11 +31,11 @@ export const createCliServices = () => {
     .map((client) => ({
       fetchAccountCash: createFetchAccountCash(client),
       fetchAccountSummary: createFetchAccountSummary(client),
-      placeDemoMarketOrder: createPlaceDemoMarketOrder({
-        client: demoClient,
+      placeLiveMarketOrder: createPlaceLiveMarketOrder({
+        client: liveClient,
         dataManager,
         resolveInstrumentForOrder: createResolveInstrumentForOrder({
-          client: demoClient,
+          client: liveClient,
           dataManager,
         }),
       }),
@@ -44,7 +44,7 @@ export const createCliServices = () => {
         dataManager,
       }),
       syncT212InstrumentCatalog: createSyncT212InstrumentCatalog({
-        client: demoClient,
+        client: liveClient,
         dataManager,
       }),
       syncHistoricalOrders: createSyncHistoricalOrders({

@@ -64,7 +64,7 @@ const createTrading212Client = () => {
     extendedHours: boolean;
   }) =>
     request({
-      endPoint: endPoints.demoMarketOrders,
+      endPoint: endPoints.liveMarketOrders,
       schema: marketOrderResponseSchema,
       creds,
       method: 'POST',

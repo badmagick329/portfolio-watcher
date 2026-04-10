@@ -8,7 +8,7 @@ import type {
   T212MarketOrderResponse,
 } from '@portfolio/domain';
 import { okAsync } from 'neverthrow';
-import { createPlaceDemoMarketOrder } from '../place-demo-market-order';
+import { createPlaceLiveMarketOrder } from '../place-live-market-order';
 
 const resolvedInstrument: ResolvedOrderInstrument = {
   ticker: 'AAPL_US_EQ',
@@ -27,7 +27,7 @@ const marketOrderResponse: T212MarketOrderResponse = {
   createdAt: '2026-04-04T10:15:00.000Z',
 };
 
-describe('placeDemoMarketOrder', () => {
+describe('placeLiveMarketOrder', () => {
   test('derives quantity from value mode using the latest stored price', async () => {
     const saveOrderExecutionAttempt = vi.fn(() => okAsync(undefined));
     const getLatestInstrumentPriceByIsin = vi.fn(() =>
@@ -44,7 +44,7 @@ describe('placeDemoMarketOrder', () => {
     );
     const placeMarketOrder = vi.fn(() => okAsync(marketOrderResponse));
 
-    const useCase = createPlaceDemoMarketOrder({
+    const useCase = createPlaceLiveMarketOrder({
       client: { placeMarketOrder } satisfies Pick<BrokerClient, 'placeMarketOrder'>,
       dataManager: {
         getLatestInstrumentPriceByIsin,
@@ -83,7 +83,7 @@ describe('placeDemoMarketOrder', () => {
   });
 
   test('fails value mode when no stored price exists', async () => {
-    const useCase = createPlaceDemoMarketOrder({
+    const useCase = createPlaceLiveMarketOrder({
       client: {
         placeMarketOrder: vi.fn(() => okAsync(marketOrderResponse)),
       } satisfies Pick<BrokerClient, 'placeMarketOrder'>,
@@ -115,7 +115,7 @@ describe('placeDemoMarketOrder', () => {
     const saveOrderExecutionAttempt = vi.fn(() => okAsync(undefined));
     const placeMarketOrder = vi.fn(() => okAsync(marketOrderResponse));
 
-    const useCase = createPlaceDemoMarketOrder({
+    const useCase = createPlaceLiveMarketOrder({
       client: { placeMarketOrder } satisfies Pick<BrokerClient, 'placeMarketOrder'>,
       dataManager: {
         getLatestInstrumentPriceByIsin: vi.fn(() => okAsync(undefined)),

@@ -25,7 +25,7 @@ const main = async () => {
         return;
       }
 
-      if (command === 'place-order') {
+      if (command === 'place-live-order') {
         const parsed = parsePlaceOrderArgs(args);
 
         if (!parsed.ok) {
@@ -34,7 +34,7 @@ const main = async () => {
           return;
         }
 
-        await ops.placeDemoMarketOrder(parsed.value).match(
+        await ops.placeLiveMarketOrder(parsed.value).match(
           (result) => {
             console.log('environment:', result.environment);
             console.log('mode:', result.executionMode);

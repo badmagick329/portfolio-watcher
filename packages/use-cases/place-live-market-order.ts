@@ -22,13 +22,13 @@ type Params = {
   now?: () => Date;
 };
 
-const createPlaceDemoMarketOrder = ({
+const createPlaceLiveMarketOrder = ({
   client,
   dataManager,
   resolveInstrumentForOrder,
   now = () => new Date(),
 }: Params) => {
-  const placeDemoMarketOrder = (
+  const placeLiveMarketOrder = (
     input: PlaceMarketOrderInput,
     attemptedAt: string,
   ): ResultAsync<PlaceMarketOrderResult, AppError> => {
@@ -52,7 +52,7 @@ const createPlaceDemoMarketOrder = ({
             extendedHours: input.extendedHours ?? false,
           });
           const baseAttempt = {
-            environment: 'demo' as const,
+            environment: 'live' as const,
             instrumentInput: input.instrument,
             resolvedTicker: resolvedInstrument.ticker,
             resolvedIsin: resolvedInstrument.isin,
@@ -80,7 +80,7 @@ const createPlaceDemoMarketOrder = ({
               .map(
                 () =>
                   ({
-                    environment: 'demo',
+                    environment: 'live',
                     executionMode: 'dry_run',
                     resolvedInstrument,
                     requestedMode,
@@ -106,7 +106,7 @@ const createPlaceDemoMarketOrder = ({
               .map(
                 () =>
                   ({
-                    environment: 'demo',
+                    environment: 'live',
                     executionMode: 'submitted',
                     resolvedInstrument,
                     requestedMode,
@@ -126,7 +126,7 @@ const createPlaceDemoMarketOrder = ({
   return (input: PlaceMarketOrderInput): ResultAsync<PlaceMarketOrderResult, AppError> => {
     const attemptedAt = now().toISOString();
 
-    return placeDemoMarketOrder(input, attemptedAt).orElse((error) => {
+    return placeLiveMarketOrder(input, attemptedAt).orElse((error) => {
       const validationError = validatePlaceMarketOrderInput(input);
       if (validationError) {
         return errAsync(error);
@@ -136,7 +136,7 @@ const createPlaceDemoMarketOrder = ({
         .orElse(() => okAsync(null))
         .andThen((resolvedInstrument) => {
           const fallbackAttempt: OrderExecutionAttempt = {
-            environment: 'demo',
+            environment: 'live',
             instrumentInput: input.instrument,
             resolvedTicker: resolvedInstrument?.ticker ?? '',
             resolvedIsin: resolvedInstrument?.isin ?? '',
@@ -281,4 +281,4 @@ const toMarketOrderRequest = ({
   extendedHours,
 });
 
-export { createPlaceDemoMarketOrder };
+export { createPlaceLiveMarketOrder };

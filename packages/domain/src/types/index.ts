@@ -177,7 +177,7 @@ type PlaceMarketOrderInput = {
 };
 
 type PlaceMarketOrderResult = {
-  environment: 'demo';
+  environment: 'live';
   executionMode: 'dry_run' | 'submitted';
   resolvedInstrument: ResolvedOrderInstrument;
   requestedMode: 'quantity' | 'value';

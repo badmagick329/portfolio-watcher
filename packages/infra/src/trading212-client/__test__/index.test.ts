@@ -193,7 +193,7 @@ describe('trading212 client', () => {
     }
   });
 
-  test('placeMarketOrder posts signed quantity to the demo market order endpoint', async () => {
+  test('placeMarketOrder posts signed quantity to the live market order endpoint', async () => {
     const requests: Array<{ url: string; method: string; body: string }> = [];
     globalThis.fetch = ((async (input: string | URL | Request, init?: RequestInit) => {
       requests.push({
@@ -217,7 +217,7 @@ describe('trading212 client', () => {
     expect(result.isOk()).toBe(true);
     expect(requests).toEqual([
       {
-        url: 'https://demo.trading212.com/api/v0/equity/orders/market',
+        url: 'https://live.trading212.com/api/v0/equity/orders/market',
         method: 'POST',
         body: JSON.stringify({
           ticker: 'AAPL_US_EQ',
