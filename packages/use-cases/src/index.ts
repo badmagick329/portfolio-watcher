@@ -10,5 +10,4 @@ export { createResolveInstrumentForOrder } from '../resolve-instrument-for-order
 export { createSaveManualInstrumentPrice } from '../save-manual-instrument-price';
 export { createSyncCurrentPositionPricesFromT212 } from '../sync-current-position-prices-from-t212';
 export { createSyncT212InstrumentCatalog } from '../sync-t212-instrument-catalog';
-export { createSyncInstrumentPrices } from '../sync-instrument-prices';
 export { createSyncHistoricalOrders } from '../sync-historical-orders';

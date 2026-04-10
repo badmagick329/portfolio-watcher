@@ -10,8 +10,6 @@ describe('getLatestInstrumentPrice', () => {
       getHistoricalOrders: () => okAsync([]),
       getHistoricalOrdersForWeb: () => okAsync({ items: [], filters: {} }),
       getDistinctInstruments: () => okAsync([]),
-      saveInstrumentPriceSource: () => okAsync(undefined),
-      getInstrumentPriceSourceByIsin: () => okAsync(undefined),
       saveInstrumentPriceSnapshot: () => okAsync(undefined),
       saveCurrentPositionSnapshot: () => okAsync(undefined),
       getLatestCurrentPositionSnapshotByIsin: () => okAsync(undefined),
@@ -28,7 +26,9 @@ describe('getLatestInstrumentPrice', () => {
           asOf: '2026-03-24',
           fetchedAt: '2026-03-25T12:00:00.000Z',
         }),
-      listInstrumentsNeedingPriceRefresh: () => okAsync([]),
+      saveOrderExecutionAttempt: () => okAsync(undefined),
+      saveT212InstrumentCatalogItems: () => okAsync(0),
+      findT212InstrumentCatalogMatches: () => okAsync([]),
     };
 
     const getLatestInstrumentPrice = createGetLatestInstrumentPrice(dataManager);

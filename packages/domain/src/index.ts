@@ -1,7 +1,6 @@
 export * from './core/broker-client';
 export * from './core/cache';
 export * from './core/errors';
-export * from './core/instrument-price';
 export * from './core/logger';
 export * from './core/order-sync-state';
 export * from './types';

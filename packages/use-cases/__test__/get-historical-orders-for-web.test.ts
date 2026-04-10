@@ -17,15 +17,15 @@ describe('getHistoricalOrdersForWeb', () => {
       saveHistoricalOrders: () => okAsync(0),
       getHistoricalOrders: () => okAsync([]),
       getDistinctInstruments: () => okAsync([]),
-      saveInstrumentPriceSource: () => okAsync(undefined),
-      getInstrumentPriceSourceByIsin: () => okAsync(undefined),
       saveInstrumentPriceSnapshot: () => okAsync(undefined),
       saveCurrentPositionSnapshot: () => okAsync(undefined),
       getLatestCurrentPositionSnapshotByIsin: () => okAsync(undefined),
       saveAccountSummarySnapshot: () => okAsync(undefined),
       getLatestAccountSummarySnapshot: () => okAsync(undefined),
       getLatestInstrumentPriceByIsin: () => okAsync(undefined),
-      listInstrumentsNeedingPriceRefresh: () => okAsync([]),
+      saveOrderExecutionAttempt: () => okAsync(undefined),
+      saveT212InstrumentCatalogItems: () => okAsync(0),
+      findT212InstrumentCatalogMatches: () => okAsync([]),
       getHistoricalOrdersForWeb: (input = {}) => {
         receivedFilters = input;
 

@@ -2,9 +2,7 @@ import type {
   AppError,
   BrokerDataManager,
   HistoricalOrdersItems,
-  InstrumentPriceRefreshCandidate,
   InstrumentPriceSnapshot,
-  InstrumentPriceSource,
   OrderSyncState,
   OrderSyncStateManager,
   WebHistoricalOrdersFilters,
@@ -20,7 +18,6 @@ import {
   fillTaxes,
   fills,
   instrumentPrices,
-  instrumentPriceSources,
   instruments,
   orderExecutionAttempts,
   orders,
@@ -264,78 +261,6 @@ const createBrokerDataManager = () => {
           .all(),
       'get distinct instruments',
     );
-
-  const saveInstrumentPriceSource = (source: InstrumentPriceSource) =>
-    wrapDb(() => {
-      db.insert(instrumentPriceSources)
-        .values({
-          isin: source.isin,
-          provider: source.provider,
-          providerSymbol: source.providerSymbol,
-          providerExchange: source.providerExchange,
-          providerMic: source.providerMic,
-          resolvedName: source.resolvedName,
-          resolvedCurrency: source.resolvedCurrency,
-          resolutionConfidence: source.resolutionConfidence,
-          lastResolvedAt: source.lastResolvedAt,
-          lastFetchStatus: source.lastFetchStatus,
-          lastFetchError: source.lastFetchError,
-          lastFetchAttemptedAt: source.lastFetchAttemptedAt,
-          consecutiveFailures: source.consecutiveFailures,
-        })
-        .onConflictDoUpdate({
-          target: instrumentPriceSources.isin,
-          set: {
-            provider: source.provider,
-            providerSymbol: source.providerSymbol,
-            providerExchange: source.providerExchange,
-            providerMic: source.providerMic,
-            resolvedName: source.resolvedName,
-            resolvedCurrency: source.resolvedCurrency,
-            resolutionConfidence: source.resolutionConfidence,
-            lastResolvedAt: source.lastResolvedAt,
-            lastFetchStatus: source.lastFetchStatus,
-            lastFetchError: source.lastFetchError,
-            lastFetchAttemptedAt: source.lastFetchAttemptedAt,
-            consecutiveFailures: source.consecutiveFailures,
-            updatedAt: sql`CURRENT_TIMESTAMP`,
-          },
-        })
-        .run();
-    }, 'save instrument price source');
-
-  const getInstrumentPriceSourceByIsin = (isin: string) =>
-    wrapDb(() => {
-      const row = db
-        .select({
-          isin: instrumentPriceSources.isin,
-          provider: instrumentPriceSources.provider,
-          providerSymbol: instrumentPriceSources.providerSymbol,
-          providerExchange: instrumentPriceSources.providerExchange,
-          providerMic: instrumentPriceSources.providerMic,
-          resolvedName: instrumentPriceSources.resolvedName,
-          resolvedCurrency: instrumentPriceSources.resolvedCurrency,
-          resolutionConfidence: instrumentPriceSources.resolutionConfidence,
-          lastResolvedAt: instrumentPriceSources.lastResolvedAt,
-          lastFetchStatus: instrumentPriceSources.lastFetchStatus,
-          lastFetchError: instrumentPriceSources.lastFetchError,
-          lastFetchAttemptedAt: instrumentPriceSources.lastFetchAttemptedAt,
-          consecutiveFailures: instrumentPriceSources.consecutiveFailures,
-        })
-        .from(instrumentPriceSources)
-        .where(eq(instrumentPriceSources.isin, isin))
-        .get();
-
-      return row
-        ? ({
-            ...row,
-            provider: row.provider as InstrumentPriceSource['provider'],
-            lastFetchStatus:
-              (row.lastFetchStatus as InstrumentPriceSource['lastFetchStatus']) ??
-              null,
-          } satisfies InstrumentPriceSource)
-        : undefined;
-    }, 'get instrument price source by isin');
 
   const saveInstrumentPriceSnapshot = (snapshot: InstrumentPriceSnapshot) =>
     wrapDb(() => {
@@ -609,107 +534,11 @@ const createBrokerDataManager = () => {
         : undefined;
     }, 'get latest instrument price by isin');
 
-  const listInstrumentsNeedingPriceRefresh = ({
-    fetchedBefore,
-    failedAfter,
-  }: {
-    fetchedBefore: string;
-    failedAfter: string;
-  }) =>
-    wrapDb(() => {
-      const latestPriceSubquery = db
-        .select({
-          isin: instrumentPrices.isin,
-          latestFetchedAt: sql<string>`max(${instrumentPrices.fetchedAt})`.as(
-            'latest_fetched_at',
-          ),
-        })
-        .from(instrumentPrices)
-        .groupBy(instrumentPrices.isin)
-        .as('latest_price_by_isin');
-
-      const rows = db
-        .select({
-          ticker: instruments.ticker,
-          name: instruments.name,
-          isin: instruments.isin,
-          currency: instruments.currency,
-          latestPriceFetchedAt: latestPriceSubquery.latestFetchedAt,
-          sourceIsin: instrumentPriceSources.isin,
-          sourceProvider: instrumentPriceSources.provider,
-          sourceProviderSymbol: instrumentPriceSources.providerSymbol,
-          sourceProviderExchange: instrumentPriceSources.providerExchange,
-          sourceProviderMic: instrumentPriceSources.providerMic,
-          sourceResolvedName: instrumentPriceSources.resolvedName,
-          sourceResolvedCurrency: instrumentPriceSources.resolvedCurrency,
-          sourceResolutionConfidence: instrumentPriceSources.resolutionConfidence,
-          sourceLastResolvedAt: instrumentPriceSources.lastResolvedAt,
-          sourceLastFetchStatus: instrumentPriceSources.lastFetchStatus,
-          sourceLastFetchError: instrumentPriceSources.lastFetchError,
-          sourceLastFetchAttemptedAt: instrumentPriceSources.lastFetchAttemptedAt,
-          sourceConsecutiveFailures: instrumentPriceSources.consecutiveFailures,
-        })
-        .from(instruments)
-        .leftJoin(
-          latestPriceSubquery,
-          eq(instruments.isin, latestPriceSubquery.isin),
-        )
-        .leftJoin(
-          instrumentPriceSources,
-          eq(instruments.isin, instrumentPriceSources.isin),
-        )
-        .all();
-
-      return rows
-        .map(
-          (row) =>
-            ({
-              ticker: row.ticker,
-              name: row.name,
-              isin: row.isin,
-              currency: row.currency,
-              latestPriceFetchedAt: row.latestPriceFetchedAt ?? null,
-              priceSource: row.sourceIsin
-                ? {
-                    isin: row.sourceIsin,
-                    provider:
-                      row.sourceProvider as InstrumentPriceSource['provider'],
-                    providerSymbol: row.sourceProviderSymbol!,
-                    providerExchange: row.sourceProviderExchange!,
-                    providerMic: row.sourceProviderMic,
-                    resolvedName: row.sourceResolvedName!,
-                    resolvedCurrency: row.sourceResolvedCurrency,
-                    resolutionConfidence: row.sourceResolutionConfidence!,
-                    lastResolvedAt: row.sourceLastResolvedAt!,
-                    lastFetchStatus:
-                      (row.sourceLastFetchStatus as InstrumentPriceSource['lastFetchStatus']) ??
-                      null,
-                    lastFetchError: row.sourceLastFetchError,
-                    lastFetchAttemptedAt: row.sourceLastFetchAttemptedAt,
-                    consecutiveFailures: row.sourceConsecutiveFailures ?? 0,
-                  }
-                : null,
-            }) satisfies InstrumentPriceRefreshCandidate,
-        )
-        .filter((row) => {
-          const stalePrice =
-            !row.latestPriceFetchedAt || row.latestPriceFetchedAt < fetchedBefore;
-          const failedRecently =
-            row.priceSource?.lastFetchStatus === 'failed' &&
-            row.priceSource.lastFetchAttemptedAt !== null &&
-            row.priceSource.lastFetchAttemptedAt >= failedAfter;
-
-          return stalePrice && !failedRecently;
-        });
-    }, 'list instruments needing price refresh');
-
   return {
     saveHistoricalOrders,
     getHistoricalOrders,
     getHistoricalOrdersForWeb,
     getDistinctInstruments,
-    saveInstrumentPriceSource,
-    getInstrumentPriceSourceByIsin,
     saveInstrumentPriceSnapshot,
     saveCurrentPositionSnapshot,
     getLatestCurrentPositionSnapshotByIsin,
@@ -719,7 +548,6 @@ const createBrokerDataManager = () => {
     findT212InstrumentCatalogMatches,
     getLatestAccountSummarySnapshot,
     getLatestInstrumentPriceByIsin,
-    listInstrumentsNeedingPriceRefresh,
   } satisfies BrokerDataManager;
 };
 

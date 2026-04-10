@@ -1,23 +1,23 @@
 'use server';
 
-import { getDistinctInstrumentsAction } from '@/actions/instruments-action';
-import { getOrdersAction } from '@/actions/orders-action';
-import {
-  getLatestAccountSummarySnapshot,
-  getLatestCurrentPositionSnapshot,
-  getLatestInstrumentPrice,
-} from '@/lib/server/composition';
-import type { OrdersExplorerData } from '@/lib/client/orders-explorer-data';
 import type {
   AccountSummarySnapshot,
   InstrumentWithStoredPrice,
 } from '@/lib/client/instrument-price';
+import type { OrdersExplorerData } from '@/lib/client/orders-explorer-data';
+import {
+  getDistinctInstruments,
+  getHistoricalOrdersForWeb,
+  getLatestAccountSummarySnapshot,
+  getLatestCurrentPositionSnapshot,
+  getLatestInstrumentPrice,
+} from '@/lib/server/composition';
 
 export async function getOrdersExplorerDataAction(): Promise<OrdersExplorerData> {
   const [orders, instruments, latestAccountSummarySnapshotResult] =
     await Promise.all([
-      getOrdersAction(),
-      getDistinctInstrumentsAction(),
+      getOrders(),
+      getDistinctInstrumentsForExplorer(),
       getLatestAccountSummarySnapshot(),
     ]);
 
@@ -66,4 +66,24 @@ export async function getOrdersExplorerDataAction(): Promise<OrdersExplorerData>
       (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
     ),
   };
+}
+
+async function getOrders() {
+  const result = await getHistoricalOrdersForWeb();
+
+  if (result.isErr()) {
+    throw new Error(result.error.message);
+  }
+
+  return result.value;
+}
+
+async function getDistinctInstrumentsForExplorer() {
+  const result = await getDistinctInstruments();
+
+  if (result.isErr()) {
+    throw new Error(result.error.message);
+  }
+
+  return result.value;
 }

@@ -116,31 +116,6 @@ const syncState = sqliteTable('sync_state', {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-const instrumentPriceSources = sqliteTable(
-  'instrument_price_sources',
-  {
-    isin: text('isin').primaryKey().notNull(),
-    provider: text('provider').notNull(),
-    providerSymbol: text('provider_symbol').notNull(),
-    providerExchange: text('provider_exchange').notNull(),
-    providerMic: text('provider_mic'),
-    resolvedName: text('resolved_name').notNull(),
-    resolvedCurrency: text('resolved_currency'),
-    resolutionConfidence: real('resolution_confidence').notNull(),
-    lastResolvedAt: text('last_resolved_at').notNull(),
-    lastFetchStatus: text('last_fetch_status'),
-    lastFetchError: text('last_fetch_error'),
-    lastFetchAttemptedAt: text('last_fetch_attempted_at'),
-    consecutiveFailures: integer('consecutive_failures').notNull().default(0),
-    updatedAt: text('updated_at')
-      .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
-  },
-  (table) => [
-    index('instrument_price_sources_provider_idx').on(table.provider),
-  ],
-);
-
 const instrumentPrices = sqliteTable(
   'instrument_prices',
   {
@@ -290,9 +265,6 @@ type NewFillTaxes = typeof fillTaxes.$inferInsert;
 type SyncState = typeof syncState.$inferSelect;
 type NewSyncState = typeof syncState.$inferInsert;
 
-type InstrumentPriceSource = typeof instrumentPriceSources.$inferSelect;
-type NewInstrumentPriceSource = typeof instrumentPriceSources.$inferInsert;
-
 type InstrumentPrice = typeof instrumentPrices.$inferSelect;
 type NewInstrumentPrice = typeof instrumentPrices.$inferInsert;
 
@@ -318,8 +290,6 @@ export type {
   NewFillTaxes,
   SyncState,
   NewSyncState,
-  InstrumentPriceSource,
-  NewInstrumentPriceSource,
   InstrumentPrice,
   NewInstrumentPrice,
   CurrentPositionSnapshot,
@@ -338,7 +308,6 @@ export {
   fills,
   fillTaxes,
   syncState,
-  instrumentPriceSources,
   instrumentPrices,
   currentPositionSnapshots,
   accountSummarySnapshots,

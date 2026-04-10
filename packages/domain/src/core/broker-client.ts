@@ -2,9 +2,7 @@ import type { Result, ResultAsync } from 'neverthrow';
 import type {
   AppError,
   HistoricalOrdersParams,
-  InstrumentPriceRefreshCandidate,
   InstrumentPriceSnapshot,
-  InstrumentPriceSource,
   SyncStepResult,
   WebHistoricalOrderInstrument,
   WebHistoricalOrdersFilters,
@@ -55,12 +53,6 @@ interface BrokerDataManager {
     filters?: WebHistoricalOrdersFilters,
   ): ResultAsync<WebHistoricalOrdersResult, AppError>;
   getDistinctInstruments(): ResultAsync<WebHistoricalOrderInstrument[], AppError>;
-  saveInstrumentPriceSource(
-    source: InstrumentPriceSource,
-  ): ResultAsync<void, AppError>;
-  getInstrumentPriceSourceByIsin(
-    isin: string,
-  ): ResultAsync<InstrumentPriceSource | undefined, AppError>;
   saveInstrumentPriceSnapshot(
     snapshot: InstrumentPriceSnapshot,
   ): ResultAsync<void, AppError>;
@@ -89,10 +81,6 @@ interface BrokerDataManager {
   getLatestInstrumentPriceByIsin(
     isin: string,
   ): ResultAsync<InstrumentPriceSnapshot | undefined, AppError>;
-  listInstrumentsNeedingPriceRefresh(params: {
-    fetchedBefore: string;
-    failedAfter: string;
-  }): ResultAsync<InstrumentPriceRefreshCandidate[], AppError>;
 }
 
 type BrokerClientWithCache = BrokerClient & ClientCache;

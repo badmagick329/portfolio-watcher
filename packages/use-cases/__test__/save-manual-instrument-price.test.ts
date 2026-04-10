@@ -12,8 +12,6 @@ describe('saveManualInstrumentPrice', () => {
       getHistoricalOrders: () => okAsync([]),
       getHistoricalOrdersForWeb: () => okAsync({ items: [], filters: {} }),
       getDistinctInstruments: () => okAsync([]),
-      saveInstrumentPriceSource: () => okAsync(undefined),
-      getInstrumentPriceSourceByIsin: () => okAsync(undefined),
       saveInstrumentPriceSnapshot: (snapshot: InstrumentPriceSnapshot) => {
         savedSnapshot = snapshot;
         return okAsync(undefined);
@@ -23,7 +21,9 @@ describe('saveManualInstrumentPrice', () => {
       saveAccountSummarySnapshot: () => okAsync(undefined),
       getLatestAccountSummarySnapshot: () => okAsync(undefined),
       getLatestInstrumentPriceByIsin: () => okAsync(undefined),
-      listInstrumentsNeedingPriceRefresh: () => okAsync([]),
+      saveOrderExecutionAttempt: () => okAsync(undefined),
+      saveT212InstrumentCatalogItems: () => okAsync(0),
+      findT212InstrumentCatalogMatches: () => okAsync([]),
     };
 
     const saveManualInstrumentPrice = createSaveManualInstrumentPrice({

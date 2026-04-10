@@ -197,22 +197,6 @@ type InstrumentPriceType =
   | 'manual'
   | 'position_current';
 
-type InstrumentPriceSource = {
-  isin: string;
-  provider: InstrumentPriceProvider;
-  providerSymbol: string;
-  providerExchange: string;
-  providerMic: string | null;
-  resolvedName: string;
-  resolvedCurrency: string | null;
-  resolutionConfidence: number;
-  lastResolvedAt: string;
-  lastFetchStatus: 'ok' | 'failed' | null;
-  lastFetchError: string | null;
-  lastFetchAttemptedAt: string | null;
-  consecutiveFailures: number;
-};
-
 type InstrumentPriceSnapshot = {
   isin: string;
   provider: InstrumentPriceProvider;
@@ -222,41 +206,6 @@ type InstrumentPriceSnapshot = {
   priceType: InstrumentPriceType;
   asOf: string;
   fetchedAt: string;
-};
-
-type InstrumentPriceResolution = {
-  isin: string;
-  provider: InstrumentPriceProvider;
-  providerSymbol: string;
-  providerExchange: string;
-  providerMic: string | null;
-  resolvedName: string;
-  resolvedCurrency: string | null;
-  resolutionConfidence: number;
-  isPrimary: boolean;
-};
-
-type InstrumentPriceFetchResult = {
-  provider: InstrumentPriceProvider;
-  providerSymbol: string;
-  currency: string;
-  price: number;
-  priceType: InstrumentPriceType;
-  asOf: string;
-};
-
-type InstrumentPriceRefreshCandidate = WebHistoricalOrderInstrument & {
-  latestPriceFetchedAt: string | null;
-  priceSource: InstrumentPriceSource | null;
-};
-
-type InstrumentPriceSyncResult = {
-  attempted: number;
-  refreshed: number;
-  skipped: number;
-  resolved: number;
-  unresolved: number;
-  fetchFailed: number;
 };
 
 type CurrentPositionPriceSyncResult = {
@@ -307,13 +256,8 @@ export type {
   PlaceMarketOrderResult,
   ResolvedOrderInstrument,
   CurrentPositionSnapshot,
-  InstrumentPriceFetchResult,
   InstrumentPriceProvider,
-  InstrumentPriceRefreshCandidate,
-  InstrumentPriceResolution,
   InstrumentPriceSnapshot,
-  InstrumentPriceSource,
-  InstrumentPriceSyncResult,
   InstrumentPriceType,
   CurrentPositionPriceSyncResult,
   PortfolioStateSyncResult,
