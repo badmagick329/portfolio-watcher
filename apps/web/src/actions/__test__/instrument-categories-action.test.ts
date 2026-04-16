@@ -92,26 +92,51 @@ describe('instrument category actions', () => {
       '@/actions/instrument-categories-action'
     );
 
-    await expect(getInstrumentCategoriesAction()).resolves.toEqual([
-      {
-        ...rows[0],
-        currentQuantity: 2,
-        currentlyHeld: true,
-        currentPositionSnapshot: {
-          isin: 'US0378331005',
+    await expect(getInstrumentCategoriesAction()).resolves.toEqual({
+      historicalOrders: [
+        {
+          side: 'BUY',
           quantity: 2,
-          currentValue: 200,
-          totalCost: 150,
-          unrealizedProfitLoss: 50,
+          filledQuantity: 2,
+          instrument: { isin: 'US0378331005' },
+          fills: [],
         },
-      },
-      {
-        ...rows[1],
-        currentQuantity: 0,
-        currentlyHeld: false,
-        currentPositionSnapshot: null,
-      },
-    ]);
+        {
+          side: 'BUY',
+          quantity: 1,
+          filledQuantity: 1,
+          instrument: { isin: 'US5949181045' },
+          fills: [],
+        },
+        {
+          side: 'SELL',
+          quantity: 1,
+          filledQuantity: 1,
+          instrument: { isin: 'US5949181045' },
+          fills: [],
+        },
+      ],
+      instruments: [
+        {
+          ...rows[0],
+          currentQuantity: 2,
+          currentlyHeld: true,
+          currentPositionSnapshot: {
+            isin: 'US0378331005',
+            quantity: 2,
+            currentValue: 200,
+            totalCost: 150,
+            unrealizedProfitLoss: 50,
+          },
+        },
+        {
+          ...rows[1],
+          currentQuantity: 0,
+          currentlyHeld: false,
+          currentPositionSnapshot: null,
+        },
+      ],
+    });
   });
 
   it('throws when listing fails', async () => {

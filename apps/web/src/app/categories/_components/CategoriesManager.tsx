@@ -7,15 +7,18 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Legend,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
 
+import { FillDateRangePicker } from '@/app/_components/FillDateRangePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -28,6 +31,7 @@ import {
 } from '@/components/ui/table';
 import { buildCategoryAllocationViewModel } from '@/lib/client/instrument-category-allocation';
 import type { CategoryAllocationRow } from '@/lib/client/instrument-category-allocation';
+import type { FillDateRangeFilter } from '@/lib/client/fill-date-filter';
 import { useInstrumentCategoryMutations } from '@/lib/client/useInstrumentCategoryMutations';
 import { useInstrumentCategoriesQuery } from '@/lib/client/useInstrumentCategoriesQuery';
 import type { CategorizedInstrument } from '@portfolio/domain';
@@ -42,6 +46,8 @@ const CHART_COLORS = [
   '#4b5563',
   '#7c2d12',
 ];
+const NET_INVESTED_ADDITION_COLOR = '#2563eb';
+const NET_INVESTED_WITHDRAWAL_COLOR = '#a855f7';
 
 export function CategoriesManager() {
   const { data, error, isLoading } = useInstrumentCategoriesQuery();
@@ -54,6 +60,8 @@ export function CategoriesManager() {
   const [showCurrentOnly, setShowCurrentOnly] = useState(false);
   const [showUncategorizedOnly, setShowUncategorizedOnly] = useState(false);
   const [activeMode, setActiveMode] = useState<'manage' | 'allocation'>('manage');
+  const [fillDateRangeFilter, setFillDateRangeFilter] =
+    useState<FillDateRangeFilter>({});
   const isMutating = setCategories.isPending || unsetCategories.isPending;
   const selectedCount = selectedIsins.size;
 
@@ -65,7 +73,7 @@ export function CategoriesManager() {
     setDraftCategories((current) => {
       const next: Record<string, string> = {};
 
-      data.forEach((instrument) => {
+      data.instruments.forEach((instrument) => {
         next[instrument.isin] =
           current[instrument.isin] ?? instrument.category ?? '';
       });
@@ -80,7 +88,7 @@ export function CategoriesManager() {
   );
   const visibleInstruments = useMemo(
     () =>
-      data?.filter(
+      data?.instruments.filter(
         (instrument) =>
           (!showCurrentOnly || instrument.currentlyHeld) &&
           (!showUncategorizedOnly || !instrument.category),
@@ -88,8 +96,13 @@ export function CategoriesManager() {
     [data, showCurrentOnly, showUncategorizedOnly],
   );
   const allocationViewModel = useMemo(
-    () => buildCategoryAllocationViewModel(data ?? []),
-    [data],
+    () =>
+      buildCategoryAllocationViewModel({
+        fillDateRangeFilter,
+        historicalOrders: data?.historicalOrders ?? [],
+        instruments: data?.instruments ?? [],
+      }),
+    [data, fillDateRangeFilter],
   );
 
   if (isLoading) {
@@ -241,7 +254,11 @@ export function CategoriesManager() {
       </div>
 
       {activeMode === 'allocation' ? (
-        <PortfolioAllocationView viewModel={allocationViewModel} />
+        <PortfolioAllocationView
+          fillDateRangeFilter={fillDateRangeFilter}
+          onFillDateRangeFilterChange={setFillDateRangeFilter}
+          viewModel={allocationViewModel}
+        />
       ) : (
         <CategoriesManageView
           allSelected={allSelected}
@@ -487,22 +504,62 @@ function CategoriesManageView({
 }
 
 function PortfolioAllocationView({
+  fillDateRangeFilter,
+  onFillDateRangeFilterChange,
   viewModel,
 }: {
+  fillDateRangeFilter: FillDateRangeFilter;
+  onFillDateRangeFilterChange: (value: FillDateRangeFilter) => void;
   viewModel: ReturnType<typeof buildCategoryAllocationViewModel>;
 }) {
+  const isHistorical = viewModel.mode === 'historical';
+  const returnRows = isHistorical
+    ? viewModel.rows.filter((row) => row.returnPercent !== null)
+    : viewModel.rows;
+
   if (!viewModel.hasPositionSnapshots) {
     return <p className='text-sm text-muted-foreground'>Sync portfolio state to see allocation.</p>;
   }
 
+  if (isHistorical && !viewModel.hasFilteredOrders) {
+    return (
+      <div className='flex flex-col gap-4'>
+        <FillDateRangePicker
+          onChange={onFillDateRangeFilterChange}
+          value={fillDateRangeFilter}
+        />
+        <p className='text-sm text-muted-foreground'>
+          No filled orders in this date range.
+        </p>
+      </div>
+    );
+  }
+
   if (!viewModel.hasCurrentHoldings) {
-    return <p className='text-sm text-muted-foreground'>No current holdings to chart.</p>;
+    return (
+      <div className='flex flex-col gap-4'>
+        <FillDateRangePicker
+          onChange={onFillDateRangeFilterChange}
+          value={fillDateRangeFilter}
+        />
+        <p className='text-sm text-muted-foreground'>No current holdings to chart.</p>
+      </div>
+    );
   }
 
   return (
     <div className='flex flex-col gap-8'>
+      <FillDateRangePicker
+        onChange={onFillDateRangeFilterChange}
+        value={fillDateRangeFilter}
+      />
+
       <div className='space-y-1'>
-        <p className='text-sm text-muted-foreground'>Current holdings only</p>
+        <p className='text-sm text-muted-foreground'>
+          {isHistorical
+            ? 'Net invested in selected range'
+            : 'Current holdings only'}
+        </p>
         <p className='font-mono text-2xl'>
           {formatMoney(viewModel.totalCurrentValue)}
         </p>
@@ -511,101 +568,219 @@ function PortfolioAllocationView({
       <div className='grid gap-8 xl:grid-cols-2'>
         <section className='flex min-h-96 flex-col gap-3'>
           <div>
-            <h2 className='font-mono text-lg'>Allocation by category</h2>
+            <h2 className='font-mono text-lg'>
+              {isHistorical
+                ? 'Net invested by category'
+                : 'Allocation by category'}
+            </h2>
             <p className='text-sm text-muted-foreground'>
-              Current value share.
+              {isHistorical
+                ? 'Buys minus sells in the selected range.'
+                : 'Current value share.'}
             </p>
           </div>
-          <ResponsiveContainer height={320} width='100%'>
-            <PieChart>
-              <Pie
+          {isHistorical ? (
+            <ResponsiveContainer height={320} width='100%'>
+              <BarChart
                 data={viewModel.rows}
-                dataKey='currentValue'
-                innerRadius={58}
-                nameKey='category'
-                outerRadius={110}
-                paddingAngle={2}
-                label={renderAllocationLabel}
-                labelLine={false}
+                layout='vertical'
+                margin={{ bottom: 8, left: 24, right: 120, top: 8 }}
               >
-                {viewModel.rows.map((row, index) => (
-                  <Cell
-                    fill={CHART_COLORS[index % CHART_COLORS.length]}
-                    key={row.category}
+                <CartesianGrid horizontal={false} strokeDasharray='3 3' />
+                <XAxis
+                  tickFormatter={(value) => formatMoney(Number(value))}
+                  type='number'
+                />
+                <YAxis dataKey='category' type='category' width={110} />
+                <Tooltip content={<NetInvestedTooltip />} />
+                <ReferenceLine stroke='currentColor' x={0} />
+                <Bar dataKey='netInvested'>
+                  {viewModel.rows.map((row) => (
+                    <Cell
+                      fill={
+                        (row.netInvested ?? 0) < 0
+                          ? NET_INVESTED_WITHDRAWAL_COLOR
+                          : NET_INVESTED_ADDITION_COLOR
+                      }
+                      key={row.category}
+                    />
+                  ))}
+                  <LabelList
+                    content={(props) =>
+                      renderNetInvestedLabel({
+                        ...props,
+                        totalNetInvested: viewModel.totalCurrentValue,
+                      })
+                    }
                   />
-                ))}
-              </Pie>
-              <Tooltip content={<AllocationTooltip />} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <ResponsiveContainer height={320} width='100%'>
+              <PieChart>
+                <Pie
+                  data={viewModel.rows}
+                  dataKey='currentValue'
+                  innerRadius={58}
+                  nameKey='category'
+                  outerRadius={110}
+                  paddingAngle={2}
+                  label={renderAllocationLabel}
+                  labelLine={false}
+                >
+                  {viewModel.rows.map((row, index) => (
+                    <Cell
+                      fill={CHART_COLORS[index % CHART_COLORS.length]}
+                      key={row.category}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip content={<AllocationTooltip />} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </section>
 
         <section className='flex min-h-96 flex-col gap-3'>
           <div>
-            <h2 className='font-mono text-lg'>Unrealized return by category</h2>
+            <h2 className='font-mono text-lg'>
+              {isHistorical
+                ? 'Return by category'
+                : 'Unrealized return by category'}
+            </h2>
             <p className='text-sm text-muted-foreground'>
               Positive and negative returns stay visible.
             </p>
           </div>
-          <ResponsiveContainer height={320} width='100%'>
-            <BarChart
-              data={viewModel.rows}
-              layout='vertical'
-              margin={{ bottom: 8, left: 24, right: 24, top: 8 }}
-            >
-              <CartesianGrid horizontal={false} strokeDasharray='3 3' />
-              <XAxis
-                tickFormatter={(value) => formatPercent(Number(value))}
-                type='number'
-              />
-              <YAxis dataKey='category' type='category' width={110} />
-              <Tooltip content={<ReturnTooltip />} />
-              <Bar dataKey={(row: CategoryAllocationRow) => row.returnPercent ?? 0}>
-                {viewModel.rows.map((row) => (
-                  <Cell
-                    fill={(row.returnPercent ?? 0) < 0 ? '#dc2626' : '#16a34a'}
-                    key={row.category}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {returnRows.length > 0 ? (
+            <ResponsiveContainer height={320} width='100%'>
+              <BarChart
+                data={returnRows}
+                layout='vertical'
+                margin={{ bottom: 8, left: 24, right: 24, top: 8 }}
+              >
+                <CartesianGrid horizontal={false} strokeDasharray='3 3' />
+                <XAxis
+                  tickFormatter={(value) => formatPercent(Number(value))}
+                  type='number'
+                />
+                <YAxis dataKey='category' type='category' width={110} />
+                <Tooltip content={<ReturnTooltip mode={viewModel.mode} />} />
+                <ReferenceLine stroke='currentColor' x={0} />
+                <Bar dataKey={(row: CategoryAllocationRow) => row.returnPercent ?? 0}>
+                  {returnRows.map((row) => (
+                    <Cell
+                      fill={(row.returnPercent ?? 0) < 0 ? '#dc2626' : '#16a34a'}
+                      key={row.category}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className='text-sm text-muted-foreground'>
+              No in-range buys to calculate returns.
+            </p>
+          )}
         </section>
       </div>
 
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Category</TableHead>
-            <TableHead>Holdings</TableHead>
-            <TableHead>Value</TableHead>
-            <TableHead>Allocation</TableHead>
-            <TableHead>Unrealized P/L</TableHead>
-            <TableHead>Return</TableHead>
-          </TableRow>
+          {isHistorical ? (
+            <TableRow>
+              <TableHead>Category</TableHead>
+              <TableHead>Instruments</TableHead>
+              <TableHead>Buys</TableHead>
+              <TableHead>Sells</TableHead>
+              <TableHead>Net invested</TableHead>
+              <TableHead>P/L</TableHead>
+              <TableHead>Return</TableHead>
+            </TableRow>
+          ) : (
+            <TableRow>
+              <TableHead>Category</TableHead>
+              <TableHead>Holdings</TableHead>
+              <TableHead>Value</TableHead>
+              <TableHead>Allocation</TableHead>
+              <TableHead>Unrealized P/L</TableHead>
+              <TableHead>Return</TableHead>
+            </TableRow>
+          )}
         </TableHeader>
         <TableBody>
           {viewModel.rows.map((row) => (
             <TableRow key={row.category}>
-              <TableCell>{row.category}</TableCell>
-              <TableCell>{row.holdingCount}</TableCell>
-              <TableCell>{formatMoney(row.currentValue)}</TableCell>
-              <TableCell>{formatPercent(row.allocationPercent)}</TableCell>
-              <TableCell className={row.unrealizedPnl < 0 ? 'text-red-600' : 'text-green-700'}>
-                {formatMoney(row.unrealizedPnl)}
-              </TableCell>
-              <TableCell
-                className={
-                  row.returnPercent !== null && row.returnPercent < 0
-                    ? 'text-red-600'
-                    : 'text-green-700'
-                }
-              >
-                {row.returnPercent === null
-                  ? 'n/a'
-                  : formatPercent(row.returnPercent)}
-              </TableCell>
+              {isHistorical ? (
+                <>
+                  <TableCell>{row.category}</TableCell>
+                  <TableCell>{row.holdingCount}</TableCell>
+                  <TableCell>{formatMoney(row.buyCost ?? 0)}</TableCell>
+                  <TableCell>{formatMoney(row.sellProceeds ?? 0)}</TableCell>
+                  <TableCell
+                    className={
+                      (row.netInvested ?? 0) < 0
+                        ? 'text-red-600'
+                        : 'text-green-700'
+                    }
+                  >
+                    {formatMoney(row.netInvested ?? 0)}
+                  </TableCell>
+                  <TableCell
+                    className={
+                      row.unrealizedPnl !== null && row.unrealizedPnl < 0
+                        ? 'text-red-600'
+                        : 'text-green-700'
+                    }
+                  >
+                    {row.unrealizedPnl === null
+                      ? 'n/a'
+                      : formatMoney(row.unrealizedPnl)}
+                  </TableCell>
+                  <TableCell
+                    className={
+                      row.returnPercent !== null && row.returnPercent < 0
+                        ? 'text-red-600'
+                        : 'text-green-700'
+                    }
+                  >
+                    {row.returnPercent === null
+                      ? 'n/a'
+                      : formatPercent(row.returnPercent)}
+                  </TableCell>
+                </>
+              ) : (
+                <>
+                  <TableCell>{row.category}</TableCell>
+                  <TableCell>{row.holdingCount}</TableCell>
+                  <TableCell>{formatMoney(row.currentValue)}</TableCell>
+                  <TableCell>{formatPercent(row.allocationPercent)}</TableCell>
+                  <TableCell
+                    className={
+                      row.unrealizedPnl !== null && row.unrealizedPnl < 0
+                        ? 'text-red-600'
+                        : 'text-green-700'
+                    }
+                  >
+                    {row.unrealizedPnl === null
+                      ? 'n/a'
+                      : formatMoney(row.unrealizedPnl)}
+                  </TableCell>
+                  <TableCell
+                    className={
+                      row.returnPercent !== null && row.returnPercent < 0
+                        ? 'text-red-600'
+                        : 'text-green-700'
+                    }
+                  >
+                    {row.returnPercent === null
+                      ? 'n/a'
+                      : formatPercent(row.returnPercent)}
+                  </TableCell>
+                </>
+              )}
             </TableRow>
           ))}
         </TableBody>
@@ -624,14 +799,34 @@ function AllocationTooltip({ active, payload }: TooltipProps) {
   return (
     <div className='border border-border bg-background p-2 text-xs shadow-sm'>
       <p className='font-medium'>{row.category}</p>
-      <p>Value: {formatMoney(row.currentValue)}</p>
+      <p>
+        Value: {formatMoney(row.currentValue)}
+      </p>
       <p>Share: {formatPercent(row.allocationPercent)}</p>
       <p>Holdings: {row.holdingCount}</p>
     </div>
   );
 }
 
-function ReturnTooltip({ active, payload }: TooltipProps) {
+function NetInvestedTooltip({ active, payload }: TooltipProps) {
+  if (!active || !payload?.[0]) {
+    return null;
+  }
+
+  const row = payload[0].payload as CategoryAllocationRow;
+
+  return (
+    <div className='border border-border bg-background p-2 text-xs shadow-sm'>
+      <p className='font-medium'>{row.category}</p>
+      <p>Buys: {formatMoney(row.buyCost ?? 0)}</p>
+      <p>Sells: {formatMoney(row.sellProceeds ?? 0)}</p>
+      <p>Net invested: {formatMoney(row.netInvested ?? 0)}</p>
+      <p>Instruments: {row.holdingCount}</p>
+    </div>
+  );
+}
+
+function ReturnTooltip({ active, mode, payload }: TooltipProps) {
   if (!active || !payload?.[0]) {
     return null;
   }
@@ -645,13 +840,17 @@ function ReturnTooltip({ active, payload }: TooltipProps) {
         Return:{' '}
         {row.returnPercent === null ? 'n/a' : formatPercent(row.returnPercent)}
       </p>
-      <p>Unrealized P/L: {formatMoney(row.unrealizedPnl)}</p>
+      <p>
+        {mode === 'historical' ? 'P/L' : 'Unrealized P/L'}:{' '}
+        {row.unrealizedPnl === null ? 'n/a' : formatMoney(row.unrealizedPnl)}
+      </p>
     </div>
   );
 }
 
 type TooltipProps = {
   active?: boolean;
+  mode?: 'current' | 'historical';
   payload?: Array<{ payload: unknown }>;
 };
 
@@ -662,6 +861,73 @@ type PieLabelProps = {
   outerRadius?: number | string;
   payload?: CategoryAllocationRow;
 };
+
+type NetInvestedLabelProps = {
+  height?: number | string;
+  payload?: CategoryAllocationRow;
+  totalNetInvested: number;
+  value?: unknown;
+  width?: number | string;
+  x?: number | string;
+  y?: number | string;
+};
+
+function renderNetInvestedLabel({
+  height,
+  payload,
+  totalNetInvested,
+  value,
+  width,
+  x,
+  y,
+}: NetInvestedLabelProps) {
+  const netInvested = Number(payload?.netInvested ?? value ?? 0);
+
+  if (netInvested === 0) {
+    return null;
+  }
+
+  const barX = Number(x ?? 0);
+  const barY = Number(y ?? 0);
+  const barWidth = Number(width ?? 0);
+  const barHeight = Number(height ?? 0);
+  const isWithdrawal = netInvested < 0;
+  const labelX = isWithdrawal ? barX - 8 : barX + barWidth + 8;
+  const labelY = barY + barHeight / 2;
+  const share =
+    totalNetInvested === 0 ? 'n/a' : formatPercent(netInvested / totalNetInvested);
+  const label = `${formatMoney(netInvested)} (${share})`;
+  const backgroundWidth = label.length * 7.4 + 12;
+  const backgroundHeight = 20;
+  const backgroundX = isWithdrawal
+    ? labelX - backgroundWidth - 6
+    : labelX - 6;
+  const backgroundY = labelY - backgroundHeight / 2;
+
+  return (
+    <g>
+      <rect
+        fill='#050505'
+        height={backgroundHeight}
+        opacity={0.92}
+        rx={4}
+        width={backgroundWidth}
+        x={backgroundX}
+        y={backgroundY}
+      />
+      <text
+        dominantBaseline='central'
+        fill='#f9fafb'
+        fontSize={12}
+        textAnchor={isWithdrawal ? 'end' : 'start'}
+        x={labelX}
+        y={labelY}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
 
 function renderAllocationLabel(props: PieLabelProps) {
   const percent = props.payload?.allocationPercent ?? 0;

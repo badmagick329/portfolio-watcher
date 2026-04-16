@@ -25,7 +25,7 @@ export async function getInstrumentCategoriesAction() {
 
   const quantitiesByIsin = getCurrentQuantitiesByIsin(ordersResult.value.items);
 
-  return Promise.all(
+  const instruments = await Promise.all(
     categoriesResult.value.map(async (instrument) => {
       const currentQuantity = quantitiesByIsin.get(instrument.isin) ?? 0;
       const snapshotResult = await getLatestCurrentPositionSnapshot(instrument.isin);
@@ -44,6 +44,11 @@ export async function getInstrumentCategoriesAction() {
       };
     }),
   );
+
+  return {
+    instruments,
+    historicalOrders: ordersResult.value.items,
+  };
 }
 
 export async function setInstrumentCategoriesAction(params: {

@@ -16,17 +16,21 @@ describe('getInstrumentCategoriesQueryOptions', () => {
       getInstrumentCategoriesQueryOptions,
       instrumentCategoriesQueryKey,
     } = await import('@/lib/client/useInstrumentCategoriesQuery');
-    const expectedData = [
-      {
-        ticker: 'AAPL',
-        name: 'Apple Inc.',
-        isin: 'US0378331005',
-        currency: 'USD',
-        category: 'growth',
-        currentQuantity: 1,
-        currentlyHeld: true,
-      },
-    ];
+    const expectedData = {
+      historicalOrders: [],
+      instruments: [
+        {
+          ticker: 'AAPL',
+          name: 'Apple Inc.',
+          isin: 'US0378331005',
+          currency: 'USD',
+          category: 'growth',
+          currentQuantity: 1,
+          currentlyHeld: true,
+          currentPositionSnapshot: null,
+        },
+      ],
+    };
 
     getInstrumentCategoriesActionMock.mockResolvedValue(expectedData);
 
