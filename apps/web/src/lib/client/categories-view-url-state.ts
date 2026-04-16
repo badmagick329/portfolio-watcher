@@ -6,10 +6,12 @@ type CategoriesViewUrlState = {
   mode: CategoriesViewMode;
   filledFrom?: string;
   filledTo?: string;
+  hideValues: boolean;
 };
 
 const DEFAULT_CATEGORIES_VIEW_URL_STATE: CategoriesViewUrlState = {
   mode: 'manage',
+  hideValues: false,
 };
 
 const isCategoriesViewMode = (
@@ -30,6 +32,7 @@ const getCategoriesViewUrlState = (
       : DEFAULT_CATEGORIES_VIEW_URL_STATE.mode,
     filledFrom: parseQueryDate(filledFrom) ? filledFrom ?? undefined : undefined,
     filledTo: parseQueryDate(filledTo) ? filledTo ?? undefined : undefined,
+    hideValues: searchParams.get('hideValues') === '1',
   };
 };
 
@@ -51,6 +54,12 @@ const getSearchParamsWithCategoriesViewUrlState = (
     nextSearchParams.set('filledTo', state.filledTo);
   } else {
     nextSearchParams.delete('filledTo');
+  }
+
+  if (state.hideValues) {
+    nextSearchParams.set('hideValues', '1');
+  } else {
+    nextSearchParams.delete('hideValues');
   }
 
   return nextSearchParams;

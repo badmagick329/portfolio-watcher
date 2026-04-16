@@ -2,6 +2,7 @@
 
 import { InstrumentPicker } from '@/app/_components/InstrumentPicker';
 import { OrdersSyncMenu } from '@/app/_components/OrdersSyncMenu';
+import { PrivacyToggleButton } from '@/app/_components/PrivacyToggleButton';
 import { useOrdersExplorerQuery } from '@/lib/client/useOrdersExplorerQuery';
 import { usePortfolioStateSync } from '@/lib/client/usePortfolioStateSync';
 
@@ -29,7 +30,10 @@ export default function OrdersExplorer() {
             Explore positions and trigger syncs.
           </p>
         </div>
-        <OrdersSyncMenu />
+        <div className='flex items-center gap-2'>
+          <PrivacyToggleButton />
+          <OrdersSyncMenu />
+        </div>
       </div>
 
       <InstrumentPicker

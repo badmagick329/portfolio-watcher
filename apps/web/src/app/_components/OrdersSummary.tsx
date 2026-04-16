@@ -25,7 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import {
   formatInstrumentPrice,
   formatPercentage,
-  formatShareQuantity,
+  formatPrivateQuantity,
   formatSignedCurrencyAmount,
   formatUnsignedCurrencyAmount,
 } from '@/lib/client/orders-list-format';
@@ -44,11 +44,13 @@ import { cn } from '@/lib/utils';
 type OrdersSummaryProps = {
   viewModel: OrdersSummaryViewModel;
   actions: OrdersSummaryActions;
+  hideValues: boolean;
 };
 
 function OrdersSummary({
   viewModel,
   actions,
+  hideValues,
 }: OrdersSummaryProps) {
   const currentPriceSourceLabel = getCurrentPriceSourceLabel(
     viewModel.positionMetrics.currentPrice?.source,
@@ -58,12 +60,14 @@ function OrdersSummary({
     ? formatSignedCurrencyAmount(
         viewModel.totals.lifetimePnL,
         viewModel.totals.walletCurrency,
+        { hideValues },
       )
     : 'n/a (mixed currencies)';
   const currentValueLabel = viewModel.totals.walletCurrency
     ? formatSignedCurrencyAmount(
         viewModel.totals.estimatedPositionValue,
         viewModel.totals.walletCurrency,
+        { hideValues },
       )
     : 'n/a (mixed currencies)';
   const lifetimePnLClassName =
@@ -166,7 +170,10 @@ function OrdersSummary({
                   <ItemDescription>Shares currently held.</ItemDescription>
                 </ItemContent>
                 <ItemValue>
-                  {formatShareQuantity(viewModel.totals.remainingQuantity)} shares
+                  {formatPrivateQuantity(viewModel.totals.remainingQuantity, {
+                    hideValues,
+                  })}{' '}
+                  shares
                 </ItemValue>
               </Item>
             </div>
@@ -189,6 +196,8 @@ function OrdersSummary({
                     viewModel.positionMetrics.currentPrice?.value ?? null,
                     viewModel.positionMetrics.currentPrice?.currency ??
                       viewModel.priceEditor.currency,
+                    3,
+                    { hideValues },
                   )}
                 </ItemValue>
               </Item>
@@ -231,10 +240,12 @@ function OrdersSummary({
                     <InputGroupInput
                       type='text'
                       inputMode='decimal'
-                      value={viewModel.priceEditor.input}
+                      placeholder={hideValues ? 'Hidden' : undefined}
+                      value={hideValues ? '' : viewModel.priceEditor.input}
                       onChange={(event) =>
                         actions.setManualPriceInput(event.target.value)
                       }
+                      disabled={hideValues}
                     />
                     <InputGroupAddon align='inline-end'>
                       <InputGroupText>
@@ -248,7 +259,8 @@ function OrdersSummary({
                     className='w-full sm:w-auto'
                     disabled={
                       !viewModel.priceEditor.canSave ||
-                      viewModel.priceEditor.isSaving
+                      viewModel.priceEditor.isSaving ||
+                      hideValues
                     }
                   >
                     {viewModel.priceEditor.isSaving ? 'Saving...' : 'Save'}
@@ -279,6 +291,7 @@ function OrdersSummary({
                   {formatUnsignedCurrencyAmount(
                     viewModel.positionMetrics.currentValue,
                     viewModel.totals.walletCurrency!,
+                    { hideValues },
                   )}
                 </ItemValue>
               </Item>
@@ -295,6 +308,7 @@ function OrdersSummary({
                   {formatUnsignedCurrencyAmount(
                     viewModel.positionMetrics.averageCost,
                     viewModel.totals.walletCurrency!,
+                    { hideValues },
                   )}
                 </ItemValue>
               </Item>
@@ -311,6 +325,7 @@ function OrdersSummary({
                   {formatUnsignedCurrencyAmount(
                     viewModel.positionMetrics.costBasis,
                     viewModel.totals.walletCurrency!,
+                    { hideValues },
                   )}
                 </ItemValue>
               </Item>
@@ -327,6 +342,7 @@ function OrdersSummary({
                   {formatSignedCurrencyAmount(
                     viewModel.positionMetrics.realizedPnL,
                     viewModel.totals.walletCurrency!,
+                    { hideValues },
                   )}
                 </ItemValue>
               </Item>
@@ -343,6 +359,7 @@ function OrdersSummary({
                   {formatSignedCurrencyAmount(
                     viewModel.positionMetrics.unrealizedPnL,
                     viewModel.totals.walletCurrency!,
+                    { hideValues },
                   )}
                 </ItemValue>
               </Item>
@@ -367,6 +384,7 @@ function OrdersSummary({
                   {formatSignedCurrencyAmount(
                     viewModel.positionMetrics.netCashflow,
                     viewModel.totals.walletCurrency!,
+                    { hideValues },
                   )}
                 </ItemValue>
               </Item>

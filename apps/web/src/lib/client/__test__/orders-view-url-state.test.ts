@@ -19,6 +19,7 @@ describe('orders view url state', () => {
       selectedIsins: ['US001', 'US002'],
       filledFrom: '2026-04-01',
       filledTo: '2026-04-03',
+      hideValues: false,
       page: 1,
     });
   });
@@ -33,6 +34,7 @@ describe('orders view url state', () => {
       selectedIsins: ['US001'],
       filledFrom: undefined,
       filledTo: undefined,
+      hideValues: false,
       page: 2,
     });
   });
@@ -65,6 +67,7 @@ describe('orders view url state', () => {
       selectedIsins: [],
       filledFrom: undefined,
       filledTo: undefined,
+      hideValues: false,
       page: 1,
     });
   });
@@ -89,12 +92,13 @@ describe('orders view url state', () => {
         selectedIsins: ['US001', 'US002'],
         filledFrom: '2026-04-01',
         filledTo: '2026-04-03',
+        hideValues: true,
         page: 2,
       },
     );
 
     expect(searchParams.toString()).toBe(
-      'foo=bar&mode=all&isins=US001%2CUS002&filledFrom=2026-04-01&filledTo=2026-04-03&page=2',
+      'foo=bar&mode=all&isins=US001%2CUS002&filledFrom=2026-04-01&filledTo=2026-04-03&hideValues=1&page=2',
     );
   });
 
@@ -133,5 +137,23 @@ describe('orders view url state', () => {
     expect(searchParams.toString()).toBe(
       'foo=bar&mode=include&isins=US001&page=3',
     );
+  });
+
+  test('parses and clears hidden values mode', () => {
+    expect(
+      getOrdersViewUrlState(new URLSearchParams('hideValues=1')).hideValues,
+    ).toBe(true);
+    expect(
+      getOrdersViewUrlState(new URLSearchParams('hideValues=true')).hideValues,
+    ).toBe(false);
+
+    const searchParams = getSearchParamsWithUpdatedOrdersViewUrlState(
+      new URLSearchParams('mode=include&hideValues=1'),
+      {
+        hideValues: false,
+      },
+    );
+
+    expect(searchParams.toString()).toBe('mode=include&page=1');
   });
 });

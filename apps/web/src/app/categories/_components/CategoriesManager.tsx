@@ -20,6 +20,7 @@ import {
 } from 'recharts';
 
 import { FillDateRangePicker } from '@/app/_components/FillDateRangePicker';
+import { PrivacyToggleButton } from '@/app/_components/PrivacyToggleButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -39,6 +40,7 @@ import { formatCategoryName } from '@/lib/client/display-category';
 import { buildCategoryAllocationViewModel } from '@/lib/client/instrument-category-allocation';
 import type { CategoryAllocationRow } from '@/lib/client/instrument-category-allocation';
 import type { FillDateRangeFilter } from '@/lib/client/fill-date-filter';
+import { formatHiddenMoney } from '@/lib/client/privacy-values';
 import { useInstrumentCategoryMutations } from '@/lib/client/useInstrumentCategoryMutations';
 import { useInstrumentCategoriesQuery } from '@/lib/client/useInstrumentCategoriesQuery';
 import type { CategorizedInstrument } from '@portfolio/domain';
@@ -70,6 +72,7 @@ export function CategoriesManager() {
   const [showCurrentOnly, setShowCurrentOnly] = useState(false);
   const [showUncategorizedOnly, setShowUncategorizedOnly] = useState(false);
   const urlState = getCategoriesViewUrlState(searchParams);
+  const hideValues = urlState.hideValues;
   const fillDateRangeFilter = {
     filledFrom: urlState.filledFrom,
     filledTo: urlState.filledTo,
@@ -259,6 +262,7 @@ export function CategoriesManager() {
           </p>
         </div>
         <div className='flex items-center gap-2'>
+          <PrivacyToggleButton />
           <Button
             onClick={() => replaceUrlState({ mode: 'manage' })}
             type='button'
@@ -280,6 +284,7 @@ export function CategoriesManager() {
         <PortfolioAllocationView
           fillDateRangeFilter={fillDateRangeFilter}
           onFillDateRangeFilterChange={replaceUrlState}
+          hideValues={hideValues}
           viewModel={allocationViewModel}
         />
       ) : (
@@ -528,10 +533,12 @@ function CategoriesManageView({
 
 function PortfolioAllocationView({
   fillDateRangeFilter,
+  hideValues,
   onFillDateRangeFilterChange,
   viewModel,
 }: {
   fillDateRangeFilter: FillDateRangeFilter;
+  hideValues: boolean;
   onFillDateRangeFilterChange: (value: FillDateRangeFilter) => void;
   viewModel: ReturnType<typeof buildCategoryAllocationViewModel>;
 }) {
@@ -580,13 +587,15 @@ function PortfolioAllocationView({
       <div className='grid gap-4 sm:grid-cols-3'>
         <PortfolioSummaryMetric
           label={isHistorical ? 'Net invested' : 'Value'}
-          value={formatMoney(viewModel.totalCurrentValue)}
+          value={formatMoney(viewModel.totalCurrentValue, { hideValues })}
         />
         <PortfolioSummaryMetric
           label={isHistorical ? 'P/L' : 'Unrealized P/L'}
           tone={getNumberTone(viewModel.totalPnl)}
           value={
-            viewModel.totalPnl === null ? 'n/a' : formatMoney(viewModel.totalPnl)
+            viewModel.totalPnl === null
+              ? 'n/a'
+              : formatMoney(viewModel.totalPnl, { hideValues })
           }
         />
         <PortfolioSummaryMetric
@@ -623,7 +632,9 @@ function PortfolioAllocationView({
               >
                 <CartesianGrid horizontal={false} strokeDasharray='3 3' />
                 <XAxis
-                  tickFormatter={(value) => formatMoney(Number(value))}
+                  tickFormatter={(value) =>
+                    hideValues ? '' : formatMoney(Number(value))
+                  }
                   type='number'
                 />
                 <YAxis
@@ -632,7 +643,7 @@ function PortfolioAllocationView({
                   type='category'
                   width={110}
                 />
-                <Tooltip content={<NetInvestedTooltip />} />
+                <Tooltip content={<NetInvestedTooltip hideValues={hideValues} />} />
                 <ReferenceLine stroke='currentColor' x={0} />
                 <Bar dataKey='netInvested'>
                   {viewModel.rows.map((row) => (
@@ -649,6 +660,7 @@ function PortfolioAllocationView({
                     content={(props) =>
                       renderNetInvestedLabel({
                         ...props,
+                        hideValues,
                         totalNetInvested: viewModel.totalCurrentValue,
                       })
                     }
@@ -676,7 +688,7 @@ function PortfolioAllocationView({
                     />
                   ))}
                 </Pie>
-                <Tooltip content={<AllocationTooltip />} />
+                <Tooltip content={<AllocationTooltip hideValues={hideValues} />} />
                 <Legend formatter={(value) => formatCategoryName(String(value))} />
               </PieChart>
             </ResponsiveContainer>
@@ -712,7 +724,14 @@ function PortfolioAllocationView({
                   type='category'
                   width={110}
                 />
-                <Tooltip content={<ReturnTooltip mode={viewModel.mode} />} />
+                <Tooltip
+                  content={
+                    <ReturnTooltip
+                      hideValues={hideValues}
+                      mode={viewModel.mode}
+                    />
+                  }
+                />
                 <ReferenceLine stroke='currentColor' x={0} />
                 <Bar dataKey={(row: CategoryAllocationRow) => row.returnPercent ?? 0}>
                   {returnRows.map((row) => (
@@ -762,8 +781,12 @@ function PortfolioAllocationView({
                 <>
                   <TableCell>{formatCategoryName(row.category)}</TableCell>
                   <TableCell>{row.holdingCount}</TableCell>
-                  <TableCell>{formatMoney(row.buyCost ?? 0)}</TableCell>
-                  <TableCell>{formatMoney(row.sellProceeds ?? 0)}</TableCell>
+                  <TableCell>
+                    {formatMoney(row.buyCost ?? 0, { hideValues })}
+                  </TableCell>
+                  <TableCell>
+                    {formatMoney(row.sellProceeds ?? 0, { hideValues })}
+                  </TableCell>
                   <TableCell
                     className={
                       (row.netInvested ?? 0) < 0
@@ -771,7 +794,7 @@ function PortfolioAllocationView({
                         : 'text-green-700'
                     }
                   >
-                    {formatMoney(row.netInvested ?? 0)}
+                    {formatMoney(row.netInvested ?? 0, { hideValues })}
                   </TableCell>
                   <TableCell
                     className={
@@ -782,7 +805,7 @@ function PortfolioAllocationView({
                   >
                     {row.unrealizedPnl === null
                       ? 'n/a'
-                      : formatMoney(row.unrealizedPnl)}
+                      : formatMoney(row.unrealizedPnl, { hideValues })}
                   </TableCell>
                   <TableCell
                     className={
@@ -800,7 +823,9 @@ function PortfolioAllocationView({
                 <>
                   <TableCell>{formatCategoryName(row.category)}</TableCell>
                   <TableCell>{row.holdingCount}</TableCell>
-                  <TableCell>{formatMoney(row.currentValue)}</TableCell>
+                  <TableCell>
+                    {formatMoney(row.currentValue, { hideValues })}
+                  </TableCell>
                   <TableCell>{formatPercent(row.allocationPercent)}</TableCell>
                   <TableCell
                     className={
@@ -811,7 +836,7 @@ function PortfolioAllocationView({
                   >
                     {row.unrealizedPnl === null
                       ? 'n/a'
-                      : formatMoney(row.unrealizedPnl)}
+                      : formatMoney(row.unrealizedPnl, { hideValues })}
                   </TableCell>
                   <TableCell
                     className={
@@ -861,7 +886,7 @@ function PortfolioSummaryMetric({
   );
 }
 
-function AllocationTooltip({ active, payload }: TooltipProps) {
+function AllocationTooltip({ active, hideValues = false, payload }: TooltipProps) {
   if (!active || !payload?.[0]) {
     return null;
   }
@@ -872,7 +897,7 @@ function AllocationTooltip({ active, payload }: TooltipProps) {
     <div className='border border-border bg-background p-2 text-xs shadow-sm'>
       <p className='font-medium'>{formatCategoryName(row.category)}</p>
       <p>
-        Value: {formatMoney(row.currentValue)}
+        Value: {formatMoney(row.currentValue, { hideValues })}
       </p>
       <p>Share: {formatPercent(row.allocationPercent)}</p>
       <p>Holdings: {row.holdingCount}</p>
@@ -880,7 +905,7 @@ function AllocationTooltip({ active, payload }: TooltipProps) {
   );
 }
 
-function NetInvestedTooltip({ active, payload }: TooltipProps) {
+function NetInvestedTooltip({ active, hideValues = false, payload }: TooltipProps) {
   if (!active || !payload?.[0]) {
     return null;
   }
@@ -890,15 +915,22 @@ function NetInvestedTooltip({ active, payload }: TooltipProps) {
   return (
     <div className='border border-border bg-background p-2 text-xs shadow-sm'>
       <p className='font-medium'>{formatCategoryName(row.category)}</p>
-      <p>Buys: {formatMoney(row.buyCost ?? 0)}</p>
-      <p>Sells: {formatMoney(row.sellProceeds ?? 0)}</p>
-      <p>Net invested: {formatMoney(row.netInvested ?? 0)}</p>
+      <p>Buys: {formatMoney(row.buyCost ?? 0, { hideValues })}</p>
+      <p>Sells: {formatMoney(row.sellProceeds ?? 0, { hideValues })}</p>
+      <p>
+        Net invested: {formatMoney(row.netInvested ?? 0, { hideValues })}
+      </p>
       <p>Instruments: {row.holdingCount}</p>
     </div>
   );
 }
 
-function ReturnTooltip({ active, mode, payload }: TooltipProps) {
+function ReturnTooltip({
+  active,
+  hideValues = false,
+  mode,
+  payload,
+}: TooltipProps) {
   if (!active || !payload?.[0]) {
     return null;
   }
@@ -914,7 +946,9 @@ function ReturnTooltip({ active, mode, payload }: TooltipProps) {
       </p>
       <p>
         {mode === 'historical' ? 'P/L' : 'Unrealized P/L'}:{' '}
-        {row.unrealizedPnl === null ? 'n/a' : formatMoney(row.unrealizedPnl)}
+        {row.unrealizedPnl === null
+          ? 'n/a'
+          : formatMoney(row.unrealizedPnl, { hideValues })}
       </p>
     </div>
   );
@@ -922,6 +956,7 @@ function ReturnTooltip({ active, mode, payload }: TooltipProps) {
 
 type TooltipProps = {
   active?: boolean;
+  hideValues?: boolean;
   mode?: 'current' | 'historical';
   payload?: Array<{ payload: unknown }>;
 };
@@ -936,6 +971,7 @@ type PieLabelProps = {
 
 type NetInvestedLabelProps = {
   height?: number | string;
+  hideValues: boolean;
   payload?: CategoryAllocationRow;
   totalNetInvested: number;
   value?: unknown;
@@ -946,6 +982,7 @@ type NetInvestedLabelProps = {
 
 function renderNetInvestedLabel({
   height,
+  hideValues,
   payload,
   totalNetInvested,
   value,
@@ -968,7 +1005,7 @@ function renderNetInvestedLabel({
   const labelY = barY + barHeight / 2;
   const share =
     totalNetInvested === 0 ? 'n/a' : formatPercent(netInvested / totalNetInvested);
-  const label = `${formatMoney(netInvested)} (${share})`;
+  const label = hideValues ? share : `${formatMoney(netInvested)} (${share})`;
   const backgroundWidth = label.length * 7.4 + 12;
   const backgroundHeight = 20;
   const backgroundX = isWithdrawal
@@ -1031,8 +1068,13 @@ function renderAllocationLabel(props: PieLabelProps) {
   );
 }
 
-const formatMoney = (value: number) =>
-  new Intl.NumberFormat('en-GB', {
+const formatMoney = (
+  value: number,
+  options: { hideValues?: boolean } = {},
+) =>
+  options.hideValues
+    ? formatHiddenMoney(value)
+    : new Intl.NumberFormat('en-GB', {
     currency: 'GBP',
     maximumFractionDigits: 2,
     style: 'currency',

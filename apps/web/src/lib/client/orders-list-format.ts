@@ -3,8 +3,24 @@ import {
   getSignedOrderAmount,
   getWeightedDisplayedOrderPrice,
 } from './orders-list-math';
+import {
+  formatHiddenCurrencyAmount,
+  formatHiddenSignedCurrencyAmount,
+} from './privacy-values';
 
-function formatSignedCurrencyAmount(amount: number | null, currency: string) {
+type PrivacyFormatOptions = {
+  hideValues?: boolean;
+};
+
+function formatSignedCurrencyAmount(
+  amount: number | null,
+  currency: string,
+  options: PrivacyFormatOptions = {},
+) {
+  if (options.hideValues) {
+    return formatHiddenSignedCurrencyAmount(amount, currency);
+  }
+
   if (amount === null) {
     return `n/a ${currency}`;
   }
@@ -12,7 +28,15 @@ function formatSignedCurrencyAmount(amount: number | null, currency: string) {
   return `${amount >= 0 ? '+' : '-'}${Math.abs(amount).toFixed(2)} ${currency}`;
 }
 
-function formatUnsignedCurrencyAmount(amount: number | null, currency: string) {
+function formatUnsignedCurrencyAmount(
+  amount: number | null,
+  currency: string,
+  options: PrivacyFormatOptions = {},
+) {
+  if (options.hideValues && amount !== null) {
+    return formatHiddenCurrencyAmount(currency);
+  }
+
   if (amount === null) {
     return `n/a ${currency}`;
   }
@@ -24,9 +48,14 @@ function formatInstrumentPrice(
   amount: number | null,
   currency: string | null,
   decimals = 3,
+  options: PrivacyFormatOptions = {},
 ) {
   if (amount === null || !currency) {
     return 'n/a';
+  }
+
+  if (options.hideValues) {
+    return formatHiddenCurrencyAmount(currency);
   }
 
   return `${amount.toFixed(decimals)} ${currency}`;
@@ -48,18 +77,40 @@ function formatShareQuantity(quantity: number | null) {
   return quantity.toFixed(4);
 }
 
-function formatOrderAmount(order: WebHistoricalOrder) {
+function formatPrivateQuantity(
+  quantity: number | null,
+  options: PrivacyFormatOptions = {},
+) {
+  if (quantity === null) {
+    return 'n/a';
+  }
+
+  return options.hideValues ? '••••' : quantity.toFixed(4);
+}
+
+function formatOrderAmount(
+  order: WebHistoricalOrder,
+  options: PrivacyFormatOptions = {},
+) {
   return formatSignedCurrencyAmount(
     getSignedOrderAmount(order),
     order.currency,
+    options,
   );
 }
 
-function formatOrderPrice(order: WebHistoricalOrder) {
+function formatOrderPrice(
+  order: WebHistoricalOrder,
+  options: PrivacyFormatOptions = {},
+) {
   const weightedPrice = getWeightedDisplayedOrderPrice(order);
 
   if (weightedPrice === null) {
     return 'n/a';
+  }
+
+  if (options.hideValues) {
+    return formatHiddenCurrencyAmount(order.instrument.currency);
   }
 
   return `${weightedPrice} ${order.instrument.currency}`;
@@ -70,7 +121,9 @@ export {
   formatOrderAmount,
   formatOrderPrice,
   formatPercentage,
+  formatPrivateQuantity,
   formatShareQuantity,
   formatSignedCurrencyAmount,
   formatUnsignedCurrencyAmount,
 };
+export type { PrivacyFormatOptions };

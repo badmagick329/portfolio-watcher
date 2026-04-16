@@ -48,6 +48,7 @@ export function InstrumentPicker({
   const searchParams = useSearchParams();
   const [isComboboxOpen, setIsComboboxOpen] = useState(false);
   const urlState = getOrdersViewUrlState(searchParams);
+  const hideValues = urlState.hideValues;
   const selection = {
     mode: urlState.mode,
     selectedIsins: urlState.selectedIsins,
@@ -275,6 +276,7 @@ export function InstrumentPicker({
             .join(',')}`}
           hasActiveFillDateFilter={hasActiveFillDateFilter}
           currentPage={urlState.page}
+          hideValues={hideValues}
           latestAccountSummarySnapshot={latestAccountSummarySnapshot}
           orders={filteredOrders}
           onPageChange={(page) => replaceUrlState({ page })}

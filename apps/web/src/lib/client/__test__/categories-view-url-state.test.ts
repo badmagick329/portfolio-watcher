@@ -18,6 +18,7 @@ describe('categories view url state', () => {
       mode: 'allocation',
       filledFrom: '2026-04-01',
       filledTo: '2026-04-03',
+      hideValues: false,
     });
   });
 
@@ -39,6 +40,7 @@ describe('categories view url state', () => {
       mode: 'allocation',
       filledFrom: undefined,
       filledTo: undefined,
+      hideValues: false,
     });
   });
 
@@ -49,11 +51,12 @@ describe('categories view url state', () => {
         mode: 'allocation',
         filledFrom: '2026-04-01',
         filledTo: '2026-04-03',
+        hideValues: true,
       },
     );
 
     expect(searchParams.toString()).toBe(
-      'foo=bar&mode=allocation&filledFrom=2026-04-01&filledTo=2026-04-03',
+      'foo=bar&mode=allocation&filledFrom=2026-04-01&filledTo=2026-04-03&hideValues=1',
     );
   });
 
@@ -79,6 +82,24 @@ describe('categories view url state', () => {
       {
         filledFrom: undefined,
         filledTo: undefined,
+      },
+    );
+
+    expect(searchParams.toString()).toBe('mode=allocation');
+  });
+
+  test('parses and clears hidden values mode', () => {
+    expect(
+      getCategoriesViewUrlState(new URLSearchParams('hideValues=1')).hideValues,
+    ).toBe(true);
+    expect(
+      getCategoriesViewUrlState(new URLSearchParams('hideValues=true')).hideValues,
+    ).toBe(false);
+
+    const searchParams = getSearchParamsWithUpdatedCategoriesViewUrlState(
+      new URLSearchParams('mode=allocation&hideValues=1'),
+      {
+        hideValues: false,
       },
     );
 

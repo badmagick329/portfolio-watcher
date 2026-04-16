@@ -147,6 +147,7 @@ describe('fill date filter', () => {
       selectedIsins: [],
       filledFrom: '2026-04-01',
       filledTo: '2026-04-03',
+      hideValues: false,
       page: 1,
     });
   });

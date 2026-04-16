@@ -30,6 +30,7 @@ import { OrdersSummary } from './OrdersSummary';
 type OrdersListProps = {
   currentPage: number;
   hasActiveFillDateFilter: boolean;
+  hideValues: boolean;
   latestAccountSummarySnapshot: AccountSummarySnapshot | null;
   orders: WebHistoricalOrder[];
   onPageChange: (page: number) => void;
@@ -40,13 +41,14 @@ type OrdersListProps = {
 export function OrdersList({
   currentPage,
   hasActiveFillDateFilter,
+  hideValues,
   latestAccountSummarySnapshot,
   orders,
   onPageChange,
   selectionMode,
   selectedInstruments,
 }: OrdersListProps) {
-  const rows = buildOrdersListRows(orders);
+  const rows = buildOrdersListRows(orders, { hideValues });
   const pagination = getOrdersTablePaginationState(rows, currentPage);
   const timeColumnLabel = `Time (${getCurrentTimeZoneAbbreviation()})`;
   const { viewModel, actions } = useOrdersSummaryController({
@@ -65,7 +67,11 @@ export function OrdersList({
 
   return (
     <div className='flex w-full flex-col items-center gap-4'>
-      <OrdersSummary actions={actions} viewModel={viewModel} />
+      <OrdersSummary
+        actions={actions}
+        hideValues={hideValues}
+        viewModel={viewModel}
+      />
 
       <div className='w-full overflow-x-auto'>
         <Table>

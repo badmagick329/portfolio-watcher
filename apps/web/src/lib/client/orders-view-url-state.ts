@@ -7,12 +7,14 @@ type OrdersViewUrlState = {
   selectedIsins: string[];
   filledFrom?: string;
   filledTo?: string;
+  hideValues: boolean;
   page: number;
 };
 
 const DEFAULT_ORDERS_VIEW_URL_STATE: OrdersViewUrlState = {
   mode: 'include',
   selectedIsins: [],
+  hideValues: false,
   page: 1,
 };
 
@@ -100,6 +102,7 @@ const getOrdersViewUrlState = (
         : normalizedSelectedIsins,
     filledFrom: parseQueryDate(filledFrom) ? filledFrom ?? undefined : undefined,
     filledTo: parseQueryDate(filledTo) ? filledTo ?? undefined : undefined,
+    hideValues: searchParams.get('hideValues') === '1',
     page: getNormalizedPage(searchParams.get('page')),
   };
 };
@@ -128,6 +131,12 @@ const getSearchParamsWithOrdersViewUrlState = (
     nextSearchParams.set('filledTo', state.filledTo);
   } else {
     nextSearchParams.delete('filledTo');
+  }
+
+  if (state.hideValues) {
+    nextSearchParams.set('hideValues', '1');
+  } else {
+    nextSearchParams.delete('hideValues');
   }
 
   nextSearchParams.set('page', `${state.page}`);
