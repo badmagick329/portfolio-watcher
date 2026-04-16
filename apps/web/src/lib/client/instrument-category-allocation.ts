@@ -29,6 +29,9 @@ type CategoryAllocationRow = {
 type CategoryAllocationViewModel = {
   rows: CategoryAllocationRow[];
   totalCurrentValue: number;
+  totalCost: number;
+  totalPnl: number | null;
+  totalReturnPercent: number | null;
   hasCurrentHoldings: boolean;
   hasPositionSnapshots: boolean;
   hasFilteredOrders: boolean;
@@ -91,6 +94,14 @@ function buildCategoryAllocationViewModel({
     (sum, row) => sum + row.currentValue,
     0,
   );
+  const totalCost = Array.from(groups.values()).reduce(
+    (sum, row) => sum + row.totalCost,
+    0,
+  );
+  const totalPnl = Array.from(groups.values()).reduce(
+    (sum, row) => sum + row.unrealizedPnl,
+    0,
+  );
 
   const rows = Array.from(groups.values())
     .map((row) => ({
@@ -107,6 +118,9 @@ function buildCategoryAllocationViewModel({
   return {
     rows,
     totalCurrentValue: roundMoney(totalCurrentValue),
+    totalCost: roundMoney(totalCost),
+    totalPnl: roundMoney(totalPnl),
+    totalReturnPercent: totalCost > 0 ? totalPnl / totalCost : null,
     hasCurrentHoldings: rows.length > 0,
     hasPositionSnapshots: instruments.some(
       (instrument) => instrument.currentPositionSnapshot !== null,
@@ -256,10 +270,20 @@ function buildHistoricalCategoryAllocationViewModel({
       (left, right) =>
         Math.abs(right.netInvested ?? 0) - Math.abs(left.netInvested ?? 0),
     );
+  const totalCost = rows.reduce((sum, row) => sum + (row.buyCost ?? 0), 0);
+  const totalPnl = rows.reduce(
+    (sum, row) => sum + (row.unrealizedPnl ?? 0),
+    0,
+  );
+  const hasPnl = rows.some((row) => row.unrealizedPnl !== null);
 
   return {
     rows,
     totalCurrentValue: roundMoney(totalNetInvested),
+    totalCost: roundMoney(totalCost),
+    totalPnl: hasPnl ? roundMoney(totalPnl) : null,
+    totalReturnPercent:
+      totalCost > 0 && hasPnl ? totalPnl / totalCost : null,
     hasCurrentHoldings: rows.length > 0,
     hasPositionSnapshots: true,
     hasFilteredOrders: filteredOrders.length > 0,

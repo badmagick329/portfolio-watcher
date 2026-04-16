@@ -59,6 +59,9 @@ describe('buildCategoryAllocationViewModel', () => {
     });
 
     expect(result.totalCurrentValue).toBe(500);
+    expect(result.totalCost).toBe(500);
+    expect(result.totalPnl).toBe(0);
+    expect(result.totalReturnPercent).toBe(0);
     expect(result.rows).toEqual([
       {
         category: 'growth',
@@ -197,6 +200,9 @@ describe('buildCategoryAllocationViewModel', () => {
 
     expect(result.mode).toBe('historical');
     expect(result.totalCurrentValue).toBe(240);
+    expect(result.totalCost).toBe(300);
+    expect(result.totalPnl).toBe(10);
+    expect(result.totalReturnPercent).toBeCloseTo(10 / 300);
     expect(result.rows).toEqual([
       expect.objectContaining({
         category: 'index',
@@ -236,6 +242,9 @@ describe('buildCategoryAllocationViewModel', () => {
     });
 
     expect(result.totalCurrentValue).toBe(-75);
+    expect(result.totalCost).toBe(0);
+    expect(result.totalPnl).toBeNull();
+    expect(result.totalReturnPercent).toBeNull();
     expect(result.rows).toEqual([
       expect.objectContaining({
         category: 'growth',

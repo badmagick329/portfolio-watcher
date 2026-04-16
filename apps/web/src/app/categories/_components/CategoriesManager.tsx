@@ -577,15 +577,27 @@ function PortfolioAllocationView({
         value={fillDateRangeFilter}
       />
 
-      <div className='space-y-1'>
-        <p className='text-sm text-muted-foreground'>
-          {isHistorical
-            ? 'Net invested in selected range'
-            : 'Current holdings only'}
-        </p>
-        <p className='font-mono text-2xl'>
-          {formatMoney(viewModel.totalCurrentValue)}
-        </p>
+      <div className='grid gap-4 sm:grid-cols-3'>
+        <PortfolioSummaryMetric
+          label={isHistorical ? 'Net invested' : 'Value'}
+          value={formatMoney(viewModel.totalCurrentValue)}
+        />
+        <PortfolioSummaryMetric
+          label={isHistorical ? 'P/L' : 'Unrealized P/L'}
+          tone={getNumberTone(viewModel.totalPnl)}
+          value={
+            viewModel.totalPnl === null ? 'n/a' : formatMoney(viewModel.totalPnl)
+          }
+        />
+        <PortfolioSummaryMetric
+          label='Return'
+          tone={getNumberTone(viewModel.totalReturnPercent)}
+          value={
+            viewModel.totalReturnPercent === null
+              ? 'n/a'
+              : formatPercent(viewModel.totalReturnPercent)
+          }
+        />
       </div>
 
       <div className='grid gap-8 xl:grid-cols-2'>
@@ -822,6 +834,33 @@ function PortfolioAllocationView({
   );
 }
 
+function PortfolioSummaryMetric({
+  label,
+  tone = 'neutral',
+  value,
+}: {
+  label: string;
+  tone?: 'negative' | 'neutral' | 'positive';
+  value: string;
+}) {
+  return (
+    <div className='space-y-1'>
+      <p className='text-sm text-muted-foreground'>{label}</p>
+      <p
+        className={`font-mono text-2xl ${
+          tone === 'negative'
+            ? 'text-red-600'
+            : tone === 'positive'
+              ? 'text-green-700'
+              : ''
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
 function AllocationTooltip({ active, payload }: TooltipProps) {
   if (!active || !payload?.[0]) {
     return null;
@@ -1004,3 +1043,6 @@ const formatPercent = (value: number) =>
     maximumFractionDigits: 1,
     style: 'percent',
   }).format(value);
+
+const getNumberTone = (value: number | null) =>
+  value === null ? 'neutral' : value < 0 ? 'negative' : 'positive';
