@@ -29,6 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { formatCategoryName } from '@/lib/client/display-category';
 import { buildCategoryAllocationViewModel } from '@/lib/client/instrument-category-allocation';
 import type { CategoryAllocationRow } from '@/lib/client/instrument-category-allocation';
 import type { FillDateRangeFilter } from '@/lib/client/fill-date-filter';
@@ -448,7 +449,7 @@ function CategoriesManageView({
                   <TableCell>{instrument.ticker}</TableCell>
                   <TableCell>{instrument.name}</TableCell>
                   <TableCell>{instrument.isin}</TableCell>
-                  <TableCell>{instrument.category ?? '-'}</TableCell>
+                  <TableCell>{formatCategoryName(instrument.category)}</TableCell>
                   <TableCell>
                     <form
                       className='flex min-w-52 gap-2'
@@ -591,7 +592,12 @@ function PortfolioAllocationView({
                   tickFormatter={(value) => formatMoney(Number(value))}
                   type='number'
                 />
-                <YAxis dataKey='category' type='category' width={110} />
+                <YAxis
+                  dataKey='category'
+                  tickFormatter={(value) => formatCategoryName(String(value))}
+                  type='category'
+                  width={110}
+                />
                 <Tooltip content={<NetInvestedTooltip />} />
                 <ReferenceLine stroke='currentColor' x={0} />
                 <Bar dataKey='netInvested'>
@@ -637,7 +643,7 @@ function PortfolioAllocationView({
                   ))}
                 </Pie>
                 <Tooltip content={<AllocationTooltip />} />
-                <Legend />
+                <Legend formatter={(value) => formatCategoryName(String(value))} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -666,7 +672,12 @@ function PortfolioAllocationView({
                   tickFormatter={(value) => formatPercent(Number(value))}
                   type='number'
                 />
-                <YAxis dataKey='category' type='category' width={110} />
+                <YAxis
+                  dataKey='category'
+                  tickFormatter={(value) => formatCategoryName(String(value))}
+                  type='category'
+                  width={110}
+                />
                 <Tooltip content={<ReturnTooltip mode={viewModel.mode} />} />
                 <ReferenceLine stroke='currentColor' x={0} />
                 <Bar dataKey={(row: CategoryAllocationRow) => row.returnPercent ?? 0}>
@@ -715,7 +726,7 @@ function PortfolioAllocationView({
             <TableRow key={row.category}>
               {isHistorical ? (
                 <>
-                  <TableCell>{row.category}</TableCell>
+                  <TableCell>{formatCategoryName(row.category)}</TableCell>
                   <TableCell>{row.holdingCount}</TableCell>
                   <TableCell>{formatMoney(row.buyCost ?? 0)}</TableCell>
                   <TableCell>{formatMoney(row.sellProceeds ?? 0)}</TableCell>
@@ -753,7 +764,7 @@ function PortfolioAllocationView({
                 </>
               ) : (
                 <>
-                  <TableCell>{row.category}</TableCell>
+                  <TableCell>{formatCategoryName(row.category)}</TableCell>
                   <TableCell>{row.holdingCount}</TableCell>
                   <TableCell>{formatMoney(row.currentValue)}</TableCell>
                   <TableCell>{formatPercent(row.allocationPercent)}</TableCell>
@@ -798,7 +809,7 @@ function AllocationTooltip({ active, payload }: TooltipProps) {
 
   return (
     <div className='border border-border bg-background p-2 text-xs shadow-sm'>
-      <p className='font-medium'>{row.category}</p>
+      <p className='font-medium'>{formatCategoryName(row.category)}</p>
       <p>
         Value: {formatMoney(row.currentValue)}
       </p>
@@ -817,7 +828,7 @@ function NetInvestedTooltip({ active, payload }: TooltipProps) {
 
   return (
     <div className='border border-border bg-background p-2 text-xs shadow-sm'>
-      <p className='font-medium'>{row.category}</p>
+      <p className='font-medium'>{formatCategoryName(row.category)}</p>
       <p>Buys: {formatMoney(row.buyCost ?? 0)}</p>
       <p>Sells: {formatMoney(row.sellProceeds ?? 0)}</p>
       <p>Net invested: {formatMoney(row.netInvested ?? 0)}</p>
@@ -835,7 +846,7 @@ function ReturnTooltip({ active, mode, payload }: TooltipProps) {
 
   return (
     <div className='border border-border bg-background p-2 text-xs shadow-sm'>
-      <p className='font-medium'>{row.category}</p>
+      <p className='font-medium'>{formatCategoryName(row.category)}</p>
       <p>
         Return:{' '}
         {row.returnPercent === null ? 'n/a' : formatPercent(row.returnPercent)}
@@ -954,7 +965,7 @@ function renderAllocationLabel(props: PieLabelProps) {
       x={x}
       y={y}
     >
-      {props.payload?.category} {formatPercent(percent)}
+      {formatCategoryName(props.payload?.category)} {formatPercent(percent)}
     </text>
   );
 }
