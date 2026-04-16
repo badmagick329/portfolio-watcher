@@ -9,10 +9,13 @@ import {
   createGetLatestCurrentPositionSnapshot,
   createGetHistoricalOrdersForWeb,
   createGetLatestInstrumentPrice,
+  createListCategorizedInstruments,
   createSaveManualInstrumentPrice,
+  createSetInstrumentCategories,
   createSyncCurrentPositionPricesFromT212,
   createSyncHistoricalOrders,
   createSyncT212InstrumentCatalog,
+  createUnsetInstrumentCategories,
 } from '@portfolio/use-cases';
 
 export const createWebServices = () => {
@@ -28,7 +31,10 @@ export const createWebServices = () => {
     getLatestCurrentPositionSnapshot:
       createGetLatestCurrentPositionSnapshot(dataManager),
     getLatestInstrumentPrice: createGetLatestInstrumentPrice(dataManager),
+    listCategorizedInstruments: createListCategorizedInstruments(dataManager),
     saveManualInstrumentPrice: createSaveManualInstrumentPrice({ dataManager }),
+    setInstrumentCategories: createSetInstrumentCategories(dataManager),
+    unsetInstrumentCategories: createUnsetInstrumentCategories(dataManager),
     syncHistoricalOrders: createSyncHistoricalOrders({
       client,
       dataManager,

@@ -1,0 +1,158 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const listCategorizedInstrumentsMock = vi.fn();
+const getHistoricalOrdersForWebMock = vi.fn();
+const setInstrumentCategoriesMock = vi.fn();
+const unsetInstrumentCategoriesMock = vi.fn();
+
+vi.mock('@/lib/server/composition', () => ({
+  getHistoricalOrdersForWeb: getHistoricalOrdersForWebMock,
+  listCategorizedInstruments: listCategorizedInstrumentsMock,
+  setInstrumentCategories: setInstrumentCategoriesMock,
+  unsetInstrumentCategories: unsetInstrumentCategoriesMock,
+}));
+
+describe('instrument category actions', () => {
+  beforeEach(() => {
+    getHistoricalOrdersForWebMock.mockReset();
+    listCategorizedInstrumentsMock.mockReset();
+    setInstrumentCategoriesMock.mockReset();
+    unsetInstrumentCategoriesMock.mockReset();
+  });
+
+  it('returns categorized instruments with current holding state', async () => {
+    const rows = [
+      {
+        ticker: 'AAPL',
+        name: 'Apple Inc.',
+        isin: 'US0378331005',
+        currency: 'USD',
+        category: 'growth',
+      },
+      {
+        ticker: 'MSFT',
+        name: 'Microsoft Corporation',
+        isin: 'US5949181045',
+        currency: 'USD',
+        category: null,
+      },
+    ];
+    listCategorizedInstrumentsMock.mockResolvedValue({
+      isErr: () => false,
+      value: rows,
+    });
+    getHistoricalOrdersForWebMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        items: [
+          {
+            side: 'BUY',
+            quantity: 2,
+            filledQuantity: 2,
+            instrument: { isin: 'US0378331005' },
+            fills: [],
+          },
+          {
+            side: 'BUY',
+            quantity: 1,
+            filledQuantity: 1,
+            instrument: { isin: 'US5949181045' },
+            fills: [],
+          },
+          {
+            side: 'SELL',
+            quantity: 1,
+            filledQuantity: 1,
+            instrument: { isin: 'US5949181045' },
+            fills: [],
+          },
+        ],
+      },
+    });
+
+    const { getInstrumentCategoriesAction } = await import(
+      '@/actions/instrument-categories-action'
+    );
+
+    await expect(getInstrumentCategoriesAction()).resolves.toEqual([
+      {
+        ...rows[0],
+        currentQuantity: 2,
+        currentlyHeld: true,
+      },
+      {
+        ...rows[1],
+        currentQuantity: 0,
+        currentlyHeld: false,
+      },
+    ]);
+  });
+
+  it('throws when listing fails', async () => {
+    listCategorizedInstrumentsMock.mockResolvedValue({
+      isErr: () => true,
+      error: { message: 'db failed' },
+    });
+    getHistoricalOrdersForWebMock.mockResolvedValue({
+      isErr: () => false,
+      value: { items: [] },
+    });
+
+    const { getInstrumentCategoriesAction } = await import(
+      '@/actions/instrument-categories-action'
+    );
+
+    await expect(getInstrumentCategoriesAction()).rejects.toThrow('db failed');
+  });
+
+  it('sets categories and returns result', async () => {
+    const result = { isins: ['US0378331005'], category: 'growth' };
+    setInstrumentCategoriesMock.mockResolvedValue({
+      isErr: () => false,
+      value: result,
+    });
+
+    const { setInstrumentCategoriesAction } = await import(
+      '@/actions/instrument-categories-action'
+    );
+
+    await expect(
+      setInstrumentCategoriesAction({
+        isins: ['US0378331005'],
+        category: ' Growth ',
+      }),
+    ).resolves.toEqual(result);
+  });
+
+  it('validates set input', async () => {
+    const { setInstrumentCategoriesAction } = await import(
+      '@/actions/instrument-categories-action'
+    );
+
+    await expect(
+      setInstrumentCategoriesAction({ isins: [], category: 'growth' }),
+    ).rejects.toThrow('Select at least one instrument.');
+    await expect(
+      setInstrumentCategoriesAction({ isins: ['US0378331005'], category: ' ' }),
+    ).rejects.toThrow('Category is required.');
+  });
+
+  it('unsets categories and validates input', async () => {
+    const result = { isins: ['US0378331005'] };
+    unsetInstrumentCategoriesMock.mockResolvedValue({
+      isErr: () => false,
+      value: result,
+    });
+
+    const { unsetInstrumentCategoriesAction } = await import(
+      '@/actions/instrument-categories-action'
+    );
+
+    await expect(
+      unsetInstrumentCategoriesAction({ isins: ['US0378331005'] }),
+    ).resolves.toEqual(result);
+    await expect(unsetInstrumentCategoriesAction({ isins: [] })).rejects.toThrow(
+      'Select at least one instrument.',
+    );
+  });
+});

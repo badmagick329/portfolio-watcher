@@ -10,9 +10,12 @@ export const {
   getLatestAccountSummarySnapshot,
   getLatestCurrentPositionSnapshot,
   getLatestInstrumentPrice,
+  listCategorizedInstruments,
   saveManualInstrumentPrice,
+  setInstrumentCategories,
   syncHistoricalOrders,
   syncT212InstrumentCatalog,
   syncPortfolioState,
+  unsetInstrumentCategories,
 } =
   webServices;

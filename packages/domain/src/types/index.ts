@@ -65,6 +65,15 @@ type UnsetInstrumentCategoryInput = {
   instrument: string;
 };
 
+type SetInstrumentCategoriesInput = {
+  isins: string[];
+  category: string;
+};
+
+type UnsetInstrumentCategoriesInput = {
+  isins: string[];
+};
+
 type WebHistoricalOrder = {
   id: number;
   strategy: string;
@@ -336,6 +345,8 @@ export type {
   InstrumentCategoryFilter,
   SetInstrumentCategoryInput,
   UnsetInstrumentCategoryInput,
+  SetInstrumentCategoriesInput,
+  UnsetInstrumentCategoriesInput,
   WebHistoricalOrdersFilters,
   WebHistoricalOrdersResult,
   WebHistoricalOrderTax,

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Roboto_Slab, Source_Sans_3 } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 import { QueryProvider } from "@/components/query-provider";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -42,6 +43,16 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <nav className='border-b border-border bg-background'>
+            <div className='mx-auto flex w-full max-w-[1600px] items-center gap-4 px-4 py-3 text-sm sm:px-6 xl:px-8'>
+              <Link className='font-medium hover:underline' href='/'>
+                Orders
+              </Link>
+              <Link className='font-medium hover:underline' href='/categories'>
+                Categories
+              </Link>
+            </div>
+          </nav>
           <QueryProvider>{children}</QueryProvider>
         </ThemeProvider>
       </body>
