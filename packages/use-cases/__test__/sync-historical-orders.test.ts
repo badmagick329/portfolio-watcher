@@ -22,6 +22,9 @@ const createClient = (
   fetchAccountCash: () => okAsync({} as never),
   fetchAccountSummary: () => okAsync({} as never),
   fetchHistoricalOrders: () => okAsync({ items: [], nextPagePath: null }),
+  fetchInstrumentsMetadata: () => okAsync([]),
+  placeMarketOrder: () => okAsync({} as never),
+  placeLimitOrder: () => okAsync({} as never),
   fetchPositions: () => okAsync([]),
   ...overrides,
 });
@@ -57,6 +60,10 @@ describe('syncHistoricalOrders', () => {
       saveOrderExecutionAttempt: () => okAsync(undefined),
       saveT212InstrumentCatalogItems: () => okAsync(0),
       findT212InstrumentCatalogMatches: () => okAsync([]),
+      findInstrumentCategoryInstrumentMatches: () => okAsync([]),
+      setInstrumentCategory: () => okAsync(undefined),
+      unsetInstrumentCategory: () => okAsync(undefined),
+      listCategorizedInstruments: () => okAsync([]),
     };
 
     const syncHistoricalOrders = createSyncHistoricalOrders({
@@ -104,6 +111,10 @@ describe('syncHistoricalOrders', () => {
       saveOrderExecutionAttempt: () => okAsync(undefined),
       saveT212InstrumentCatalogItems: () => okAsync(0),
       findT212InstrumentCatalogMatches: () => okAsync([]),
+      findInstrumentCategoryInstrumentMatches: () => okAsync([]),
+      setInstrumentCategory: () => okAsync(undefined),
+      unsetInstrumentCategory: () => okAsync(undefined),
+      listCategorizedInstruments: () => okAsync([]),
     };
 
     const syncHistoricalOrders = createSyncHistoricalOrders({

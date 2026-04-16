@@ -2,6 +2,9 @@ import type { Result, ResultAsync } from 'neverthrow';
 import type {
   AppError,
   HistoricalOrdersParams,
+  CategorizedInstrument,
+  InstrumentCategoryFilter,
+  InstrumentCategoryInstrument,
   InstrumentPriceSnapshot,
   SyncStepResult,
   WebHistoricalOrderInstrument,
@@ -14,6 +17,7 @@ import type {
   HistoricalOrders,
   HistoricalOrdersItems,
   InstrumentsMetadata,
+  LimitOrderResponse,
   MarketOrderResponse,
   Positions,
 } from '../types/schemas/api-responses';
@@ -22,6 +26,7 @@ import type {
   OrderExecutionAttempt,
   CurrentPositionSnapshot,
   T212InstrumentCatalogItem,
+  T212LimitOrderRequest,
   T212MarketOrderRequest,
 } from '../types';
 
@@ -37,6 +42,9 @@ interface BrokerClient {
   placeMarketOrder: (
     input: T212MarketOrderRequest,
   ) => ResultAsync<MarketOrderResponse, AppError>;
+  placeLimitOrder: (
+    input: T212LimitOrderRequest,
+  ) => ResultAsync<LimitOrderResponse, AppError>;
   fetchPositions: () => ResultAsync<Positions, AppError>;
 }
 
@@ -81,6 +89,17 @@ interface BrokerDataManager {
   getLatestInstrumentPriceByIsin(
     isin: string,
   ): ResultAsync<InstrumentPriceSnapshot | undefined, AppError>;
+  findInstrumentCategoryInstrumentMatches(
+    input: string,
+  ): ResultAsync<InstrumentCategoryInstrument[], AppError>;
+  setInstrumentCategory(
+    isin: string,
+    category: string,
+  ): ResultAsync<void, AppError>;
+  unsetInstrumentCategory(isin: string): ResultAsync<void, AppError>;
+  listCategorizedInstruments(
+    filters?: InstrumentCategoryFilter,
+  ): ResultAsync<CategorizedInstrument[], AppError>;
 }
 
 type BrokerClientWithCache = BrokerClient & ClientCache;

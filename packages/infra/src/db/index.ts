@@ -1,7 +1,10 @@
 import type {
   AppError,
   BrokerDataManager,
+  CategorizedInstrument,
   HistoricalOrdersItems,
+  InstrumentCategoryFilter,
+  InstrumentCategoryInstrument,
   InstrumentPriceSnapshot,
   OrderSyncState,
   OrderSyncStateManager,
@@ -17,6 +20,7 @@ import {
   currentPositionSnapshots,
   fillTaxes,
   fills,
+  instrumentCategories,
   instrumentPrices,
   instruments,
   orderExecutionAttempts,
@@ -262,6 +266,132 @@ const createBrokerDataManager = () => {
       'get distinct instruments',
     );
 
+  const findInstrumentCategoryInstrumentMatches = (input: string) =>
+    wrapDb(() => {
+      const normalizedInput = normalize(input);
+
+      if (normalizedInput.length === 0) {
+        return [];
+      }
+
+      const portfolioRows = db
+        .selectDistinct({
+          ticker: instruments.ticker,
+          name: instruments.name,
+          isin: instruments.isin,
+          currency: instruments.currency,
+        })
+        .from(instruments)
+        .all();
+
+      const catalogRows = db
+        .select({
+          ticker: t212InstrumentCatalog.ticker,
+          name: t212InstrumentCatalog.name,
+          isin: t212InstrumentCatalog.isin,
+          currency: t212InstrumentCatalog.currencyCode,
+        })
+        .from(t212InstrumentCatalog)
+        .all();
+
+      const rows = [...portfolioRows, ...catalogRows];
+      const seen = new Set<string>();
+
+      return rows.filter((row) => {
+        const ticker = normalize(row.ticker);
+        const publicTicker = normalize(row.ticker.split('_')[0] ?? '');
+        const isin = normalize(row.isin);
+        const name = normalize(row.name);
+
+        const matched =
+          ticker === normalizedInput ||
+          publicTicker === normalizedInput ||
+          isin === normalizedInput ||
+          name === normalizedInput ||
+          ticker.startsWith(normalizedInput) ||
+          publicTicker.startsWith(normalizedInput) ||
+          name.startsWith(normalizedInput) ||
+          ticker.includes(normalizedInput) ||
+          name.includes(normalizedInput);
+
+        if (!matched || seen.has(row.isin)) {
+          return false;
+        }
+
+        seen.add(row.isin);
+        return true;
+      });
+    }, 'find instrument category instrument matches');
+
+  const setInstrumentCategory = (isin: string, category: string) =>
+    wrapDb(() => {
+      db.insert(instrumentCategories)
+        .values({ isin, category })
+        .onConflictDoUpdate({
+          target: instrumentCategories.isin,
+          set: {
+            category,
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+          },
+        })
+        .run();
+    }, 'set instrument category');
+
+  const unsetInstrumentCategory = (isin: string) =>
+    wrapDb(() => {
+      db.delete(instrumentCategories)
+        .where(eq(instrumentCategories.isin, isin))
+        .run();
+    }, 'unset instrument category');
+
+  const listCategorizedInstruments = (
+    filters: InstrumentCategoryFilter = {},
+  ) =>
+    wrapDb(() => {
+      const rows = db
+        .selectDistinct({
+          ticker: instruments.ticker,
+          name: instruments.name,
+          isin: instruments.isin,
+          currency: instruments.currency,
+          category: instrumentCategories.category,
+        })
+        .from(instruments)
+        .leftJoin(
+          instrumentCategories,
+          eq(instruments.isin, instrumentCategories.isin),
+        )
+        .all();
+
+      const include = new Set(filters.includeCategories ?? []);
+      const exclude = new Set(filters.excludeCategories ?? []);
+
+      return rows
+        .filter((row) => {
+          const category = row.category ?? null;
+
+          if (include.size > 0 && (!category || !include.has(category))) {
+            return false;
+          }
+
+          if (category && exclude.has(category)) {
+            return false;
+          }
+
+          return true;
+        })
+        .sort((left, right) => left.ticker.localeCompare(right.ticker))
+        .map(
+          (row): CategorizedInstrument => ({
+            ticker: row.ticker,
+            name: row.name,
+            isin: row.isin,
+            currency: row.currency,
+            category: row.category ?? null,
+          }),
+        );
+    }, 'list categorized instruments');
+
   const saveInstrumentPriceSnapshot = (snapshot: InstrumentPriceSnapshot) =>
     wrapDb(() => {
       db.insert(instrumentPrices)
@@ -358,8 +488,9 @@ const createBrokerDataManager = () => {
     attempt: import('@portfolio/domain').OrderExecutionAttempt,
   ) =>
     wrapDb(() => {
-      db.insert(orderExecutionAttempts)
+        db.insert(orderExecutionAttempts)
         .values({
+          orderType: attempt.orderType,
           environment: attempt.environment,
           instrumentInput: attempt.instrumentInput,
           resolvedTicker: attempt.resolvedTicker,
@@ -372,6 +503,8 @@ const createBrokerDataManager = () => {
           derivedQuantity: attempt.derivedQuantity,
           referencePrice: attempt.referencePrice,
           extendedHours: attempt.extendedHours,
+          limitPrice: attempt.limitPrice,
+          timeValidity: attempt.timeValidity,
           executionMode: attempt.executionMode,
           brokerRequestPayload: attempt.brokerRequestPayload,
           brokerResponsePayload: attempt.brokerResponsePayload,
@@ -539,6 +672,10 @@ const createBrokerDataManager = () => {
     getHistoricalOrders,
     getHistoricalOrdersForWeb,
     getDistinctInstruments,
+    findInstrumentCategoryInstrumentMatches,
+    setInstrumentCategory,
+    unsetInstrumentCategory,
+    listCategorizedInstruments,
     saveInstrumentPriceSnapshot,
     saveCurrentPositionSnapshot,
     getLatestCurrentPositionSnapshotByIsin,
@@ -550,5 +687,7 @@ const createBrokerDataManager = () => {
     getLatestInstrumentPriceByIsin,
   } satisfies BrokerDataManager;
 };
+
+const normalize = (value: string) => value.trim().toLowerCase();
 
 export { db, createOrderSyncStateManager, createBrokerDataManager };

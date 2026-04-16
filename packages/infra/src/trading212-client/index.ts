@@ -9,6 +9,7 @@ import {
   accountSummarySchema,
   historicalOrdersSchema,
   instrumentsMetadataSchema,
+  limitOrderResponseSchema,
   marketOrderResponseSchema,
   positionsSchema,
 } from '@portfolio/domain';
@@ -71,6 +72,20 @@ const createTrading212Client = () => {
       body: input,
     });
 
+  const placeLimitOrder = (input: {
+    ticker: string;
+    quantity: number;
+    limitPrice: number;
+    timeValidity: 'DAY';
+  }) =>
+    request({
+      endPoint: endPoints.liveLimitOrders,
+      schema: limitOrderResponseSchema,
+      creds,
+      method: 'POST',
+      body: input,
+    });
+
   const fetchPositions = () =>
     request({
       endPoint: endPoints.positions,
@@ -84,6 +99,7 @@ const createTrading212Client = () => {
     fetchHistoricalOrders,
     fetchInstrumentsMetadata,
     placeMarketOrder,
+    placeLimitOrder,
     fetchPositions,
   } satisfies BrokerClient;
 };
@@ -141,6 +157,7 @@ const createTrading212ClientWithCache = (cache: Cache) => {
     fetchHistoricalOrders,
     fetchInstrumentsMetadata: client.fetchInstrumentsMetadata,
     placeMarketOrder: client.placeMarketOrder,
+    placeLimitOrder: client.placeLimitOrder,
     fetchPositions,
     resetCache: cache.reset,
   } satisfies BrokerClientWithCache;

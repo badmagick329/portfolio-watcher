@@ -26,6 +26,10 @@ describe('getHistoricalOrdersForWeb', () => {
       saveOrderExecutionAttempt: () => okAsync(undefined),
       saveT212InstrumentCatalogItems: () => okAsync(0),
       findT212InstrumentCatalogMatches: () => okAsync([]),
+      findInstrumentCategoryInstrumentMatches: () => okAsync([]),
+      setInstrumentCategory: () => okAsync(undefined),
+      unsetInstrumentCategory: () => okAsync(undefined),
+      listCategorizedInstruments: () => okAsync([]),
       getHistoricalOrdersForWeb: (input = {}) => {
         receivedFilters = input;
 

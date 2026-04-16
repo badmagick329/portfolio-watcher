@@ -143,7 +143,7 @@ const instrumentMetadataItemSchema = z
 
 const instrumentsMetadataSchema = z.array(instrumentMetadataItemSchema);
 
-const marketOrderResponseSchema = z
+const orderResponseSchema = z
   .object({
     id: z.number(),
     ticker: z.string(),
@@ -152,13 +152,22 @@ const marketOrderResponseSchema = z
     status: z.string(),
     side: z.string(),
     createdAt: z.string(),
+    limitPrice: z.number().optional(),
+    timeInForce: z.string().optional(),
+    type: z.string().optional(),
   })
   .passthrough()
   .transform((order) => ({
     ...order,
     quantity: order.quantity ?? null,
     filledQuantity: order.filledQuantity ?? null,
+    limitPrice: order.limitPrice ?? null,
+    timeInForce: order.timeInForce ?? null,
+    type: order.type ?? null,
   }));
+
+const marketOrderResponseSchema = orderResponseSchema;
+const limitOrderResponseSchema = orderResponseSchema;
 
 type AccountCash = z.infer<typeof accountCashSchema>;
 type AccountSummary = z.infer<typeof accountSummarySchema>;
@@ -169,7 +178,9 @@ type Position = z.infer<typeof positionSchema>;
 type Positions = z.infer<typeof positionsSchema>;
 type InstrumentMetadataItem = z.infer<typeof instrumentMetadataItemSchema>;
 type InstrumentsMetadata = z.infer<typeof instrumentsMetadataSchema>;
-type MarketOrderResponse = z.infer<typeof marketOrderResponseSchema>;
+type OrderResponse = z.infer<typeof orderResponseSchema>;
+type MarketOrderResponse = OrderResponse;
+type LimitOrderResponse = OrderResponse;
 
 export type {
   AccountCash,
@@ -181,7 +192,9 @@ export type {
   Positions,
   InstrumentMetadataItem,
   InstrumentsMetadata,
+  OrderResponse,
   MarketOrderResponse,
+  LimitOrderResponse,
 };
 export {
   accountCashSchema,
@@ -193,5 +206,7 @@ export {
   positionsSchema,
   instrumentMetadataItemSchema,
   instrumentsMetadataSchema,
+  orderResponseSchema,
   marketOrderResponseSchema,
+  limitOrderResponseSchema,
 };

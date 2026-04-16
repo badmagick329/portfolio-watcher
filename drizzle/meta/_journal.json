@@ -64,6 +64,20 @@
       "when": 1775824036668,
       "tag": "0008_special_norrin_radd",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1776330877799,
+      "tag": "0009_fast_xorn",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1776352409009,
+      "tag": "0010_bitter_greymalkin",
+      "breakpoints": true
     }
   ]
 }

@@ -52,6 +52,7 @@ const createPlaceLiveMarketOrder = ({
             extendedHours: input.extendedHours ?? false,
           });
           const baseAttempt = {
+            orderType: 'market' as const,
             environment: 'live' as const,
             instrumentInput: input.instrument,
             resolvedTicker: resolvedInstrument.ticker,
@@ -64,6 +65,8 @@ const createPlaceLiveMarketOrder = ({
             derivedQuantity,
             referencePrice,
             extendedHours: input.extendedHours ?? false,
+            limitPrice: null,
+            timeValidity: null,
             brokerRequestPayload: JSON.stringify(brokerRequest),
             attemptedAt,
           };
@@ -136,6 +139,7 @@ const createPlaceLiveMarketOrder = ({
         .orElse(() => okAsync(null))
         .andThen((resolvedInstrument) => {
           const fallbackAttempt: OrderExecutionAttempt = {
+            orderType: 'market',
             environment: 'live',
             instrumentInput: input.instrument,
             resolvedTicker: resolvedInstrument?.ticker ?? '',
@@ -148,6 +152,8 @@ const createPlaceLiveMarketOrder = ({
             derivedQuantity: 0,
             referencePrice: null,
             extendedHours: input.extendedHours ?? false,
+            limitPrice: null,
+            timeValidity: null,
             executionMode: input.confirm ? 'submitted' : 'dry_run',
             brokerRequestPayload: '',
             brokerResponsePayload: null,

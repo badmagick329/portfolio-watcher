@@ -143,6 +143,18 @@ const instrumentPrices = sqliteTable(
   ],
 );
 
+const instrumentCategories = sqliteTable(
+  'instrument_categories',
+  {
+    isin: text('isin').primaryKey(),
+    category: text('category').notNull(),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index('instrument_categories_category_idx').on(table.category)],
+);
+
 const currentPositionSnapshots = sqliteTable(
   'current_position_snapshots',
   {
@@ -199,6 +211,7 @@ const orderExecutionAttempts = sqliteTable(
   'order_execution_attempts',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
+    orderType: text('order_type').notNull().default('market'),
     environment: text('environment').notNull(),
     instrumentInput: text('instrument_input').notNull(),
     resolvedTicker: text('resolved_ticker').notNull(),
@@ -211,6 +224,8 @@ const orderExecutionAttempts = sqliteTable(
     derivedQuantity: real('derived_quantity').notNull(),
     referencePrice: real('reference_price'),
     extendedHours: integer('extended_hours', { mode: 'boolean' }).notNull(),
+    limitPrice: real('limit_price'),
+    timeValidity: text('time_validity'),
     executionMode: text('execution_mode').notNull(),
     brokerRequestPayload: text('broker_request_payload').notNull(),
     brokerResponsePayload: text('broker_response_payload'),
@@ -268,6 +283,9 @@ type NewSyncState = typeof syncState.$inferInsert;
 type InstrumentPrice = typeof instrumentPrices.$inferSelect;
 type NewInstrumentPrice = typeof instrumentPrices.$inferInsert;
 
+type InstrumentCategory = typeof instrumentCategories.$inferSelect;
+type NewInstrumentCategory = typeof instrumentCategories.$inferInsert;
+
 type CurrentPositionSnapshot = typeof currentPositionSnapshots.$inferSelect;
 type NewCurrentPositionSnapshot = typeof currentPositionSnapshots.$inferInsert;
 
@@ -292,6 +310,8 @@ export type {
   NewSyncState,
   InstrumentPrice,
   NewInstrumentPrice,
+  InstrumentCategory,
+  NewInstrumentCategory,
   CurrentPositionSnapshot,
   NewCurrentPositionSnapshot,
   AccountSummarySnapshot,
@@ -309,6 +329,7 @@ export {
   fillTaxes,
   syncState,
   instrumentPrices,
+  instrumentCategories,
   currentPositionSnapshots,
   accountSummarySnapshots,
   orderExecutionAttempts,

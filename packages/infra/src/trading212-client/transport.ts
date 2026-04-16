@@ -70,16 +70,20 @@ const fetchRequestRaw = <T>({
         });
       }
 
-      if (resp.status === 403) {
-        return errAsync({
-          code: 'FORBIDDEN',
-          message: `Trading212 returned 403 - ${resp.statusText} from ${resp.url}`,
-        });
-      }
+      return responseText(resp).andThen((responseBody) => {
+        const bodyMessage = formatErrorBody(responseBody);
 
-      return errAsync({
-        code: 'API',
-        message: `Trading212 returned ${resp.status} - ${resp.statusText} from ${resp.url}`,
+        if (resp.status === 403) {
+          return errAsync({
+            code: 'FORBIDDEN' as const,
+            message: `Trading212 returned 403 - ${resp.statusText} from ${resp.url}.${bodyMessage}`,
+          });
+        }
+
+        return errAsync({
+          code: 'API' as const,
+          message: `Trading212 returned ${resp.status} - ${resp.statusText} from ${resp.url}.${bodyMessage}`,
+        });
       });
     })
     .andThen((resp): ResultAsync<unknown, AppError> =>
@@ -91,6 +95,21 @@ const fetchRequestRaw = <T>({
         }),
       ),
     );
+};
+
+const responseText = (resp: Response): ResultAsync<string, AppError> =>
+  ResultAsync.fromPromise(
+    resp.text(),
+    (): AppError => ({
+      code: 'API',
+      message: 'Unable to read error response body.',
+    }),
+  ).orElse(() => okAsync(''));
+
+const formatErrorBody = (body: string): string => {
+  const trimmed = body.trim();
+
+  return trimmed ? ` Body: ${trimmed}` : '';
 };
 
 const parseRateLimitHeaders = (resp: Response): RateLimitResponse | undefined => {

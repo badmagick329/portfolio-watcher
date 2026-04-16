@@ -9,11 +9,15 @@ import {
 import {
   createFetchAccountCash,
   createFetchAccountSummary,
+  createListCategorizedInstruments,
+  createPlaceLiveLimitOrder,
   createPlaceLiveMarketOrder,
   createResolveInstrumentForOrder,
+  createSetInstrumentCategory,
   createSyncCurrentPositionPricesFromT212,
   createSyncHistoricalOrders,
   createSyncT212InstrumentCatalog,
+  createUnsetInstrumentCategory,
 } from '@portfolio/use-cases';
 
 export const createCliServices = () => {
@@ -31,7 +35,18 @@ export const createCliServices = () => {
     .map((client) => ({
       fetchAccountCash: createFetchAccountCash(client),
       fetchAccountSummary: createFetchAccountSummary(client),
+      listCategorizedInstruments: createListCategorizedInstruments(dataManager),
+      setInstrumentCategory: createSetInstrumentCategory(dataManager),
+      unsetInstrumentCategory: createUnsetInstrumentCategory(dataManager),
       placeLiveMarketOrder: createPlaceLiveMarketOrder({
+        client: liveClient,
+        dataManager,
+        resolveInstrumentForOrder: createResolveInstrumentForOrder({
+          client: liveClient,
+          dataManager,
+        }),
+      }),
+      placeLiveLimitOrder: createPlaceLiveLimitOrder({
         client: liveClient,
         dataManager,
         resolveInstrumentForOrder: createResolveInstrumentForOrder({

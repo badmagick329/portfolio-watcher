@@ -82,6 +82,27 @@ describe('trading212 transport', () => {
     }
   });
 
+  test('request includes the response body for API errors', async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ code: 'BadRequest', message: 'Invalid price' }), {
+        status: 400,
+        statusText: 'Bad Request',
+      })) as unknown as typeof fetch;
+
+    const result = await request({
+      endPoint: 'https://example.test/orders',
+      schema: accountCashSchema,
+      creds: 'abc',
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.code).toBe('API');
+      expect(result.error.message).toContain('Body:');
+      expect(result.error.message).toContain('Invalid price');
+    }
+  });
+
   test('request returns API for invalid schema', async () => {
     globalThis.fetch = (async () =>
       new Response(JSON.stringify({ nope: true }), {

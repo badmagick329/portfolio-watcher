@@ -231,4 +231,52 @@ describe('trading212 client', () => {
       expect(result.value.side).toBe('buy');
     }
   });
+
+  test('placeLimitOrder posts a day limit order to the live limit order endpoint', async () => {
+    const requests: Array<{ url: string; method: string; body: string }> = [];
+    globalThis.fetch = ((async (input: string | URL | Request, init?: RequestInit) => {
+      requests.push({
+        url: String(input),
+        method: init?.method ?? 'GET',
+        body: String(init?.body ?? ''),
+      });
+
+      return new Response(
+        JSON.stringify({
+          ...marketOrderResponsePayload,
+          limitPrice: 100.23,
+          timeInForce: 'DAY',
+          type: 'LIMIT',
+        }),
+        { status: 200 },
+      );
+    }) as unknown) as typeof fetch;
+
+    const client = createTrading212Client();
+    const result = await client.placeLimitOrder({
+      ticker: 'AAPL_US_EQ',
+      quantity: 0.1,
+      limitPrice: 100.23,
+      timeValidity: 'DAY',
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(requests).toEqual([
+      {
+        url: 'https://live.trading212.com/api/v0/equity/orders/limit',
+        method: 'POST',
+        body: JSON.stringify({
+          ticker: 'AAPL_US_EQ',
+          quantity: 0.1,
+          limitPrice: 100.23,
+          timeValidity: 'DAY',
+        }),
+      },
+    ]);
+    if (result.isOk()) {
+      expect(result.value.limitPrice).toBe(100.23);
+      expect(result.value.timeInForce).toBe('DAY');
+      expect(result.value.type).toBe('LIMIT');
+    }
+  });
 });

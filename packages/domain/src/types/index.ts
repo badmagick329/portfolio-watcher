@@ -45,6 +45,26 @@ type WebHistoricalOrderInstrument = {
   currency: string;
 };
 
+type InstrumentCategoryInstrument = WebHistoricalOrderInstrument;
+
+type CategorizedInstrument = InstrumentCategoryInstrument & {
+  category: string | null;
+};
+
+type InstrumentCategoryFilter = {
+  includeCategories?: string[];
+  excludeCategories?: string[];
+};
+
+type SetInstrumentCategoryInput = {
+  instrument: string;
+  category: string;
+};
+
+type UnsetInstrumentCategoryInput = {
+  instrument: string;
+};
+
 type WebHistoricalOrder = {
   id: number;
   strategy: string;
@@ -129,7 +149,14 @@ type T212MarketOrderRequest = {
   extendedHours: boolean;
 };
 
-type T212MarketOrderResponse = {
+type T212LimitOrderRequest = {
+  ticker: string;
+  quantity: number;
+  limitPrice: number;
+  timeValidity: 'DAY';
+};
+
+type T212OrderResponse = {
   id: number;
   ticker: string;
   quantity: number | null;
@@ -137,9 +164,16 @@ type T212MarketOrderResponse = {
   status: string;
   side: string;
   createdAt: string;
+  limitPrice?: number | null;
+  timeInForce?: string | null;
+  type?: string | null;
 };
 
+type T212MarketOrderResponse = T212OrderResponse;
+type T212LimitOrderResponse = T212OrderResponse;
+
 type OrderExecutionAttempt = {
+  orderType: 'market' | 'limit';
   environment: BrokerEnvironment;
   instrumentInput: string;
   resolvedTicker: string;
@@ -152,6 +186,8 @@ type OrderExecutionAttempt = {
   derivedQuantity: number;
   referencePrice: number | null;
   extendedHours: boolean;
+  limitPrice: number | null;
+  timeValidity: 'DAY' | null;
   executionMode: 'dry_run' | 'submitted';
   brokerRequestPayload: string;
   brokerResponsePayload: string | null;
@@ -187,6 +223,29 @@ type PlaceMarketOrderResult = {
   referencePrice: number | null;
   extendedHours: boolean;
   brokerOrder: T212MarketOrderResponse | null;
+};
+
+type PlaceLimitOrderInput = {
+  instrument: string;
+  side: 'buy' | 'sell';
+  quantity: number;
+  limitPrice: number;
+  confirm?: boolean;
+};
+
+type PlaceLimitOrderResult = {
+  environment: 'live';
+  executionMode: 'dry_run' | 'submitted';
+  resolvedInstrument: ResolvedOrderInstrument;
+  requestedMode: 'quantity';
+  requestedQuantity: number;
+  requestedValue: null;
+  derivedQuantity: number;
+  referencePrice: null;
+  extendedHours: false;
+  limitPrice: number;
+  timeValidity: 'DAY';
+  brokerOrder: T212LimitOrderResponse | null;
 };
 
 type InstrumentPriceProvider = 'fmp' | 'eodhd' | 'manual' | 't212';
@@ -250,10 +309,15 @@ export type {
   T212InstrumentMetadataItem,
   T212InstrumentCatalogItem,
   T212MarketOrderRequest,
+  T212LimitOrderRequest,
+  T212OrderResponse,
   T212MarketOrderResponse,
+  T212LimitOrderResponse,
   OrderExecutionAttempt,
   PlaceMarketOrderInput,
   PlaceMarketOrderResult,
+  PlaceLimitOrderInput,
+  PlaceLimitOrderResult,
   ResolvedOrderInstrument,
   CurrentPositionSnapshot,
   InstrumentPriceProvider,
@@ -267,6 +331,11 @@ export type {
   WebHistoricalOrder,
   WebHistoricalOrderFill,
   WebHistoricalOrderInstrument,
+  InstrumentCategoryInstrument,
+  CategorizedInstrument,
+  InstrumentCategoryFilter,
+  SetInstrumentCategoryInput,
+  UnsetInstrumentCategoryInput,
   WebHistoricalOrdersFilters,
   WebHistoricalOrdersResult,
   WebHistoricalOrderTax,

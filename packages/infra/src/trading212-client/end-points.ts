@@ -9,6 +9,7 @@ const endPoints = {
   accountCash: `${liveUrl}/equity/account/cash`,
   accountSummary: `${liveUrl}/equity/account/summary`,
   instrumentsMetadata: `${liveUrl}/equity/metadata/instruments`,
+  liveLimitOrders: `${liveUrl}/equity/orders/limit`,
   liveMarketOrders: `${liveUrl}/equity/orders/market`,
   positions: `${liveUrl}/equity/positions`,
   historicalOrders: (params: HistoricalOrdersParams) =>

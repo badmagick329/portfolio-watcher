@@ -1,9 +1,16 @@
 import { createCliServices } from '@portfolio/composition';
 import type {
   AppError,
+  CategorizedInstrument,
   SyncStepResult,
 } from '@portfolio/domain';
-import { PLACE_ORDER_USAGE, parsePlaceOrderArgs } from './place-order-cli';
+import { CATEGORIES_USAGE, parseCategoriesArgs } from './categories-cli';
+import {
+  PLACE_LIMIT_ORDER_USAGE,
+  PLACE_ORDER_USAGE,
+  parsePlaceLimitOrderArgs,
+  parsePlaceOrderArgs,
+} from './place-order-cli';
 
 const main = async () => {
   const services = createCliServices();
@@ -61,10 +68,90 @@ const main = async () => {
         return;
       }
 
+      if (command === 'place-live-limit-order') {
+        const parsed = parsePlaceLimitOrderArgs(args);
+
+        if (!parsed.ok) {
+          console.error(parsed.error.message);
+          console.log(PLACE_LIMIT_ORDER_USAGE);
+          return;
+        }
+
+        await ops.placeLiveLimitOrder(parsed.value).match(
+          (result) => {
+            console.log('environment:', result.environment);
+            console.log('mode:', result.executionMode);
+            console.log(
+              'instrument:',
+              `${result.resolvedInstrument.name} (${result.resolvedInstrument.ticker})`,
+            );
+            console.log('side:', parsed.value.side);
+            console.log('requestedMode:', result.requestedMode);
+            console.log('requestedQuantity:', result.requestedQuantity);
+            console.log('derivedQuantity:', result.derivedQuantity);
+            console.log('limitPrice:', result.limitPrice);
+            console.log('timeValidity:', result.timeValidity);
+            if (result.brokerOrder) {
+              console.log('orderId:', result.brokerOrder.id);
+              console.log('createdAt:', result.brokerOrder.createdAt);
+              console.log('status:', result.brokerOrder.status);
+            }
+          },
+          (e: AppError) => console.error(e.message),
+        );
+
+        return;
+      }
+
       if (command === 'sync-instruments') {
         await ops.syncT212InstrumentCatalog().match(
           (count) => console.log('t212_instrument_catalog', { saved: count }),
           (e: AppError) => console.error(e),
+        );
+
+        return;
+      }
+
+      if (command === 'categories') {
+        const parsed = parseCategoriesArgs(args);
+
+        if (!parsed.ok) {
+          console.error(parsed.error.message);
+          console.log(CATEGORIES_USAGE);
+          return;
+        }
+
+        if (parsed.value.action === 'set') {
+          await ops.setInstrumentCategory(parsed.value.value).match(
+            (result) => {
+              console.log(
+                'instrument:',
+                `${result.instrument.name} (${result.instrument.ticker})`,
+              );
+              console.log('category:', result.category);
+            },
+            (e: AppError) => console.error(e.message),
+          );
+          return;
+        }
+
+        if (parsed.value.action === 'unset') {
+          await ops.unsetInstrumentCategory(parsed.value.value).match(
+            (result) => {
+              console.log(
+                'instrument:',
+                `${result.instrument.name} (${result.instrument.ticker})`,
+              );
+              console.log('category:', '-');
+            },
+            (e: AppError) => console.error(e.message),
+          );
+          return;
+        }
+
+        await ops.listCategorizedInstruments(parsed.value.value).match(
+          (instruments) => console.log(formatCategorizedInstruments(instruments)),
+          (e: AppError) => console.error(e.message),
         );
 
         return;
@@ -80,3 +167,27 @@ const main = async () => {
 };
 
 main();
+
+function formatCategorizedInstruments(items: CategorizedInstrument[]) {
+  const rows = [
+    ['CATEGORY', 'TICKER', 'NAME', 'ISIN'],
+    ...items.map((item) => [
+      item.category ?? '-',
+      item.ticker,
+      item.name,
+      item.isin,
+    ]),
+  ];
+  const widths = rows[0]?.map((_, columnIndex) =>
+    Math.max(...rows.map((row) => row[columnIndex]?.length ?? 0)),
+  ) ?? [0, 0, 0, 0];
+
+  return rows
+    .map((row) =>
+      row
+        .map((value, columnIndex) => value.padEnd(widths[columnIndex] ?? 0))
+        .join('  ')
+        .trimEnd(),
+    )
+    .join('\n');
+}
