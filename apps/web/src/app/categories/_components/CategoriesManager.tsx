@@ -525,6 +525,8 @@ function PortfolioAllocationView({
                 nameKey='category'
                 outerRadius={110}
                 paddingAngle={2}
+                label={renderAllocationLabel}
+                labelLine={false}
               >
                 {viewModel.rows.map((row, index) => (
                   <Cell
@@ -652,6 +654,44 @@ type TooltipProps = {
   active?: boolean;
   payload?: Array<{ payload: unknown }>;
 };
+
+type PieLabelProps = {
+  cx?: number | string;
+  cy?: number | string;
+  midAngle?: number | string;
+  outerRadius?: number | string;
+  payload?: CategoryAllocationRow;
+};
+
+function renderAllocationLabel(props: PieLabelProps) {
+  const percent = props.payload?.allocationPercent ?? 0;
+
+  if (percent < 0.02) {
+    return null;
+  }
+
+  const cx = Number(props.cx ?? 0);
+  const cy = Number(props.cy ?? 0);
+  const midAngle = Number(props.midAngle ?? 0);
+  const outerRadius = Number(props.outerRadius ?? 0);
+  const radius = outerRadius + 26;
+  const radians = (-midAngle * Math.PI) / 180;
+  const x = cx + radius * Math.cos(radians);
+  const y = cy + radius * Math.sin(radians);
+
+  return (
+    <text
+      dominantBaseline='central'
+      fill='currentColor'
+      fontSize={12}
+      textAnchor={x > cx ? 'start' : 'end'}
+      x={x}
+      y={y}
+    >
+      {props.payload?.category} {formatPercent(percent)}
+    </text>
+  );
+}
 
 const formatMoney = (value: number) =>
   new Intl.NumberFormat('en-GB', {
