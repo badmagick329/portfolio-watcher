@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import {
@@ -29,6 +30,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  getCategoriesViewUrlState,
+  getSearchParamsWithUpdatedCategoriesViewUrlState,
+} from '@/lib/client/categories-view-url-state';
+import type { CategoriesViewUrlState } from '@/lib/client/categories-view-url-state';
 import { formatCategoryName } from '@/lib/client/display-category';
 import { buildCategoryAllocationViewModel } from '@/lib/client/instrument-category-allocation';
 import type { CategoryAllocationRow } from '@/lib/client/instrument-category-allocation';
@@ -51,6 +57,9 @@ const NET_INVESTED_ADDITION_COLOR = '#2563eb';
 const NET_INVESTED_WITHDRAWAL_COLOR = '#a855f7';
 
 export function CategoriesManager() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data, error, isLoading } = useInstrumentCategoriesQuery();
   const { setCategories, unsetCategories } = useInstrumentCategoryMutations();
   const [selectedIsins, setSelectedIsins] = useState<Set<string>>(new Set());
@@ -60,11 +69,24 @@ export function CategoriesManager() {
   const [bulkCategory, setBulkCategory] = useState('');
   const [showCurrentOnly, setShowCurrentOnly] = useState(false);
   const [showUncategorizedOnly, setShowUncategorizedOnly] = useState(false);
-  const [activeMode, setActiveMode] = useState<'manage' | 'allocation'>('manage');
-  const [fillDateRangeFilter, setFillDateRangeFilter] =
-    useState<FillDateRangeFilter>({});
+  const urlState = getCategoriesViewUrlState(searchParams);
+  const fillDateRangeFilter = {
+    filledFrom: urlState.filledFrom,
+    filledTo: urlState.filledTo,
+  };
   const isMutating = setCategories.isPending || unsetCategories.isPending;
   const selectedCount = selectedIsins.size;
+  const replaceUrlState = (partialState: Partial<CategoriesViewUrlState>) => {
+    const nextSearchParams = getSearchParamsWithUpdatedCategoriesViewUrlState(
+      searchParams,
+      partialState,
+    );
+    const queryString = nextSearchParams.toString();
+
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
+  };
 
   useEffect(() => {
     if (!data) {
@@ -238,26 +260,26 @@ export function CategoriesManager() {
         </div>
         <div className='flex items-center gap-2'>
           <Button
-            onClick={() => setActiveMode('manage')}
+            onClick={() => replaceUrlState({ mode: 'manage' })}
             type='button'
-            variant={activeMode === 'manage' ? 'default' : 'outline'}
+            variant={urlState.mode === 'manage' ? 'default' : 'outline'}
           >
             Manage categories
           </Button>
           <Button
-            onClick={() => setActiveMode('allocation')}
+            onClick={() => replaceUrlState({ mode: 'allocation' })}
             type='button'
-            variant={activeMode === 'allocation' ? 'default' : 'outline'}
+            variant={urlState.mode === 'allocation' ? 'default' : 'outline'}
           >
             Portfolio allocation
           </Button>
         </div>
       </div>
 
-      {activeMode === 'allocation' ? (
+      {urlState.mode === 'allocation' ? (
         <PortfolioAllocationView
           fillDateRangeFilter={fillDateRangeFilter}
-          onFillDateRangeFilterChange={setFillDateRangeFilter}
+          onFillDateRangeFilterChange={replaceUrlState}
           viewModel={allocationViewModel}
         />
       ) : (
