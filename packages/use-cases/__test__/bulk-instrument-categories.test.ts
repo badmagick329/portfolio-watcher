@@ -5,10 +5,10 @@ import { createUnsetInstrumentCategories } from '../unset-instrument-categories'
 
 describe('bulk instrument categories', () => {
   test('sets normalized category for unique ISINs', async () => {
-    const saved: Array<{ isin: string; category: string }> = [];
+    let saved: { isins: string[]; category: string } | undefined;
     const setInstrumentCategories = createSetInstrumentCategories({
-      setInstrumentCategory: (isin, category) => {
-        saved.push({ isin, category });
+      setInstrumentCategories: (isins, category) => {
+        saved = { isins, category };
         return okAsync(undefined);
       },
     });
@@ -19,15 +19,15 @@ describe('bulk instrument categories', () => {
     });
 
     expect(result.isOk()).toBe(true);
-    expect(saved).toEqual([
-      { isin: 'US0378331005', category: 'growth' },
-      { isin: 'US5949181045', category: 'growth' },
-    ]);
+    expect(saved).toEqual({
+      isins: ['US0378331005', 'US5949181045'],
+      category: 'growth',
+    });
   });
 
   test('rejects empty ISIN list for set', async () => {
     const setInstrumentCategories = createSetInstrumentCategories({
-      setInstrumentCategory: () => okAsync(undefined),
+      setInstrumentCategories: () => okAsync(undefined),
     });
 
     const result = await setInstrumentCategories({
@@ -43,7 +43,7 @@ describe('bulk instrument categories', () => {
 
   test('rejects empty category for set', async () => {
     const setInstrumentCategories = createSetInstrumentCategories({
-      setInstrumentCategory: () => okAsync(undefined),
+      setInstrumentCategories: () => okAsync(undefined),
     });
 
     const result = await setInstrumentCategories({
@@ -60,8 +60,8 @@ describe('bulk instrument categories', () => {
   test('unsets unique ISINs', async () => {
     const removed: string[] = [];
     const unsetInstrumentCategories = createUnsetInstrumentCategories({
-      unsetInstrumentCategory: (isin) => {
-        removed.push(isin);
+      unsetInstrumentCategories: (isins) => {
+        removed.push(...isins);
         return okAsync(undefined);
       },
     });
@@ -76,7 +76,7 @@ describe('bulk instrument categories', () => {
 
   test('rejects empty ISIN list for unset', async () => {
     const unsetInstrumentCategories = createUnsetInstrumentCategories({
-      unsetInstrumentCategory: () => okAsync(undefined),
+      unsetInstrumentCategories: () => okAsync(undefined),
     });
 
     const result = await unsetInstrumentCategories({ isins: [] });

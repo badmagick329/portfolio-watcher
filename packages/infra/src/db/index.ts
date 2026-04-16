@@ -29,7 +29,7 @@ import {
   t212InstrumentCatalog,
 } from './schema';
 import Database from 'better-sqlite3';
-import { desc, eq, sql } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { ResultAsync } from 'neverthrow';
 
@@ -343,6 +343,31 @@ const createBrokerDataManager = () => {
         .where(eq(instrumentCategories.isin, isin))
         .run();
     }, 'unset instrument category');
+
+  const setInstrumentCategories = (isins: string[], category: string) =>
+    wrapDb(() => {
+      db.transaction((tx) => {
+        isins.forEach((isin) => {
+          tx.insert(instrumentCategories)
+            .values({ isin, category })
+            .onConflictDoUpdate({
+              target: instrumentCategories.isin,
+              set: {
+                category,
+                updatedAt: sql`CURRENT_TIMESTAMP`,
+              },
+            })
+            .run();
+        });
+      });
+    }, 'set instrument categories');
+
+  const unsetInstrumentCategories = (isins: string[]) =>
+    wrapDb(() => {
+      db.delete(instrumentCategories)
+        .where(inArray(instrumentCategories.isin, isins))
+        .run();
+    }, 'unset instrument categories');
 
   const listCategorizedInstruments = (
     filters: InstrumentCategoryFilter = {},
@@ -675,6 +700,8 @@ const createBrokerDataManager = () => {
     findInstrumentCategoryInstrumentMatches,
     setInstrumentCategory,
     unsetInstrumentCategory,
+    setInstrumentCategories,
+    unsetInstrumentCategories,
     listCategorizedInstruments,
     saveInstrumentPriceSnapshot,
     saveCurrentPositionSnapshot,

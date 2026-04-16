@@ -97,6 +97,11 @@ interface BrokerDataManager {
     category: string,
   ): ResultAsync<void, AppError>;
   unsetInstrumentCategory(isin: string): ResultAsync<void, AppError>;
+  setInstrumentCategories(
+    isins: string[],
+    category: string,
+  ): ResultAsync<void, AppError>;
+  unsetInstrumentCategories(isins: string[]): ResultAsync<void, AppError>;
   listCategorizedInstruments(
     filters?: InstrumentCategoryFilter,
   ): ResultAsync<CategorizedInstrument[], AppError>;

@@ -1,13 +1,12 @@
 import type {
-  AppError,
   BrokerDataManager,
   UnsetInstrumentCategoriesInput,
 } from '@portfolio/domain';
-import { errAsync, okAsync, type ResultAsync } from 'neverthrow';
+import { errAsync } from 'neverthrow';
 import { validationError } from './instrument-category-helpers';
 
 const createUnsetInstrumentCategories =
-  (dataManager: Pick<BrokerDataManager, 'unsetInstrumentCategory'>) =>
+  (dataManager: Pick<BrokerDataManager, 'unsetInstrumentCategories'>) =>
   (input: UnsetInstrumentCategoriesInput) => {
     const isins = normalizeIsins(input.isins);
 
@@ -15,15 +14,7 @@ const createUnsetInstrumentCategories =
       return errAsync(validationError('Select at least one instrument.'));
     }
 
-    let operation: ResultAsync<void, AppError> = okAsync(undefined);
-
-    isins.forEach((isin) => {
-      operation = operation.andThen(() =>
-        dataManager.unsetInstrumentCategory(isin),
-      );
-    });
-
-    return operation.map(() => ({ isins }));
+    return dataManager.unsetInstrumentCategories(isins).map(() => ({ isins }));
   };
 
 const normalizeIsins = (isins: string[]) =>

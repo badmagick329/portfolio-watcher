@@ -27,6 +27,8 @@ describe('saveManualInstrumentPrice', () => {
       findInstrumentCategoryInstrumentMatches: () => okAsync([]),
       setInstrumentCategory: () => okAsync(undefined),
       unsetInstrumentCategory: () => okAsync(undefined),
+      setInstrumentCategories: () => okAsync(undefined),
+      unsetInstrumentCategories: () => okAsync(undefined),
       listCategorizedInstruments: () => okAsync([]),
     };
 

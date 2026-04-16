@@ -1,13 +1,12 @@
 import type {
-  AppError,
   BrokerDataManager,
   SetInstrumentCategoriesInput,
 } from '@portfolio/domain';
-import { errAsync, okAsync, type ResultAsync } from 'neverthrow';
+import { errAsync } from 'neverthrow';
 import { normalizeCategory, validationError } from './instrument-category-helpers';
 
 const createSetInstrumentCategories =
-  (dataManager: Pick<BrokerDataManager, 'setInstrumentCategory'>) =>
+  (dataManager: Pick<BrokerDataManager, 'setInstrumentCategories'>) =>
   (input: SetInstrumentCategoriesInput) => {
     const isins = normalizeIsins(input.isins);
     const category = normalizeCategory(input.category);
@@ -20,15 +19,9 @@ const createSetInstrumentCategories =
       return errAsync(validationError('Category is required.'));
     }
 
-    let operation: ResultAsync<void, AppError> = okAsync(undefined);
-
-    isins.forEach((isin) => {
-      operation = operation.andThen(() =>
-        dataManager.setInstrumentCategory(isin, category),
-      );
-    });
-
-    return operation.map(() => ({ isins, category }));
+    return dataManager
+      .setInstrumentCategories(isins, category)
+      .map(() => ({ isins, category }));
   };
 
 const normalizeIsins = (isins: string[]) =>
