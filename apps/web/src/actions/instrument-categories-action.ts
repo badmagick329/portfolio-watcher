@@ -2,6 +2,7 @@
 
 import {
   getHistoricalOrdersForWeb,
+  getLatestCurrentPositionSnapshot,
   listCategorizedInstruments,
   setInstrumentCategories,
   unsetInstrumentCategories,
@@ -24,15 +25,25 @@ export async function getInstrumentCategoriesAction() {
 
   const quantitiesByIsin = getCurrentQuantitiesByIsin(ordersResult.value.items);
 
-  return categoriesResult.value.map((instrument) => {
-    const currentQuantity = quantitiesByIsin.get(instrument.isin) ?? 0;
+  return Promise.all(
+    categoriesResult.value.map(async (instrument) => {
+      const currentQuantity = quantitiesByIsin.get(instrument.isin) ?? 0;
+      const snapshotResult = await getLatestCurrentPositionSnapshot(instrument.isin);
 
-    return {
-      ...instrument,
-      currentQuantity,
-      currentlyHeld: currentQuantity > 0,
-    };
-  });
+      if (snapshotResult.isErr()) {
+        throw new Error(snapshotResult.error.message);
+      }
+
+      const currentPositionSnapshot = snapshotResult.value ?? null;
+
+      return {
+        ...instrument,
+        currentQuantity,
+        currentlyHeld: currentQuantity > 0,
+        currentPositionSnapshot,
+      };
+    }),
+  );
 }
 
 export async function setInstrumentCategoriesAction(params: {

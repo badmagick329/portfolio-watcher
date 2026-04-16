@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const listCategorizedInstrumentsMock = vi.fn();
 const getHistoricalOrdersForWebMock = vi.fn();
+const getLatestCurrentPositionSnapshotMock = vi.fn();
 const setInstrumentCategoriesMock = vi.fn();
 const unsetInstrumentCategoriesMock = vi.fn();
 
 vi.mock('@/lib/server/composition', () => ({
   getHistoricalOrdersForWeb: getHistoricalOrdersForWebMock,
+  getLatestCurrentPositionSnapshot: getLatestCurrentPositionSnapshotMock,
   listCategorizedInstruments: listCategorizedInstrumentsMock,
   setInstrumentCategories: setInstrumentCategoriesMock,
   unsetInstrumentCategories: unsetInstrumentCategoriesMock,
@@ -15,6 +17,7 @@ vi.mock('@/lib/server/composition', () => ({
 describe('instrument category actions', () => {
   beforeEach(() => {
     getHistoricalOrdersForWebMock.mockReset();
+    getLatestCurrentPositionSnapshotMock.mockReset();
     listCategorizedInstrumentsMock.mockReset();
     setInstrumentCategoriesMock.mockReset();
     unsetInstrumentCategoriesMock.mockReset();
@@ -69,6 +72,21 @@ describe('instrument category actions', () => {
         ],
       },
     });
+    getLatestCurrentPositionSnapshotMock.mockImplementation((isin) =>
+      Promise.resolve({
+        isErr: () => false,
+        value:
+          isin === 'US0378331005'
+            ? {
+                isin,
+                quantity: 2,
+                currentValue: 200,
+                totalCost: 150,
+                unrealizedProfitLoss: 50,
+              }
+            : undefined,
+      }),
+    );
 
     const { getInstrumentCategoriesAction } = await import(
       '@/actions/instrument-categories-action'
@@ -79,11 +97,19 @@ describe('instrument category actions', () => {
         ...rows[0],
         currentQuantity: 2,
         currentlyHeld: true,
+        currentPositionSnapshot: {
+          isin: 'US0378331005',
+          quantity: 2,
+          currentValue: 200,
+          totalCost: 150,
+          unrealizedProfitLoss: 50,
+        },
       },
       {
         ...rows[1],
         currentQuantity: 0,
         currentlyHeld: false,
+        currentPositionSnapshot: null,
       },
     ]);
   });
@@ -96,6 +122,10 @@ describe('instrument category actions', () => {
     getHistoricalOrdersForWebMock.mockResolvedValue({
       isErr: () => false,
       value: { items: [] },
+    });
+    getLatestCurrentPositionSnapshotMock.mockResolvedValue({
+      isErr: () => false,
+      value: undefined,
     });
 
     const { getInstrumentCategoriesAction } = await import(

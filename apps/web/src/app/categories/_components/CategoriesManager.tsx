@@ -1,6 +1,20 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,9 +26,22 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { buildCategoryAllocationViewModel } from '@/lib/client/instrument-category-allocation';
+import type { CategoryAllocationRow } from '@/lib/client/instrument-category-allocation';
 import { useInstrumentCategoryMutations } from '@/lib/client/useInstrumentCategoryMutations';
 import { useInstrumentCategoriesQuery } from '@/lib/client/useInstrumentCategoriesQuery';
 import type { CategorizedInstrument } from '@portfolio/domain';
+
+const CHART_COLORS = [
+  '#2f855a',
+  '#c2410c',
+  '#2563eb',
+  '#ca8a04',
+  '#0f766e',
+  '#be123c',
+  '#4b5563',
+  '#7c2d12',
+];
 
 export function CategoriesManager() {
   const { data, error, isLoading } = useInstrumentCategoriesQuery();
@@ -26,6 +53,7 @@ export function CategoriesManager() {
   const [bulkCategory, setBulkCategory] = useState('');
   const [showCurrentOnly, setShowCurrentOnly] = useState(false);
   const [showUncategorizedOnly, setShowUncategorizedOnly] = useState(false);
+  const [activeMode, setActiveMode] = useState<'manage' | 'allocation'>('manage');
   const isMutating = setCategories.isPending || unsetCategories.isPending;
   const selectedCount = selectedIsins.size;
 
@@ -58,6 +86,10 @@ export function CategoriesManager() {
           (!showUncategorizedOnly || !instrument.category),
       ) ?? [],
     [data, showCurrentOnly, showUncategorizedOnly],
+  );
+  const allocationViewModel = useMemo(
+    () => buildCategoryAllocationViewModel(data ?? []),
+    [data],
   );
 
   if (isLoading) {
@@ -191,23 +223,111 @@ export function CategoriesManager() {
           </p>
         </div>
         <div className='flex items-center gap-2'>
-          <Button type='button' variant='default'>
+          <Button
+            onClick={() => setActiveMode('manage')}
+            type='button'
+            variant={activeMode === 'manage' ? 'default' : 'outline'}
+          >
             Manage categories
           </Button>
-          <Button disabled type='button' variant='outline'>
-            Filter preview
+          <Button
+            onClick={() => setActiveMode('allocation')}
+            type='button'
+            variant={activeMode === 'allocation' ? 'default' : 'outline'}
+          >
+            Portfolio allocation
           </Button>
         </div>
       </div>
 
+      {activeMode === 'allocation' ? (
+        <PortfolioAllocationView viewModel={allocationViewModel} />
+      ) : (
+        <CategoriesManageView
+          allSelected={allSelected}
+          bulkCategory={bulkCategory}
+          canMutate={!isMutating}
+          data={visibleInstruments}
+          draftCategories={draftCategories}
+          isMutating={isMutating}
+          onBulkCategoryChange={setBulkCategory}
+          onSaveBulkCategory={saveBulkCategory}
+          onSaveRow={saveRow}
+          onShowCurrentOnlyChange={(checked) => {
+            setShowCurrentOnly(checked);
+            setSelectedIsins(new Set());
+          }}
+          onShowUncategorizedOnlyChange={(checked) => {
+            setShowUncategorizedOnly(checked);
+            setSelectedIsins(new Set());
+          }}
+          onToggleAll={toggleAll}
+          onToggleInstrument={toggleInstrument}
+          onUnsetBulkCategory={unsetBulkCategory}
+          onUnsetRow={unsetRow}
+          selectedCount={selectedCount}
+          selectedIsins={selectedIsins}
+          showCurrentOnly={showCurrentOnly}
+          showUncategorizedOnly={showUncategorizedOnly}
+          setDraftCategories={setDraftCategories}
+        />
+      )}
+    </div>
+  );
+}
+
+type CategoriesManageViewProps = {
+  allSelected: boolean;
+  bulkCategory: string;
+  canMutate: boolean;
+  data: CategorizedInstrument[];
+  draftCategories: Record<string, string>;
+  isMutating: boolean;
+  onBulkCategoryChange: (value: string) => void;
+  onSaveBulkCategory: () => void;
+  onSaveRow: (instrument: CategorizedInstrument) => void;
+  onShowCurrentOnlyChange: (checked: boolean) => void;
+  onShowUncategorizedOnlyChange: (checked: boolean) => void;
+  onToggleAll: () => void;
+  onToggleInstrument: (isin: string) => void;
+  onUnsetBulkCategory: () => void;
+  onUnsetRow: (instrument: CategorizedInstrument) => void;
+  selectedCount: number;
+  selectedIsins: Set<string>;
+  showCurrentOnly: boolean;
+  showUncategorizedOnly: boolean;
+  setDraftCategories: Dispatch<SetStateAction<Record<string, string>>>;
+};
+
+function CategoriesManageView({
+  allSelected,
+  bulkCategory,
+  canMutate,
+  data,
+  draftCategories,
+  isMutating,
+  onBulkCategoryChange,
+  onSaveBulkCategory,
+  onSaveRow,
+  onShowCurrentOnlyChange,
+  onShowUncategorizedOnlyChange,
+  onToggleAll,
+  onToggleInstrument,
+  onUnsetBulkCategory,
+  onUnsetRow,
+  selectedCount,
+  selectedIsins,
+  showCurrentOnly,
+  showUncategorizedOnly,
+  setDraftCategories,
+}: CategoriesManageViewProps) {
+  return (
+    <>
       <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-5'>
         <label className='flex w-fit items-center gap-2 text-sm text-muted-foreground'>
           <input
             checked={showCurrentOnly}
-            onChange={(event) => {
-              setShowCurrentOnly(event.target.checked);
-              setSelectedIsins(new Set());
-            }}
+            onChange={(event) => onShowCurrentOnlyChange(event.target.checked)}
             type='checkbox'
           />
           Current holdings only
@@ -215,10 +335,9 @@ export function CategoriesManager() {
         <label className='flex w-fit items-center gap-2 text-sm text-muted-foreground'>
           <input
             checked={showUncategorizedOnly}
-            onChange={(event) => {
-              setShowUncategorizedOnly(event.target.checked);
-              setSelectedIsins(new Set());
-            }}
+            onChange={(event) =>
+              onShowUncategorizedOnlyChange(event.target.checked)
+            }
             type='checkbox'
           />
           Uncategorized only
@@ -233,10 +352,10 @@ export function CategoriesManager() {
           <Input
             className='max-w-xs'
             disabled={isMutating}
-            onChange={(event) => setBulkCategory(event.target.value)}
+            onChange={(event) => onBulkCategoryChange(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && bulkCategory.trim()) {
-                saveBulkCategory();
+                onSaveBulkCategory();
               }
             }}
             placeholder='Category'
@@ -245,14 +364,14 @@ export function CategoriesManager() {
           <div className='flex gap-2'>
             <Button
               disabled={!bulkCategory.trim() || isMutating}
-              onClick={saveBulkCategory}
+              onClick={onSaveBulkCategory}
               type='button'
             >
               Set category
             </Button>
             <Button
               disabled={isMutating}
-              onClick={unsetBulkCategory}
+              onClick={onUnsetBulkCategory}
               type='button'
               variant='outline'
             >
@@ -270,8 +389,8 @@ export function CategoriesManager() {
                 <input
                   aria-label='Select all instruments'
                   checked={allSelected}
-                  disabled={visibleInstruments.length === 0 || isMutating}
-                  onChange={toggleAll}
+                  disabled={data.length === 0 || isMutating}
+                  onChange={onToggleAll}
                   type='checkbox'
                 />
               </TableHead>
@@ -284,7 +403,7 @@ export function CategoriesManager() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visibleInstruments.map((instrument) => {
+            {data.map((instrument) => {
               const draftCategory = draftCategories[instrument.isin] ?? '';
               const currentCategory = instrument.category ?? '';
               const normalizedDraft = draftCategory.trim().toLowerCase();
@@ -305,7 +424,7 @@ export function CategoriesManager() {
                       aria-label={`Select ${instrument.ticker}`}
                       checked={isSelected}
                       disabled={isMutating}
-                      onChange={() => toggleInstrument(instrument.isin)}
+                      onChange={() => onToggleInstrument(instrument.isin)}
                       type='checkbox'
                     />
                   </TableCell>
@@ -320,7 +439,7 @@ export function CategoriesManager() {
                         event.preventDefault();
 
                         if (canSave) {
-                          saveRow(instrument);
+                          onSaveRow(instrument);
                         }
                       }}
                     >
@@ -343,7 +462,7 @@ export function CategoriesManager() {
                   <TableCell>
                     <Button
                       disabled={!instrument.category || isMutating}
-                      onClick={() => unsetRow(instrument)}
+                      onClick={() => onUnsetRow(instrument)}
                       type='button'
                       variant='outline'
                     >
@@ -353,7 +472,7 @@ export function CategoriesManager() {
                 </TableRow>
               );
             })}
-            {visibleInstruments.length === 0 ? (
+            {data.length === 0 ? (
               <TableRow>
                 <TableCell className='text-muted-foreground' colSpan={7}>
                   No instruments match this view.
@@ -363,6 +482,186 @@ export function CategoriesManager() {
           </TableBody>
         </Table>
       </div>
+    </>
+  );
+}
+
+function PortfolioAllocationView({
+  viewModel,
+}: {
+  viewModel: ReturnType<typeof buildCategoryAllocationViewModel>;
+}) {
+  if (!viewModel.hasPositionSnapshots) {
+    return <p className='text-sm text-muted-foreground'>Sync portfolio state to see allocation.</p>;
+  }
+
+  if (!viewModel.hasCurrentHoldings) {
+    return <p className='text-sm text-muted-foreground'>No current holdings to chart.</p>;
+  }
+
+  return (
+    <div className='flex flex-col gap-8'>
+      <div className='space-y-1'>
+        <p className='text-sm text-muted-foreground'>Current holdings only</p>
+        <p className='font-mono text-2xl'>
+          {formatMoney(viewModel.totalCurrentValue)}
+        </p>
+      </div>
+
+      <div className='grid gap-8 xl:grid-cols-2'>
+        <section className='flex min-h-96 flex-col gap-3'>
+          <div>
+            <h2 className='font-mono text-lg'>Allocation by category</h2>
+            <p className='text-sm text-muted-foreground'>
+              Current value share.
+            </p>
+          </div>
+          <ResponsiveContainer height={320} width='100%'>
+            <PieChart>
+              <Pie
+                data={viewModel.rows}
+                dataKey='currentValue'
+                innerRadius={58}
+                nameKey='category'
+                outerRadius={110}
+                paddingAngle={2}
+              >
+                {viewModel.rows.map((row, index) => (
+                  <Cell
+                    fill={CHART_COLORS[index % CHART_COLORS.length]}
+                    key={row.category}
+                  />
+                ))}
+              </Pie>
+              <Tooltip content={<AllocationTooltip />} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </section>
+
+        <section className='flex min-h-96 flex-col gap-3'>
+          <div>
+            <h2 className='font-mono text-lg'>Unrealized return by category</h2>
+            <p className='text-sm text-muted-foreground'>
+              Positive and negative returns stay visible.
+            </p>
+          </div>
+          <ResponsiveContainer height={320} width='100%'>
+            <BarChart
+              data={viewModel.rows}
+              layout='vertical'
+              margin={{ bottom: 8, left: 24, right: 24, top: 8 }}
+            >
+              <CartesianGrid horizontal={false} strokeDasharray='3 3' />
+              <XAxis
+                tickFormatter={(value) => formatPercent(Number(value))}
+                type='number'
+              />
+              <YAxis dataKey='category' type='category' width={110} />
+              <Tooltip content={<ReturnTooltip />} />
+              <Bar dataKey={(row: CategoryAllocationRow) => row.returnPercent ?? 0}>
+                {viewModel.rows.map((row) => (
+                  <Cell
+                    fill={(row.returnPercent ?? 0) < 0 ? '#dc2626' : '#16a34a'}
+                    key={row.category}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </section>
+      </div>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Category</TableHead>
+            <TableHead>Holdings</TableHead>
+            <TableHead>Value</TableHead>
+            <TableHead>Allocation</TableHead>
+            <TableHead>Unrealized P/L</TableHead>
+            <TableHead>Return</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {viewModel.rows.map((row) => (
+            <TableRow key={row.category}>
+              <TableCell>{row.category}</TableCell>
+              <TableCell>{row.holdingCount}</TableCell>
+              <TableCell>{formatMoney(row.currentValue)}</TableCell>
+              <TableCell>{formatPercent(row.allocationPercent)}</TableCell>
+              <TableCell className={row.unrealizedPnl < 0 ? 'text-red-600' : 'text-green-700'}>
+                {formatMoney(row.unrealizedPnl)}
+              </TableCell>
+              <TableCell
+                className={
+                  row.returnPercent !== null && row.returnPercent < 0
+                    ? 'text-red-600'
+                    : 'text-green-700'
+                }
+              >
+                {row.returnPercent === null
+                  ? 'n/a'
+                  : formatPercent(row.returnPercent)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
+
+function AllocationTooltip({ active, payload }: TooltipProps) {
+  if (!active || !payload?.[0]) {
+    return null;
+  }
+
+  const row = payload[0].payload as CategoryAllocationRow;
+
+  return (
+    <div className='border border-border bg-background p-2 text-xs shadow-sm'>
+      <p className='font-medium'>{row.category}</p>
+      <p>Value: {formatMoney(row.currentValue)}</p>
+      <p>Share: {formatPercent(row.allocationPercent)}</p>
+      <p>Holdings: {row.holdingCount}</p>
+    </div>
+  );
+}
+
+function ReturnTooltip({ active, payload }: TooltipProps) {
+  if (!active || !payload?.[0]) {
+    return null;
+  }
+
+  const row = payload[0].payload as CategoryAllocationRow;
+
+  return (
+    <div className='border border-border bg-background p-2 text-xs shadow-sm'>
+      <p className='font-medium'>{row.category}</p>
+      <p>
+        Return:{' '}
+        {row.returnPercent === null ? 'n/a' : formatPercent(row.returnPercent)}
+      </p>
+      <p>Unrealized P/L: {formatMoney(row.unrealizedPnl)}</p>
+    </div>
+  );
+}
+
+type TooltipProps = {
+  active?: boolean;
+  payload?: Array<{ payload: unknown }>;
+};
+
+const formatMoney = (value: number) =>
+  new Intl.NumberFormat('en-GB', {
+    currency: 'GBP',
+    maximumFractionDigits: 2,
+    style: 'currency',
+  }).format(value);
+
+const formatPercent = (value: number) =>
+  new Intl.NumberFormat('en-GB', {
+    maximumFractionDigits: 1,
+    style: 'percent',
+  }).format(value);
