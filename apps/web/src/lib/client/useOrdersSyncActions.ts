@@ -9,7 +9,6 @@ import {
   type OrdersSyncActionKind,
   type OrdersSyncActionResult,
 } from '@/actions/sync-action-types';
-import { syncPortfolioStateAction } from '@/actions/portfolio-state-action';
 
 import { ordersExplorerQueryKey } from './useOrdersExplorerQuery';
 
@@ -18,11 +17,7 @@ const runOrdersSyncAction = (kind: OrdersSyncActionKind) => {
     return syncOrdersAction();
   }
 
-  if (kind === 'instruments') {
-    return syncInstrumentsAction();
-  }
-
-  return syncPortfolioStateAction();
+  return syncInstrumentsAction();
 };
 
 const getOrdersSyncMutationOptions = ({

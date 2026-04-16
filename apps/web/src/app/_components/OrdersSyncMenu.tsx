@@ -14,7 +14,6 @@ const syncActions: Array<{
   label: string;
 }> = [
   { kind: 'orders', label: 'Sync orders' },
-  { kind: 'portfolio-state', label: 'Sync portfolio state' },
   { kind: 'instruments', label: 'Sync instruments' },
 ];
 

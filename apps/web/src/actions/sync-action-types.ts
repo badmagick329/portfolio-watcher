@@ -1,10 +1,9 @@
-export type OrdersSyncActionKind =
-  | 'orders'
-  | 'portfolio-state'
-  | 'instruments';
+export type OrdersSyncActionKind = 'orders' | 'instruments';
+
+export type PortfolioStateSyncActionKind = 'portfolio-state';
 
 export type OrdersSyncActionResult = {
   ok: boolean;
-  kind: OrdersSyncActionKind;
+  kind: OrdersSyncActionKind | PortfolioStateSyncActionKind;
   message: string;
 };

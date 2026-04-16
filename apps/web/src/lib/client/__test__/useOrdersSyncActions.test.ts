@@ -1,16 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const syncOrdersActionMock = vi.fn();
-const syncPortfolioStateActionMock = vi.fn();
 const syncInstrumentsActionMock = vi.fn();
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/actions/sync-orders-action', () => ({
   syncOrdersAction: syncOrdersActionMock,
-}));
-
-vi.mock('@/actions/portfolio-state-action', () => ({
-  syncPortfolioStateAction: syncPortfolioStateActionMock,
 }));
 
 vi.mock('@/actions/sync-instruments-action', () => ({
@@ -20,7 +15,6 @@ vi.mock('@/actions/sync-instruments-action', () => ({
 describe('getOrdersSyncMutationOptions', () => {
   beforeEach(() => {
     syncOrdersActionMock.mockReset();
-    syncPortfolioStateActionMock.mockReset();
     syncInstrumentsActionMock.mockReset();
   });
 
