@@ -3,8 +3,8 @@
 import type {
   AccountSummarySnapshot,
   InstrumentWithStoredPrice,
-} from '@/lib/client/instrument-price';
-import type { OrdersExplorerData } from '@/lib/client/orders-explorer-data';
+} from '@/lib/client/portfolio/instrument-price';
+import type { OrdersExplorerData } from '@/lib/client/orders/orders-explorer-data';
 import {
   getDistinctInstruments,
   getHistoricalOrdersForWeb,

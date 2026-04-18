@@ -6,7 +6,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { useOrdersSyncActions } from '@/lib/client/useOrdersSyncActions';
+import { useOrdersSyncActions } from '@/lib/client/orders/useOrdersSyncActions';
 import type { OrdersSyncActionKind } from '@/actions/sync-action-types';
 
 const syncActions: Array<{

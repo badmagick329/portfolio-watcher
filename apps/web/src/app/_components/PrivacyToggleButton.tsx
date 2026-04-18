@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import {
   getHideValuesFromSearchParams,
   getSearchParamsWithHideValues,
-} from '@/lib/client/privacy-values';
+} from '@/lib/client/presentation/privacy-values';
 
 function PrivacyToggleButton() {
   const pathname = usePathname();

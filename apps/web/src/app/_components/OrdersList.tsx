@@ -19,11 +19,11 @@ import {
 import type {
   AccountSummarySnapshot,
   InstrumentWithStoredPrice,
-} from '@/lib/client/instrument-price';
-import { buildOrdersListRows } from '@/lib/client/orders-list-rows';
-import { getOrdersTablePaginationState } from '@/lib/client/orders-table-pagination';
-import { getCurrentTimeZoneAbbreviation } from '@/lib/client/orders-summary-presentation';
-import { useOrdersSummaryController } from '@/lib/client/useOrdersSummaryController';
+} from '@/lib/client/portfolio/instrument-price';
+import { buildOrdersListRows } from '@/lib/client/orders/orders-list-rows';
+import { getOrdersTablePaginationState } from '@/lib/client/orders/orders-table-pagination';
+import { getCurrentTimeZoneAbbreviation } from '@/lib/client/orders/orders-summary-presentation';
+import { useOrdersSummaryController } from '@/lib/client/orders/useOrdersSummaryController';
 import type { WebHistoricalOrder } from '@portfolio/domain';
 import { OrdersSummary } from './OrdersSummary';
 

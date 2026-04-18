@@ -1,10 +1,10 @@
 'use client';
 
-import { InstrumentPicker } from '@/app/_components/InstrumentPicker';
+import { OrdersFilterPanel } from '@/app/_components/OrdersFilterPanel';
 import { OrdersSyncMenu } from '@/app/_components/OrdersSyncMenu';
 import { PrivacyToggleButton } from '@/app/_components/PrivacyToggleButton';
-import { useOrdersExplorerQuery } from '@/lib/client/useOrdersExplorerQuery';
-import { usePortfolioStateSync } from '@/lib/client/usePortfolioStateSync';
+import { useOrdersExplorerQuery } from '@/lib/client/orders/useOrdersExplorerQuery';
+import { usePortfolioStateSync } from '@/lib/client/portfolio/usePortfolioStateSync';
 
 export default function OrdersExplorer() {
   const { data, error, isLoading } = useOrdersExplorerQuery();
@@ -36,7 +36,7 @@ export default function OrdersExplorer() {
         </div>
       </div>
 
-      <InstrumentPicker
+      <OrdersFilterPanel
         instruments={data.instruments}
         latestAccountSummarySnapshot={data.latestAccountSummarySnapshot}
         orders={data.orders}

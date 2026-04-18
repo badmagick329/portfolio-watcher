@@ -28,18 +28,20 @@ import {
   formatPrivateQuantity,
   formatSignedCurrencyAmount,
   formatUnsignedCurrencyAmount,
-} from '@/lib/client/orders-list-format';
+} from '@/lib/client/orders/orders-list-format';
 import {
   formatPriceAsOf,
   getCurrentPriceSourceLabel,
+} from '@/lib/client/orders/orders-summary-presentation';
+import {
   METRIC_HELP_TEXT,
   MetricLabelWithTooltip,
-} from '@/lib/client/orders-summary-presentation';
-import { getSignedToneTextClassName } from '@/lib/client/presentation-tone';
+} from './OrdersSummaryMetricLabel';
+import { getSignedToneTextClassName } from '@/lib/client/presentation/presentation-tone';
 import type {
   OrdersSummaryActions,
   OrdersSummaryViewModel,
-} from '@/lib/client/orders-summary-view-model';
+} from '@/lib/client/orders/orders-summary-view-model';
 import { cn } from '@/lib/utils';
 
 type OrdersSummaryProps = {

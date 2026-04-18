@@ -5,13 +5,13 @@ import {
   formatMoney,
   formatPercent,
   NA_LABEL,
-} from '@/lib/client/format-values';
-import type { CategoryAllocationViewModel } from '@/lib/client/instrument-category-allocation';
+} from '@/lib/client/presentation/format-values';
+import type { CategoryAllocationViewModel } from '@/lib/client/categories/instrument-category-allocation';
 import {
   getSignedTone,
   getToneTextClassName,
-} from '@/lib/client/presentation-tone';
-import type { PresentationTone } from '@/lib/client/presentation-tone';
+} from '@/lib/client/presentation/presentation-tone';
+import type { PresentationTone } from '@/lib/client/presentation/presentation-tone';
 import { cn } from '@/lib/utils';
 
 type CategoryAllocationSummaryProps = {

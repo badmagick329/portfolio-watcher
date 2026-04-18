@@ -1,8 +1,8 @@
 'use client';
 
 import { TableCell } from '@/components/ui/table';
-import { NA_LABEL } from '@/lib/client/format-values';
-import { getSignedToneTextClassName } from '@/lib/client/presentation-tone';
+import { NA_LABEL } from '@/lib/client/presentation/format-values';
+import { getSignedToneTextClassName } from '@/lib/client/presentation/presentation-tone';
 
 type SignedTableCellProps = {
   fallback?: string;

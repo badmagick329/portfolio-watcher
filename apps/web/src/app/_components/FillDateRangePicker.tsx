@@ -10,7 +10,7 @@ import {
   formatQueryDate,
   parseQueryDate,
   type OrdersViewUrlState,
-} from '@/lib/client/orders-view-url-state';
+} from '@/lib/client/orders/orders-view-url-state';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 

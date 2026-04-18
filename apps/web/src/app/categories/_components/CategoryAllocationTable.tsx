@@ -8,14 +8,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { formatCategoryName } from '@/lib/client/display-category';
+import { formatCategoryName } from '@/lib/client/categories/display-category';
 import {
   formatBeta,
   formatMoney,
   formatPercent,
   NA_LABEL,
-} from '@/lib/client/format-values';
-import type { CategoryAllocationRow } from '@/lib/client/instrument-category-allocation';
+} from '@/lib/client/presentation/format-values';
+import type { CategoryAllocationRow } from '@/lib/client/categories/instrument-category-allocation';
 import { SignedTableCell } from './SignedTableCell';
 
 type CategoryAllocationTableProps = {
