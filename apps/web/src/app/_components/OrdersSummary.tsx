@@ -35,6 +35,7 @@ import {
   METRIC_HELP_TEXT,
   MetricLabelWithTooltip,
 } from '@/lib/client/orders-summary-presentation';
+import { getSignedToneTextClassName } from '@/lib/client/presentation-tone';
 import type {
   OrdersSummaryActions,
   OrdersSummaryViewModel,
@@ -70,36 +71,18 @@ function OrdersSummary({
         { hideValues },
       )
     : 'n/a (mixed currencies)';
-  const lifetimePnLClassName =
-    viewModel.totals.lifetimePnL > 0
-      ? 'text-green-600 dark:text-green-400'
-      : viewModel.totals.lifetimePnL < 0
-        ? 'text-red-600 dark:text-red-400'
-        : '';
-  const realizedPnLClassName =
-    viewModel.positionMetrics.realizedPnL !== null &&
-    viewModel.positionMetrics.realizedPnL > 0
-      ? 'text-green-600 dark:text-green-400'
-      : viewModel.positionMetrics.realizedPnL !== null &&
-          viewModel.positionMetrics.realizedPnL < 0
-        ? 'text-red-600 dark:text-red-400'
-        : '';
-  const unrealizedPnLClassName =
-    viewModel.positionMetrics.unrealizedPnL !== null &&
-    viewModel.positionMetrics.unrealizedPnL > 0
-      ? 'text-green-600 dark:text-green-400'
-      : viewModel.positionMetrics.unrealizedPnL !== null &&
-          viewModel.positionMetrics.unrealizedPnL < 0
-        ? 'text-red-600 dark:text-red-400'
-        : '';
-  const unrealizedPnLPercentClassName =
-    viewModel.positionMetrics.unrealizedPnLPercent !== null &&
-    viewModel.positionMetrics.unrealizedPnLPercent > 0
-      ? 'text-green-600 dark:text-green-400'
-      : viewModel.positionMetrics.unrealizedPnLPercent !== null &&
-          viewModel.positionMetrics.unrealizedPnLPercent < 0
-        ? 'text-red-600 dark:text-red-400'
-        : '';
+  const lifetimePnLClassName = getSignedToneTextClassName(
+    viewModel.totals.lifetimePnL,
+  );
+  const realizedPnLClassName = getSignedToneTextClassName(
+    viewModel.positionMetrics.realizedPnL,
+  );
+  const unrealizedPnLClassName = getSignedToneTextClassName(
+    viewModel.positionMetrics.unrealizedPnL,
+  );
+  const unrealizedPnLPercentClassName = getSignedToneTextClassName(
+    viewModel.positionMetrics.unrealizedPnLPercent,
+  );
 
   return (
     <Card className='w-full min-[1300px]:max-w-none'>
