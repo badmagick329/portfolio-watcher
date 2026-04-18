@@ -17,7 +17,6 @@ import type { Dispatch, SetStateAction } from 'react';
 type CategoriesManageViewProps = {
   allSelected: boolean;
   bulkCategory: string;
-  canMutate: boolean;
   data: CategorizedInstrument[];
   draftCategories: Record<string, string>;
   isMutating: boolean;
@@ -40,7 +39,6 @@ type CategoriesManageViewProps = {
 function CategoriesManageView({
   allSelected,
   bulkCategory,
-  canMutate,
   data,
   draftCategories,
   isMutating,
@@ -142,7 +140,8 @@ function CategoriesManageView({
           </TableHeader>
           <TableBody>
             {data.map((instrument) => {
-              const draftCategory = draftCategories[instrument.isin] ?? '';
+              const draftCategory =
+                draftCategories[instrument.isin] ?? instrument.category ?? '';
               const currentCategory = instrument.category ?? '';
               const normalizedDraft = draftCategory.trim().toLowerCase();
               const normalizedCurrent = currentCategory.trim().toLowerCase();

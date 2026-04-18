@@ -593,10 +593,6 @@ function buildMultiOrdersSummaryFromCurrentPositions({
     (sum, snapshot) => sum + snapshot.currentValue,
     0,
   );
-  const costBasis = activePositionSnapshots.reduce(
-    (sum, snapshot) => sum + snapshot.totalCost,
-    0,
-  );
   const unrealizedPnL = activePositionSnapshots.reduce(
     (sum, snapshot) => sum + snapshot.unrealizedProfitLoss,
     0,

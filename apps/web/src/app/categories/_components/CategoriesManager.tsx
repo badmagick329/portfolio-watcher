@@ -2,6 +2,9 @@
 
 import { PrivacyToggleButton } from '@/app/_components/PrivacyToggleButton';
 import { Button } from '@/components/ui/button';
+import type { CategorizedInstrument } from '@portfolio/domain';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import {
   getCategoriesViewUrlState,
   getSearchParamsWithUpdatedCategoriesViewUrlState,
@@ -10,9 +13,6 @@ import type { CategoriesViewUrlState } from '@/lib/client/categories-view-url-st
 import { buildCategoryAllocationViewModel } from '@/lib/client/instrument-category-allocation';
 import { useInstrumentCategoriesQuery } from '@/lib/client/useInstrumentCategoriesQuery';
 import { useInstrumentCategoryMutations } from '@/lib/client/useInstrumentCategoryMutations';
-import type { CategorizedInstrument } from '@portfolio/domain';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
 import { CategoriesManageView } from './CategoriesManageView';
 import { PortfolioAllocationView } from './PortfolioAllocationView';
 
@@ -31,10 +31,13 @@ export function CategoriesManager() {
   const [showUncategorizedOnly, setShowUncategorizedOnly] = useState(false);
   const urlState = getCategoriesViewUrlState(searchParams);
   const hideValues = urlState.hideValues;
-  const fillDateRangeFilter = {
-    filledFrom: urlState.filledFrom,
-    filledTo: urlState.filledTo,
-  };
+  const fillDateRangeFilter = useMemo(
+    () => ({
+      filledFrom: urlState.filledFrom,
+      filledTo: urlState.filledTo,
+    }),
+    [urlState.filledFrom, urlState.filledTo],
+  );
   const isMutating = setCategories.isPending || unsetCategories.isPending;
   const selectedCount = selectedIsins.size;
   const replaceUrlState = (partialState: Partial<CategoriesViewUrlState>) => {
@@ -48,23 +51,6 @@ export function CategoriesManager() {
       scroll: false,
     });
   };
-
-  useEffect(() => {
-    if (!data) {
-      return;
-    }
-
-    setDraftCategories((current) => {
-      const next: Record<string, string> = {};
-
-      data.instruments.forEach((instrument) => {
-        next[instrument.isin] =
-          current[instrument.isin] ?? instrument.category ?? '';
-      });
-
-      return next;
-    });
-  }, [data]);
 
   const selectedIsinsList = useMemo(
     () => Array.from(selectedIsins),
@@ -248,7 +234,6 @@ export function CategoriesManager() {
         <CategoriesManageView
           allSelected={allSelected}
           bulkCategory={bulkCategory}
-          canMutate={!isMutating}
           data={visibleInstruments}
           draftCategories={draftCategories}
           isMutating={isMutating}

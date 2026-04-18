@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { FillDateRangePicker } from '@/app/_components/FillDateRangePicker';
 import { OrdersList } from '@/app/_components/OrdersList';
@@ -61,6 +61,7 @@ export function InstrumentPicker({
     Boolean(fillDateRangeFilter.filledFrom) || Boolean(fillDateRangeFilter.filledTo);
   const isAllMode = selection.mode === 'all';
   const isSingleMode = selection.mode === 'single';
+  const comboboxOpen = !isAllMode && isComboboxOpen;
   const selectedInstruments = instruments.filter((instrument) =>
     selection.selectedIsins.includes(instrument.isin),
   );
@@ -108,12 +109,6 @@ export function InstrumentPicker({
     });
   };
 
-  useEffect(() => {
-    if (isAllMode) {
-      setIsComboboxOpen(false);
-    }
-  }, [isAllMode]);
-
   return (
     <div className='flex w-full flex-col space-y-3'>
       <div className='flex gap-2'>
@@ -121,7 +116,10 @@ export function InstrumentPicker({
           type='button'
           size='sm'
           variant={selection.mode === 'all' ? 'default' : 'outline'}
-          onClick={() => replaceUrlState({ mode: 'all' }, { resetPage: true })}
+          onClick={() => {
+            setIsComboboxOpen(false);
+            replaceUrlState({ mode: 'all' }, { resetPage: true });
+          }}
         >
           All
         </Button>
@@ -165,11 +163,11 @@ export function InstrumentPicker({
       />
 
       <Combobox
-        open={isComboboxOpen}
+        open={comboboxOpen}
         multiple
         items={instruments}
         value={selectedInstruments}
-        onOpenChange={setIsComboboxOpen}
+        onOpenChange={(open) => setIsComboboxOpen(open && !isAllMode)}
         onValueChange={(value) => {
           const selectedIsins = isSingleMode
             ? value.length > 0
