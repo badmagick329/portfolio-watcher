@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const listCategorizedInstrumentsMock = vi.fn();
 const getHistoricalOrdersForWebMock = vi.fn();
 const getLatestCurrentPositionSnapshotMock = vi.fn();
+const getLatestInstrumentRiskMetricMock = vi.fn();
 const setInstrumentCategoriesMock = vi.fn();
 const unsetInstrumentCategoriesMock = vi.fn();
 
 vi.mock('@/lib/server/composition', () => ({
   getHistoricalOrdersForWeb: getHistoricalOrdersForWebMock,
   getLatestCurrentPositionSnapshot: getLatestCurrentPositionSnapshotMock,
+  getLatestInstrumentRiskMetric: getLatestInstrumentRiskMetricMock,
   listCategorizedInstruments: listCategorizedInstrumentsMock,
   setInstrumentCategories: setInstrumentCategoriesMock,
   unsetInstrumentCategories: unsetInstrumentCategoriesMock,
@@ -18,6 +20,7 @@ describe('instrument category actions', () => {
   beforeEach(() => {
     getHistoricalOrdersForWebMock.mockReset();
     getLatestCurrentPositionSnapshotMock.mockReset();
+    getLatestInstrumentRiskMetricMock.mockReset();
     listCategorizedInstrumentsMock.mockReset();
     setInstrumentCategoriesMock.mockReset();
     unsetInstrumentCategoriesMock.mockReset();
@@ -87,6 +90,23 @@ describe('instrument category actions', () => {
             : undefined,
       }),
     );
+    getLatestInstrumentRiskMetricMock.mockImplementation((isin) =>
+      Promise.resolve({
+        isErr: () => false,
+        value:
+          isin === 'US0378331005'
+            ? {
+                isin,
+                provider: 'fmp',
+                providerSymbol: 'AAPL',
+                beta: 1.2,
+                sourceType: 'profile',
+                asOf: '2026-04-17T10:00:00.000Z',
+                fetchedAt: '2026-04-17T10:00:00.000Z',
+              }
+            : undefined,
+      }),
+    );
 
     const { getInstrumentCategoriesAction } = await import(
       '@/actions/instrument-categories-action'
@@ -128,12 +148,22 @@ describe('instrument category actions', () => {
             totalCost: 150,
             unrealizedProfitLoss: 50,
           },
+          riskMetric: {
+            isin: 'US0378331005',
+            provider: 'fmp',
+            providerSymbol: 'AAPL',
+            beta: 1.2,
+            sourceType: 'profile',
+            asOf: '2026-04-17T10:00:00.000Z',
+            fetchedAt: '2026-04-17T10:00:00.000Z',
+          },
         },
         {
           ...rows[1],
           currentQuantity: 0,
           currentlyHeld: false,
           currentPositionSnapshot: null,
+          riskMetric: null,
         },
       ],
     });
@@ -149,6 +179,10 @@ describe('instrument category actions', () => {
       value: { items: [] },
     });
     getLatestCurrentPositionSnapshotMock.mockResolvedValue({
+      isErr: () => false,
+      value: undefined,
+    });
+    getLatestInstrumentRiskMetricMock.mockResolvedValue({
       isErr: () => false,
       value: undefined,
     });

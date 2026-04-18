@@ -51,6 +51,52 @@ type CategorizedInstrument = InstrumentCategoryInstrument & {
   category: string | null;
 };
 
+type InstrumentRiskProvider = 'fmp';
+
+type InstrumentProviderSymbol = {
+  isin: string;
+  provider: InstrumentRiskProvider;
+  providerSymbol: string;
+  updatedAt: string;
+};
+
+type InstrumentRiskMetricSnapshot = {
+  isin: string;
+  provider: InstrumentRiskProvider;
+  providerSymbol: string;
+  beta: number;
+  sourceType: 'profile';
+  asOf: string;
+  fetchedAt: string;
+};
+
+type InstrumentRiskMetricSyncStatus = {
+  isin: string;
+  provider: InstrumentRiskProvider;
+  providerSymbol: string;
+  status: 'missing_beta';
+  checkedAt: string;
+  message: string | null;
+};
+
+type InstrumentRiskProfile = {
+  symbol: string;
+  companyName: string | null;
+  isin: string | null;
+  beta: number | null;
+};
+
+type SyncInstrumentRiskMetricsResult = {
+  attempted: number;
+  persisted: number;
+  missingMapping: number;
+  missingBeta: number;
+  failed: number;
+  skippedFresh: number;
+  skippedMissing: number;
+  rateLimited: boolean;
+};
+
 type InstrumentCategoryFilter = {
   includeCategories?: string[];
   excludeCategories?: string[];
@@ -342,6 +388,12 @@ export type {
   WebHistoricalOrderInstrument,
   InstrumentCategoryInstrument,
   CategorizedInstrument,
+  InstrumentProviderSymbol,
+  InstrumentRiskMetricSnapshot,
+  InstrumentRiskMetricSyncStatus,
+  InstrumentRiskProfile,
+  InstrumentRiskProvider,
+  SyncInstrumentRiskMetricsResult,
   InstrumentCategoryFilter,
   SetInstrumentCategoryInput,
   UnsetInstrumentCategoryInput,

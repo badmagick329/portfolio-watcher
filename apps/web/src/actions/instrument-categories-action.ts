@@ -3,6 +3,7 @@
 import {
   getHistoricalOrdersForWeb,
   getLatestCurrentPositionSnapshot,
+  getLatestInstrumentRiskMetric,
   listCategorizedInstruments,
   setInstrumentCategories,
   unsetInstrumentCategories,
@@ -29,18 +30,28 @@ export async function getInstrumentCategoriesAction() {
     categoriesResult.value.map(async (instrument) => {
       const currentQuantity = quantitiesByIsin.get(instrument.isin) ?? 0;
       const snapshotResult = await getLatestCurrentPositionSnapshot(instrument.isin);
+      const riskMetricResult = await getLatestInstrumentRiskMetric(
+        instrument.isin,
+        'fmp',
+      );
 
       if (snapshotResult.isErr()) {
         throw new Error(snapshotResult.error.message);
       }
 
+      if (riskMetricResult.isErr()) {
+        throw new Error(riskMetricResult.error.message);
+      }
+
       const currentPositionSnapshot = snapshotResult.value ?? null;
+      const riskMetric = riskMetricResult.value ?? null;
 
       return {
         ...instrument,
         currentQuantity,
         currentlyHeld: currentQuantity > 0,
         currentPositionSnapshot,
+        riskMetric,
       };
     }),
   );

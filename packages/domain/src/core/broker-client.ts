@@ -3,6 +3,11 @@ import type {
   AppError,
   HistoricalOrdersParams,
   CategorizedInstrument,
+  InstrumentProviderSymbol,
+  InstrumentRiskMetricSnapshot,
+  InstrumentRiskMetricSyncStatus,
+  InstrumentRiskProfile,
+  InstrumentRiskProvider,
   InstrumentCategoryFilter,
   InstrumentCategoryInstrument,
   InstrumentPriceSnapshot,
@@ -46,6 +51,12 @@ interface BrokerClient {
     input: T212LimitOrderRequest,
   ) => ResultAsync<LimitOrderResponse, AppError>;
   fetchPositions: () => ResultAsync<Positions, AppError>;
+}
+
+interface InstrumentRiskClient {
+  fetchInstrumentRiskProfile: (
+    symbol: string,
+  ) => ResultAsync<InstrumentRiskProfile, AppError>;
 }
 
 interface ClientCache {
@@ -105,6 +116,36 @@ interface BrokerDataManager {
   listCategorizedInstruments(
     filters?: InstrumentCategoryFilter,
   ): ResultAsync<CategorizedInstrument[], AppError>;
+  setInstrumentProviderSymbol(
+    params: Pick<InstrumentProviderSymbol, 'isin' | 'provider' | 'providerSymbol'>,
+  ): ResultAsync<void, AppError>;
+  unsetInstrumentProviderSymbol(
+    isin: string,
+    provider: InstrumentRiskProvider,
+  ): ResultAsync<void, AppError>;
+  listInstrumentProviderSymbols(
+    provider?: InstrumentRiskProvider,
+  ): ResultAsync<InstrumentProviderSymbol[], AppError>;
+  getInstrumentProviderSymbol(
+    isin: string,
+    provider: InstrumentRiskProvider,
+  ): ResultAsync<InstrumentProviderSymbol | undefined, AppError>;
+  saveInstrumentRiskMetricSnapshot(
+    snapshot: InstrumentRiskMetricSnapshot,
+  ): ResultAsync<void, AppError>;
+  getLatestInstrumentRiskMetricByIsin(
+    isin: string,
+    provider: InstrumentRiskProvider,
+  ): ResultAsync<InstrumentRiskMetricSnapshot | undefined, AppError>;
+  saveInstrumentRiskMetricSyncStatus(
+    status: InstrumentRiskMetricSyncStatus,
+  ): ResultAsync<void, AppError>;
+  getInstrumentRiskMetricSyncStatus(
+    input: Pick<
+      InstrumentRiskMetricSyncStatus,
+      'isin' | 'provider' | 'providerSymbol'
+    >,
+  ): ResultAsync<InstrumentRiskMetricSyncStatus | undefined, AppError>;
 }
 
 type BrokerClientWithCache = BrokerClient & ClientCache;
@@ -114,4 +155,5 @@ export type {
   BrokerClientWithCache,
   BrokerDataManager,
   HistoricalOrdersInput,
+  InstrumentRiskClient,
 };

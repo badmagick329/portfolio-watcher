@@ -5,6 +5,8 @@ export { createGetLatestAccountSummarySnapshot } from '../get-latest-account-sum
 export { createGetLatestCurrentPositionSnapshot } from '../get-latest-current-position-snapshot';
 export { createGetHistoricalOrdersForWeb } from '../get-historical-orders-for-web';
 export { createGetLatestInstrumentPrice } from '../get-latest-instrument-price';
+export { createGetLatestInstrumentRiskMetric } from '../get-latest-instrument-risk-metric';
+export { createListInstrumentProviderSymbols } from '../list-instrument-provider-symbols';
 export { createListCategorizedInstruments } from '../list-categorized-instruments';
 export { createPlaceLiveLimitOrder } from '../place-live-limit-order';
 export { createPlaceLiveMarketOrder } from '../place-live-market-order';
@@ -12,8 +14,11 @@ export { createResolveInstrumentForOrder } from '../resolve-instrument-for-order
 export { createSaveManualInstrumentPrice } from '../save-manual-instrument-price';
 export { createSetInstrumentCategory } from '../set-instrument-category';
 export { createSetInstrumentCategories } from '../set-instrument-categories';
+export { createSetInstrumentProviderSymbol } from '../set-instrument-provider-symbol';
 export { createSyncCurrentPositionPricesFromT212 } from '../sync-current-position-prices-from-t212';
 export { createSyncT212InstrumentCatalog } from '../sync-t212-instrument-catalog';
 export { createSyncHistoricalOrders } from '../sync-historical-orders';
+export { createSyncInstrumentRiskMetrics } from '../sync-instrument-risk-metrics';
 export { createUnsetInstrumentCategory } from '../unset-instrument-category';
 export { createUnsetInstrumentCategories } from '../unset-instrument-categories';
+export { createUnsetInstrumentProviderSymbol } from '../unset-instrument-provider-symbol';

@@ -9,6 +9,7 @@ import {
   createGetLatestCurrentPositionSnapshot,
   createGetHistoricalOrdersForWeb,
   createGetLatestInstrumentPrice,
+  createGetLatestInstrumentRiskMetric,
   createListCategorizedInstruments,
   createSaveManualInstrumentPrice,
   createSetInstrumentCategories,
@@ -31,6 +32,8 @@ export const createWebServices = () => {
     getLatestCurrentPositionSnapshot:
       createGetLatestCurrentPositionSnapshot(dataManager),
     getLatestInstrumentPrice: createGetLatestInstrumentPrice(dataManager),
+    getLatestInstrumentRiskMetric:
+      createGetLatestInstrumentRiskMetric(dataManager),
     listCategorizedInstruments: createListCategorizedInstruments(dataManager),
     saveManualInstrumentPrice: createSaveManualInstrumentPrice({ dataManager }),
     setInstrumentCategories: createSetInstrumentCategories(dataManager),

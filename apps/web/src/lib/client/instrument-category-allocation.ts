@@ -1,6 +1,7 @@
 import type {
   CategorizedInstrument,
   CurrentPositionSnapshot,
+  InstrumentRiskMetricSnapshot,
   WebHistoricalOrder,
 } from '@portfolio/domain';
 import {
@@ -11,6 +12,7 @@ import {
 
 type CategorizedInstrumentWithPosition = CategorizedInstrument & {
   currentPositionSnapshot: CurrentPositionSnapshot | null;
+  riskMetric?: InstrumentRiskMetricSnapshot | null;
 };
 
 type CategoryAllocationRow = {
@@ -21,6 +23,8 @@ type CategoryAllocationRow = {
   unrealizedPnl: number | null;
   allocationPercent: number;
   returnPercent: number | null;
+  beta: number | null;
+  betaCoveragePercent: number | null;
   buyCost?: number;
   sellProceeds?: number;
   netInvested?: number;
@@ -32,6 +36,8 @@ type CategoryAllocationViewModel = {
   totalCost: number;
   totalPnl: number | null;
   totalReturnPercent: number | null;
+  portfolioBeta: number | null;
+  betaCoveragePercent: number | null;
   hasCurrentHoldings: boolean;
   hasPositionSnapshots: boolean;
   hasFilteredOrders: boolean;
@@ -57,7 +63,14 @@ function buildCategoryAllocationViewModel({
     });
   }
 
-  const groups = new Map<string, CategoryAllocationRow & { unrealizedPnl: number }>();
+  const groups = new Map<
+    string,
+    CategoryAllocationRow & {
+      betaCoveredValue: number;
+      betaWeightedValue: number;
+      unrealizedPnl: number;
+    }
+  >();
 
   instruments.forEach((instrument) => {
     const snapshot = instrument.currentPositionSnapshot;
@@ -80,13 +93,29 @@ function buildCategoryAllocationViewModel({
         totalCost: 0,
         unrealizedPnl: 0,
         allocationPercent: 0,
+        beta: null,
+        betaCoveragePercent: null,
+        betaCoveredValue: 0,
+        betaWeightedValue: 0,
         returnPercent: null,
-      } satisfies CategoryAllocationRow & { unrealizedPnl: number });
+      } satisfies CategoryAllocationRow & {
+        betaCoveredValue: number;
+        betaWeightedValue: number;
+        unrealizedPnl: number;
+      });
 
     existing.holdingCount += 1;
     existing.currentValue += snapshot.currentValue;
     existing.totalCost += snapshot.totalCost;
     existing.unrealizedPnl += snapshot.unrealizedProfitLoss;
+    if (instrument.riskMetric) {
+      existing.betaCoveredValue += snapshot.currentValue;
+      existing.betaWeightedValue += instrument.riskMetric.beta * snapshot.currentValue;
+      existing.beta =
+        existing.betaCoveredValue > 0
+          ? existing.betaWeightedValue / existing.betaCoveredValue
+          : null;
+    }
     groups.set(category, existing);
   });
 
@@ -102,15 +131,26 @@ function buildCategoryAllocationViewModel({
     (sum, row) => sum + row.unrealizedPnl,
     0,
   );
+  const totalBetaValue = Array.from(groups.values()).reduce(
+    (sum, row) => sum + row.betaWeightedValue,
+    0,
+  );
+  const totalBetaCoveredValue = Array.from(groups.values()).reduce(
+    (sum, row) => sum + row.betaCoveredValue,
+    0,
+  );
 
   const rows = Array.from(groups.values())
-    .map((row) => ({
+    .map(({ betaCoveredValue, betaWeightedValue, ...row }) => ({
       ...row,
       currentValue: roundMoney(row.currentValue),
       totalCost: roundMoney(row.totalCost),
       unrealizedPnl: roundMoney(row.unrealizedPnl),
       allocationPercent:
         totalCurrentValue > 0 ? row.currentValue / totalCurrentValue : 0,
+      beta: betaCoveredValue > 0 ? betaWeightedValue / betaCoveredValue : null,
+      betaCoveragePercent:
+        row.currentValue > 0 ? betaCoveredValue / row.currentValue : null,
       returnPercent: row.totalCost > 0 ? row.unrealizedPnl / row.totalCost : null,
     }))
     .sort((left, right) => right.currentValue - left.currentValue);
@@ -121,6 +161,10 @@ function buildCategoryAllocationViewModel({
     totalCost: roundMoney(totalCost),
     totalPnl: roundMoney(totalPnl),
     totalReturnPercent: totalCost > 0 ? totalPnl / totalCost : null,
+    portfolioBeta:
+      totalBetaCoveredValue > 0 ? totalBetaValue / totalBetaCoveredValue : null,
+    betaCoveragePercent:
+      totalCurrentValue > 0 ? totalBetaCoveredValue / totalCurrentValue : null,
     hasCurrentHoldings: rows.length > 0,
     hasPositionSnapshots: instruments.some(
       (instrument) => instrument.currentPositionSnapshot !== null,
@@ -177,6 +221,8 @@ function buildHistoricalCategoryAllocationViewModel({
         totalCost: 0,
         unrealizedPnl: 0,
         allocationPercent: 0,
+        beta: null,
+        betaCoveragePercent: null,
         buyCost: 0,
         netInvested: 0,
         returnPercent: null,
@@ -284,6 +330,8 @@ function buildHistoricalCategoryAllocationViewModel({
     totalPnl: hasPnl ? roundMoney(totalPnl) : null,
     totalReturnPercent:
       totalCost > 0 && hasPnl ? totalPnl / totalCost : null,
+    portfolioBeta: null,
+    betaCoveragePercent: null,
     hasCurrentHoldings: rows.length > 0,
     hasPositionSnapshots: true,
     hasFilteredOrders: filteredOrders.length > 0,

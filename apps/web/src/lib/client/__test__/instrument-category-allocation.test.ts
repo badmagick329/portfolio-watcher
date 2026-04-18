@@ -70,6 +70,8 @@ describe('buildCategoryAllocationViewModel', () => {
         totalCost: 400,
         unrealizedPnl: 0,
         allocationPercent: 0.8,
+        beta: null,
+        betaCoveragePercent: 0,
         returnPercent: 0,
       },
       {
@@ -79,6 +81,8 @@ describe('buildCategoryAllocationViewModel', () => {
         totalCost: 100,
         unrealizedPnl: 0,
         allocationPercent: 0.2,
+        beta: null,
+        betaCoveragePercent: 0,
         returnPercent: 0,
       },
     ]);
@@ -107,6 +111,64 @@ describe('buildCategoryAllocationViewModel', () => {
     });
 
     expect(result.rows[0]?.returnPercent).toBe(-0.2);
+  });
+
+  test('calculates weighted portfolio and category beta coverage', () => {
+    const result = buildCategoryAllocationViewModel({
+      instruments: [
+        instrument({
+          category: 'growth',
+          riskMetric: riskMetric({ beta: 1.2 }),
+        }),
+        instrument({
+          category: 'growth',
+          isin: 'US5949181045',
+          currentPositionSnapshot: {
+            ...instrument({}).currentPositionSnapshot!,
+            isin: 'US5949181045',
+            currentValue: 300,
+          },
+          riskMetric: riskMetric({ beta: 0.8, isin: 'US5949181045' }),
+        }),
+        instrument({
+          category: 'defensive',
+          isin: 'IE00B3XXRP09',
+          currentPositionSnapshot: {
+            ...instrument({}).currentPositionSnapshot!,
+            isin: 'IE00B3XXRP09',
+            currentValue: 100,
+          },
+        }),
+      ],
+    });
+
+    expect(result.portfolioBeta).toBeCloseTo(0.9);
+    expect(result.betaCoveragePercent).toBeCloseTo(0.8);
+    expect(result.rows[0]?.category).toBe('growth');
+    expect(result.rows[0]?.beta).toBeCloseTo(0.9);
+    expect(result.rows[0]?.betaCoveragePercent).toBe(1);
+    expect(result.rows[1]?.category).toBe('defensive');
+    expect(result.rows[1]?.beta).toBeNull();
+    expect(result.rows[1]?.betaCoveragePercent).toBe(0);
+  });
+
+  test('returns null beta when current value is zero', () => {
+    const result = buildCategoryAllocationViewModel({
+      instruments: [
+        instrument({
+          currentPositionSnapshot: {
+            ...instrument({}).currentPositionSnapshot!,
+            currentValue: 0,
+          },
+          riskMetric: riskMetric({ beta: 1.5 }),
+        }),
+      ],
+    });
+
+    expect(result.portfolioBeta).toBeNull();
+    expect(result.betaCoveragePercent).toBeNull();
+    expect(result.rows[0]?.beta).toBeNull();
+    expect(result.rows[0]?.betaCoveragePercent).toBeNull();
   });
 
   test('excludes zero and negative quantity positions', () => {
@@ -332,3 +394,19 @@ const historicalOrder = ({
       },
     ],
   }) satisfies WebHistoricalOrder;
+
+const riskMetric = ({
+  beta,
+  isin = 'US0378331005',
+}: {
+  beta: number;
+  isin?: string;
+}) => ({
+  isin,
+  provider: 'fmp' as const,
+  providerSymbol: 'AAPL',
+  beta,
+  sourceType: 'profile' as const,
+  asOf: '2026-04-16T10:00:00.000Z',
+  fetchedAt: '2026-04-16T10:00:00.000Z',
+});

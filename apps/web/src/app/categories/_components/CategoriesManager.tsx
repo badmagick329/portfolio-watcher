@@ -584,7 +584,7 @@ function PortfolioAllocationView({
         value={fillDateRangeFilter}
       />
 
-      <div className='grid gap-4 sm:grid-cols-3'>
+      <div className='grid gap-4 sm:grid-cols-3 xl:grid-cols-5'>
         <PortfolioSummaryMetric
           label={isHistorical ? 'Net invested' : 'Value'}
           value={formatMoney(viewModel.totalCurrentValue, { hideValues })}
@@ -607,6 +607,26 @@ function PortfolioAllocationView({
               : formatPercent(viewModel.totalReturnPercent)
           }
         />
+        {!isHistorical ? (
+          <>
+            <PortfolioSummaryMetric
+              label='Portfolio beta'
+              value={
+                viewModel.portfolioBeta === null
+                  ? 'n/a'
+                  : formatBeta(viewModel.portfolioBeta)
+              }
+            />
+            <PortfolioSummaryMetric
+              label='Beta coverage'
+              value={
+                viewModel.betaCoveragePercent === null
+                  ? 'n/a'
+                  : formatPercent(viewModel.betaCoveragePercent)
+              }
+            />
+          </>
+        ) : null}
       </div>
 
       <div className='grid gap-8 xl:grid-cols-2'>
@@ -769,6 +789,7 @@ function PortfolioAllocationView({
               <TableHead>Holdings</TableHead>
               <TableHead>Value</TableHead>
               <TableHead>Allocation</TableHead>
+              <TableHead>Beta</TableHead>
               <TableHead>Unrealized P/L</TableHead>
               <TableHead>Return</TableHead>
             </TableRow>
@@ -827,6 +848,9 @@ function PortfolioAllocationView({
                     {formatMoney(row.currentValue, { hideValues })}
                   </TableCell>
                   <TableCell>{formatPercent(row.allocationPercent)}</TableCell>
+                  <TableCell>
+                    {row.beta === null ? 'n/a' : formatBeta(row.beta)}
+                  </TableCell>
                   <TableCell
                     className={
                       row.unrealizedPnl !== null && row.unrealizedPnl < 0
@@ -1084,6 +1108,11 @@ const formatPercent = (value: number) =>
   new Intl.NumberFormat('en-GB', {
     maximumFractionDigits: 1,
     style: 'percent',
+  }).format(value);
+
+const formatBeta = (value: number) =>
+  new Intl.NumberFormat('en-GB', {
+    maximumFractionDigits: 2,
   }).format(value);
 
 const getNumberTone = (value: number | null) =>

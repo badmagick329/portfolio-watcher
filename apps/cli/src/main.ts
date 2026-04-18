@@ -11,6 +11,7 @@ import {
   parsePlaceLimitOrderArgs,
   parsePlaceOrderArgs,
 } from './place-order-cli';
+import { RISK_SYMBOLS_USAGE, parseRiskSymbolsArgs } from './risk-symbols-cli';
 
 const main = async () => {
   const services = createCliServices();
@@ -112,6 +113,62 @@ const main = async () => {
         return;
       }
 
+      if (command === 'sync-risk-metrics') {
+        await ops.syncInstrumentRiskMetrics().match(
+          (summary) => console.log('instrument_risk_metrics', summary),
+          (e: AppError) => console.error(e.message),
+        );
+
+        return;
+      }
+
+      if (command === 'risk-symbols') {
+        const parsed = parseRiskSymbolsArgs(args);
+
+        if (!parsed.ok) {
+          console.error(parsed.error.message);
+          console.log(RISK_SYMBOLS_USAGE);
+          return;
+        }
+
+        if (parsed.value.action === 'set') {
+          await ops.setInstrumentProviderSymbol(parsed.value.value).match(
+            (result) => {
+              console.log(
+                'instrument:',
+                `${result.instrument.name} (${result.instrument.ticker})`,
+              );
+              console.log('provider:', result.provider);
+              console.log('symbol:', result.providerSymbol);
+            },
+            (e: AppError) => console.error(e.message),
+          );
+          return;
+        }
+
+        if (parsed.value.action === 'unset') {
+          await ops.unsetInstrumentProviderSymbol(parsed.value.value).match(
+            (result) => {
+              console.log(
+                'instrument:',
+                `${result.instrument.name} (${result.instrument.ticker})`,
+              );
+              console.log('provider:', result.provider);
+              console.log('symbol:', '-');
+            },
+            (e: AppError) => console.error(e.message),
+          );
+          return;
+        }
+
+        await ops.listInstrumentProviderSymbols(parsed.value.value.provider).match(
+          (items) => console.log(formatInstrumentProviderSymbols(items)),
+          (e: AppError) => console.error(e.message),
+        );
+
+        return;
+      }
+
       if (command === 'categories') {
         const parsed = parseCategoriesArgs(args);
 
@@ -176,6 +233,37 @@ function formatCategorizedInstruments(items: CategorizedInstrument[]) {
       item.ticker,
       item.name,
       item.isin,
+    ]),
+  ];
+  const widths = rows[0]?.map((_, columnIndex) =>
+    Math.max(...rows.map((row) => row[columnIndex]?.length ?? 0)),
+  ) ?? [0, 0, 0, 0];
+
+  return rows
+    .map((row) =>
+      row
+        .map((value, columnIndex) => value.padEnd(widths[columnIndex] ?? 0))
+        .join('  ')
+        .trimEnd(),
+    )
+    .join('\n');
+}
+
+function formatInstrumentProviderSymbols(
+  items: Array<{
+    isin: string;
+    provider: string;
+    providerSymbol: string;
+    updatedAt: string;
+  }>,
+) {
+  const rows = [
+    ['PROVIDER', 'SYMBOL', 'ISIN', 'UPDATED'],
+    ...items.map((item) => [
+      item.provider,
+      item.providerSymbol,
+      item.isin,
+      item.updatedAt,
     ]),
   ];
   const widths = rows[0]?.map((_, columnIndex) =>

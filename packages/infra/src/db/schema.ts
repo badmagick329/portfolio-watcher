@@ -155,6 +155,73 @@ const instrumentCategories = sqliteTable(
   (table) => [index('instrument_categories_category_idx').on(table.category)],
 );
 
+const instrumentProviderSymbols = sqliteTable(
+  'instrument_provider_symbols',
+  {
+    isin: text('isin').notNull(),
+    provider: text('provider').notNull(),
+    providerSymbol: text('provider_symbol').notNull(),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex('instrument_provider_symbols_unique_provider_isin_idx').on(
+      table.provider,
+      table.isin,
+    ),
+    index('instrument_provider_symbols_isin_idx').on(table.isin),
+  ],
+);
+
+const instrumentRiskMetrics = sqliteTable(
+  'instrument_risk_metrics',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    isin: text('isin').notNull(),
+    provider: text('provider').notNull(),
+    providerSymbol: text('provider_symbol').notNull(),
+    beta: real('beta').notNull(),
+    sourceType: text('source_type').notNull(),
+    asOf: text('as_of').notNull(),
+    fetchedAt: text('fetched_at').notNull(),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index('instrument_risk_metrics_isin_idx').on(table.isin),
+    index('instrument_risk_metrics_fetched_at_idx').on(table.fetchedAt),
+    uniqueIndex('instrument_risk_metrics_unique_snapshot_idx').on(
+      table.provider,
+      table.isin,
+      table.asOf,
+    ),
+  ],
+);
+
+const instrumentRiskMetricSyncStatus = sqliteTable(
+  'instrument_risk_metric_sync_status',
+  {
+    isin: text('isin').notNull(),
+    provider: text('provider').notNull(),
+    providerSymbol: text('provider_symbol').notNull(),
+    status: text('status').notNull(),
+    checkedAt: text('checked_at').notNull(),
+    message: text('message'),
+  },
+  (table) => [
+    uniqueIndex('instrument_risk_metric_sync_status_unique_symbol_idx').on(
+      table.provider,
+      table.isin,
+      table.providerSymbol,
+    ),
+    index('instrument_risk_metric_sync_status_checked_at_idx').on(
+      table.checkedAt,
+    ),
+  ],
+);
+
 const currentPositionSnapshots = sqliteTable(
   'current_position_snapshots',
   {
@@ -286,6 +353,17 @@ type NewInstrumentPrice = typeof instrumentPrices.$inferInsert;
 type InstrumentCategory = typeof instrumentCategories.$inferSelect;
 type NewInstrumentCategory = typeof instrumentCategories.$inferInsert;
 
+type InstrumentProviderSymbol = typeof instrumentProviderSymbols.$inferSelect;
+type NewInstrumentProviderSymbol = typeof instrumentProviderSymbols.$inferInsert;
+
+type InstrumentRiskMetric = typeof instrumentRiskMetrics.$inferSelect;
+type NewInstrumentRiskMetric = typeof instrumentRiskMetrics.$inferInsert;
+
+type InstrumentRiskMetricSyncStatus =
+  typeof instrumentRiskMetricSyncStatus.$inferSelect;
+type NewInstrumentRiskMetricSyncStatus =
+  typeof instrumentRiskMetricSyncStatus.$inferInsert;
+
 type CurrentPositionSnapshot = typeof currentPositionSnapshots.$inferSelect;
 type NewCurrentPositionSnapshot = typeof currentPositionSnapshots.$inferInsert;
 
@@ -312,6 +390,12 @@ export type {
   NewInstrumentPrice,
   InstrumentCategory,
   NewInstrumentCategory,
+  InstrumentProviderSymbol,
+  NewInstrumentProviderSymbol,
+  InstrumentRiskMetric,
+  NewInstrumentRiskMetric,
+  InstrumentRiskMetricSyncStatus,
+  NewInstrumentRiskMetricSyncStatus,
   CurrentPositionSnapshot,
   NewCurrentPositionSnapshot,
   AccountSummarySnapshot,
@@ -330,6 +414,9 @@ export {
   syncState,
   instrumentPrices,
   instrumentCategories,
+  instrumentProviderSymbols,
+  instrumentRiskMetrics,
+  instrumentRiskMetricSyncStatus,
   currentPositionSnapshots,
   accountSummarySnapshots,
   orderExecutionAttempts,

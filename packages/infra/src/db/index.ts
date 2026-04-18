@@ -6,6 +6,10 @@ import type {
   InstrumentCategoryFilter,
   InstrumentCategoryInstrument,
   InstrumentPriceSnapshot,
+  InstrumentProviderSymbol,
+  InstrumentRiskMetricSnapshot,
+  InstrumentRiskMetricSyncStatus,
+  InstrumentRiskProvider,
   OrderSyncState,
   OrderSyncStateManager,
   WebHistoricalOrdersFilters,
@@ -22,6 +26,9 @@ import {
   fills,
   instrumentCategories,
   instrumentPrices,
+  instrumentProviderSymbols,
+  instrumentRiskMetrics,
+  instrumentRiskMetricSyncStatus,
   instruments,
   orderExecutionAttempts,
   orders,
@@ -29,7 +36,7 @@ import {
   t212InstrumentCatalog,
 } from './schema';
 import Database from 'better-sqlite3';
-import { desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { ResultAsync } from 'neverthrow';
 
@@ -105,7 +112,9 @@ const createOrderSyncStateManager = () => {
   } satisfies OrderSyncStateManager;
 };
 
-const createBrokerDataManager = () => {
+const createBrokerDataManager = (dbClient = db) => {
+  const db = dbClient;
+
   const saveHistoricalOrders = (historicalOrdersItems: HistoricalOrdersItems) =>
     wrapDb(() => {
       let savedOrdersCount = 0;
@@ -692,6 +701,219 @@ const createBrokerDataManager = () => {
         : undefined;
     }, 'get latest instrument price by isin');
 
+  const setInstrumentProviderSymbol = ({
+    isin,
+    provider,
+    providerSymbol,
+  }: Pick<
+    InstrumentProviderSymbol,
+    'isin' | 'provider' | 'providerSymbol'
+  >) =>
+    wrapDb(() => {
+      db.insert(instrumentProviderSymbols)
+        .values({ isin, provider, providerSymbol })
+        .onConflictDoUpdate({
+          target: [
+            instrumentProviderSymbols.provider,
+            instrumentProviderSymbols.isin,
+          ],
+          set: {
+            providerSymbol,
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+          },
+        })
+        .run();
+    }, 'set instrument provider symbol');
+
+  const unsetInstrumentProviderSymbol = (
+    isin: string,
+    provider: InstrumentRiskProvider,
+  ) =>
+    wrapDb(() => {
+      db.delete(instrumentProviderSymbols)
+        .where(
+          and(
+            eq(instrumentProviderSymbols.isin, isin),
+            eq(instrumentProviderSymbols.provider, provider),
+          ),
+        )
+        .run();
+    }, 'unset instrument provider symbol');
+
+  const listInstrumentProviderSymbols = (provider?: InstrumentRiskProvider) =>
+    wrapDb(() => {
+      const query = db
+        .select({
+          isin: instrumentProviderSymbols.isin,
+          provider: instrumentProviderSymbols.provider,
+          providerSymbol: instrumentProviderSymbols.providerSymbol,
+          updatedAt: instrumentProviderSymbols.updatedAt,
+        })
+        .from(instrumentProviderSymbols)
+        .orderBy(instrumentProviderSymbols.provider, instrumentProviderSymbols.isin);
+
+      const rows = provider
+        ? query.where(eq(instrumentProviderSymbols.provider, provider)).all()
+        : query.all();
+
+      return rows.map(
+        (row): InstrumentProviderSymbol => ({
+          ...row,
+          provider: row.provider as InstrumentRiskProvider,
+        }),
+      );
+    }, 'list instrument provider symbols');
+
+  const getInstrumentProviderSymbol = (
+    isin: string,
+    provider: InstrumentRiskProvider,
+  ) =>
+    wrapDb(() => {
+      const row = db
+        .select({
+          isin: instrumentProviderSymbols.isin,
+          provider: instrumentProviderSymbols.provider,
+          providerSymbol: instrumentProviderSymbols.providerSymbol,
+          updatedAt: instrumentProviderSymbols.updatedAt,
+        })
+        .from(instrumentProviderSymbols)
+        .where(
+          and(
+            eq(instrumentProviderSymbols.isin, isin),
+            eq(instrumentProviderSymbols.provider, provider),
+          ),
+        )
+        .get();
+
+      return row
+        ? ({
+            ...row,
+            provider: row.provider as InstrumentRiskProvider,
+          } satisfies InstrumentProviderSymbol)
+        : undefined;
+    }, 'get instrument provider symbol');
+
+  const saveInstrumentRiskMetricSnapshot = (
+    snapshot: InstrumentRiskMetricSnapshot,
+  ) =>
+    wrapDb(() => {
+      db.insert(instrumentRiskMetrics)
+        .values({
+          isin: snapshot.isin,
+          provider: snapshot.provider,
+          providerSymbol: snapshot.providerSymbol,
+          beta: snapshot.beta,
+          sourceType: snapshot.sourceType,
+          asOf: snapshot.asOf,
+          fetchedAt: snapshot.fetchedAt,
+        })
+        .onConflictDoNothing()
+        .run();
+    }, 'save instrument risk metric snapshot');
+
+  const getLatestInstrumentRiskMetricByIsin = (
+    isin: string,
+    provider: InstrumentRiskProvider,
+  ) =>
+    wrapDb(() => {
+      const row = db
+        .select({
+          isin: instrumentRiskMetrics.isin,
+          provider: instrumentRiskMetrics.provider,
+          providerSymbol: instrumentRiskMetrics.providerSymbol,
+          beta: instrumentRiskMetrics.beta,
+          sourceType: instrumentRiskMetrics.sourceType,
+          asOf: instrumentRiskMetrics.asOf,
+          fetchedAt: instrumentRiskMetrics.fetchedAt,
+        })
+        .from(instrumentRiskMetrics)
+        .where(
+          and(
+            eq(instrumentRiskMetrics.isin, isin),
+            eq(instrumentRiskMetrics.provider, provider),
+          ),
+        )
+        .orderBy(
+          desc(instrumentRiskMetrics.asOf),
+          desc(instrumentRiskMetrics.fetchedAt),
+        )
+        .get();
+
+      return row
+        ? ({
+            ...row,
+            provider: row.provider as InstrumentRiskProvider,
+            sourceType: row.sourceType as InstrumentRiskMetricSnapshot['sourceType'],
+          } satisfies InstrumentRiskMetricSnapshot)
+        : undefined;
+    }, 'get latest instrument risk metric by isin');
+
+  const saveInstrumentRiskMetricSyncStatus = (
+    status: InstrumentRiskMetricSyncStatus,
+  ) =>
+    wrapDb(() => {
+      db.insert(instrumentRiskMetricSyncStatus)
+        .values({
+          isin: status.isin,
+          provider: status.provider,
+          providerSymbol: status.providerSymbol,
+          status: status.status,
+          checkedAt: status.checkedAt,
+          message: status.message,
+        })
+        .onConflictDoUpdate({
+          target: [
+            instrumentRiskMetricSyncStatus.provider,
+            instrumentRiskMetricSyncStatus.isin,
+            instrumentRiskMetricSyncStatus.providerSymbol,
+          ],
+          set: {
+            status: status.status,
+            checkedAt: status.checkedAt,
+            message: status.message,
+          },
+        })
+        .run();
+    }, 'save instrument risk metric sync status');
+
+  const getInstrumentRiskMetricSyncStatus = ({
+    isin,
+    provider,
+    providerSymbol,
+  }: Pick<
+    InstrumentRiskMetricSyncStatus,
+    'isin' | 'provider' | 'providerSymbol'
+  >) =>
+    wrapDb(() => {
+      const row = db
+        .select({
+          isin: instrumentRiskMetricSyncStatus.isin,
+          provider: instrumentRiskMetricSyncStatus.provider,
+          providerSymbol: instrumentRiskMetricSyncStatus.providerSymbol,
+          status: instrumentRiskMetricSyncStatus.status,
+          checkedAt: instrumentRiskMetricSyncStatus.checkedAt,
+          message: instrumentRiskMetricSyncStatus.message,
+        })
+        .from(instrumentRiskMetricSyncStatus)
+        .where(
+          and(
+            eq(instrumentRiskMetricSyncStatus.isin, isin),
+            eq(instrumentRiskMetricSyncStatus.provider, provider),
+            eq(instrumentRiskMetricSyncStatus.providerSymbol, providerSymbol),
+          ),
+        )
+        .get();
+
+      return row
+        ? ({
+            ...row,
+            provider: row.provider as InstrumentRiskProvider,
+            status: row.status as InstrumentRiskMetricSyncStatus['status'],
+            message: row.message ?? null,
+          } satisfies InstrumentRiskMetricSyncStatus)
+        : undefined;
+    }, 'get instrument risk metric sync status');
+
   return {
     saveHistoricalOrders,
     getHistoricalOrders,
@@ -712,6 +934,14 @@ const createBrokerDataManager = () => {
     findT212InstrumentCatalogMatches,
     getLatestAccountSummarySnapshot,
     getLatestInstrumentPriceByIsin,
+    setInstrumentProviderSymbol,
+    unsetInstrumentProviderSymbol,
+    listInstrumentProviderSymbols,
+    getInstrumentProviderSymbol,
+    saveInstrumentRiskMetricSnapshot,
+    getLatestInstrumentRiskMetricByIsin,
+    saveInstrumentRiskMetricSyncStatus,
+    getInstrumentRiskMetricSyncStatus,
   } satisfies BrokerDataManager;
 };
 
