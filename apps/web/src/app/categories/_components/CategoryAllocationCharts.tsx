@@ -11,17 +11,19 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   LabelList,
   Legend,
   Pie,
   PieChart,
+  Rectangle,
   ReferenceLine,
   ResponsiveContainer,
+  Sector,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
+import type { BarShapeProps, PieSectorShapeProps } from 'recharts';
 import { CATEGORY_CHART_THEME } from './category-chart-theme';
 
 type CategoryAllocationChartsProps = {
@@ -76,17 +78,7 @@ function CategoryAllocationCharts({
               />
               <Tooltip content={<NetInvestedTooltip hideValues={hideValues} />} />
               <ReferenceLine stroke='currentColor' x={0} />
-              <Bar dataKey='netInvested'>
-                {rows.map((row) => (
-                  <Cell
-                    fill={
-                      (row.netInvested ?? 0) < 0
-                        ? CATEGORY_CHART_THEME.netInvestedWithdrawal
-                        : CATEGORY_CHART_THEME.netInvestedAddition
-                    }
-                    key={row.category}
-                  />
-                ))}
+              <Bar dataKey='netInvested' shape={renderNetInvestedBarShape}>
                 <LabelList
                   content={(props) =>
                     renderNetInvestedLabel({
@@ -111,18 +103,8 @@ function CategoryAllocationCharts({
                 nameKey='category'
                 outerRadius={110}
                 paddingAngle={2}
-              >
-                {rows.map((row, index) => (
-                  <Cell
-                    fill={
-                      CATEGORY_CHART_THEME.allocationColors[
-                        index % CATEGORY_CHART_THEME.allocationColors.length
-                      ]
-                    }
-                    key={row.category}
-                  />
-                ))}
-              </Pie>
+                shape={renderAllocationPieShape}
+              />
               <Tooltip content={<AllocationTooltip hideValues={hideValues} />} />
               <Legend formatter={(value) => formatCategoryName(String(value))} />
             </PieChart>
@@ -166,18 +148,8 @@ function CategoryAllocationCharts({
                 dataKey={(row: CategoryAllocationRow) =>
                   row.returnPercent ?? 0
                 }
-              >
-                {returnRows.map((row) => (
-                  <Cell
-                    fill={
-                      (row.returnPercent ?? 0) < 0
-                        ? CATEGORY_CHART_THEME.negativeReturn
-                        : CATEGORY_CHART_THEME.positiveReturn
-                    }
-                    key={row.category}
-                  />
-                ))}
-              </Bar>
+                shape={renderReturnBarShape}
+              />
             </BarChart>
           </ResponsiveContainer>
         ) : (
@@ -289,6 +261,53 @@ type NetInvestedLabelProps = {
   x?: number | string;
   y?: number | string;
 };
+
+type BarShapeWithPayload = BarShapeProps & {
+  payload?: CategoryAllocationRow;
+};
+
+function renderNetInvestedBarShape(props: BarShapeProps) {
+  const row = (props as BarShapeWithPayload).payload;
+
+  return (
+    <Rectangle
+      {...props}
+      fill={
+        (row?.netInvested ?? 0) < 0
+          ? CATEGORY_CHART_THEME.netInvestedWithdrawal
+          : CATEGORY_CHART_THEME.netInvestedAddition
+      }
+    />
+  );
+}
+
+function renderReturnBarShape(props: BarShapeProps) {
+  const row = (props as BarShapeWithPayload).payload;
+
+  return (
+    <Rectangle
+      {...props}
+      fill={
+        (row?.returnPercent ?? 0) < 0
+          ? CATEGORY_CHART_THEME.negativeReturn
+          : CATEGORY_CHART_THEME.positiveReturn
+      }
+    />
+  );
+}
+
+function renderAllocationPieShape(props: PieSectorShapeProps, index: number) {
+  return (
+    <Sector
+      {...props}
+      fill={
+        CATEGORY_CHART_THEME.allocationColors[
+          index % CATEGORY_CHART_THEME.allocationColors.length
+        ]
+      }
+    />
+  );
+}
 
 function renderNetInvestedLabel({
   height,
