@@ -8,7 +8,8 @@ import {
 } from '@/components/ui/tooltip';
 
 const METRIC_HELP_TEXT = {
-  averageCost: 'Weighted average cost per share for the shares you still hold.',
+  averageCost:
+    'Shown in wallet currency. For USD stocks, this is GBP per share after FX.',
   costBasis: 'Total amount allocated to the shares you still hold.',
   realizedPnL:
     'Profit or loss already locked in from earlier sells for this instrument.',
