@@ -1,23 +1,30 @@
 import type {
-  FillTaxRow,
-  HistoricalOrderRow,
-  HistoricalOrderWriteSet,
-} from './types';
-import type {
   HistoricalOrdersItem,
   HistoricalOrdersItems,
   WebHistoricalOrder,
   WebHistoricalOrdersFilters,
   WebHistoricalOrdersResult,
 } from '@portfolio/domain';
+import type {
+  FillTaxRow,
+  HistoricalOrderRow,
+  HistoricalOrderWriteSet,
+} from './types';
 
 const mapApiOrderItemToDbObjects = (
   item: HistoricalOrdersItem,
 ): HistoricalOrderWriteSet => {
   const instrument = {
-    ticker: item.order.instrument.ticker,
-    name: item.order.instrument.name,
     isin: item.order.instrument.isin,
+    name: item.order.instrument.name,
+    currency: item.order.instrument.currency,
+  };
+
+  const listing = {
+    ticker: item.order.ticker,
+    isin: item.order.instrument.isin,
+    provider: 't212',
+    name: item.order.instrument.name,
     currency: item.order.instrument.currency,
   };
 
@@ -70,6 +77,7 @@ const mapApiOrderItemToDbObjects = (
 
   return {
     instrument,
+    listing,
     order,
     fill,
     fillTaxes,

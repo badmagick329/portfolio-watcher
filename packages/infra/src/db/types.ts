@@ -2,6 +2,7 @@ import type {
   NewFill,
   NewFillTaxes,
   NewInstrument,
+  NewInstrumentListing,
   NewOrder,
 } from './schema';
 
@@ -48,6 +49,7 @@ type FillTaxRow = {
 
 type HistoricalOrderWriteSet = {
   instrument: NewInstrument;
+  listing: NewInstrumentListing;
   order: NewOrder;
   fill?: NewFill;
   fillTaxes: NewFillTaxes[];

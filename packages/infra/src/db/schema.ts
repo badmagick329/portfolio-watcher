@@ -8,18 +8,36 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
-const instruments = sqliteTable(
-  'instruments',
+const instruments = sqliteTable('instruments', {
+  isin: text('isin').primaryKey(),
+  name: text('name').notNull(),
+  currency: text('currency').notNull(),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+const instrumentListings = sqliteTable(
+  'instrument_listings',
   {
     ticker: text('ticker').primaryKey(),
+    isin: text('isin')
+      .notNull()
+      .references(() => instruments.isin),
+    provider: text('provider').notNull().default('t212'),
     name: text('name').notNull(),
-    isin: text('isin').notNull(),
     currency: text('currency').notNull(),
     createdAt: text('created_at')
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [uniqueIndex('instruments_isin_idx').on(table.isin)],
+  (table) => [
+    index('instrument_listings_isin_idx').on(table.isin),
+    index('instrument_listings_provider_idx').on(table.provider),
+  ],
 );
 
 const orders = sqliteTable(
@@ -30,7 +48,7 @@ const orders = sqliteTable(
     type: text('type').notNull(),
     ticker: text('ticker')
       .notNull()
-      .references(() => instruments.ticker),
+      .references(() => instrumentListings.ticker),
     quantity: real('quantity'),
     filledQuantity: real('filled_quantity'),
     value: real('value'),
@@ -305,7 +323,9 @@ const orderExecutionAttempts = sqliteTable(
   },
   (table) => [
     index('order_execution_attempts_attempted_at_idx').on(table.attemptedAt),
-    index('order_execution_attempts_resolved_ticker_idx').on(table.resolvedTicker),
+    index('order_execution_attempts_resolved_ticker_idx').on(
+      table.resolvedTicker,
+    ),
   ],
 );
 
@@ -335,6 +355,9 @@ const t212InstrumentCatalog = sqliteTable(
 type Instrument = typeof instruments.$inferSelect;
 type NewInstrument = typeof instruments.$inferInsert;
 
+type InstrumentListing = typeof instrumentListings.$inferSelect;
+type NewInstrumentListing = typeof instrumentListings.$inferInsert;
+
 type Order = typeof orders.$inferSelect;
 type NewOrder = typeof orders.$inferInsert;
 
@@ -354,7 +377,8 @@ type InstrumentCategory = typeof instrumentCategories.$inferSelect;
 type NewInstrumentCategory = typeof instrumentCategories.$inferInsert;
 
 type InstrumentProviderSymbol = typeof instrumentProviderSymbols.$inferSelect;
-type NewInstrumentProviderSymbol = typeof instrumentProviderSymbols.$inferInsert;
+type NewInstrumentProviderSymbol =
+  typeof instrumentProviderSymbols.$inferInsert;
 
 type InstrumentRiskMetric = typeof instrumentRiskMetrics.$inferSelect;
 type NewInstrumentRiskMetric = typeof instrumentRiskMetrics.$inferInsert;
@@ -378,6 +402,8 @@ type NewT212InstrumentCatalogItem = typeof t212InstrumentCatalog.$inferInsert;
 export type {
   Instrument,
   NewInstrument,
+  InstrumentListing,
+  NewInstrumentListing,
   Order,
   NewOrder,
   Fill,
@@ -408,6 +434,7 @@ export type {
 
 export {
   instruments,
+  instrumentListings,
   orders,
   fills,
   fillTaxes,

@@ -92,6 +92,13 @@
       "when": 1776523100731,
       "tag": "0012_ambiguous_night_nurse",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1776683928061,
+      "tag": "0013_outgoing_wither",
+      "breakpoints": true
     }
   ]
 }

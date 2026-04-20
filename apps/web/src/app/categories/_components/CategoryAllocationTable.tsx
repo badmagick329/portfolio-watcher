@@ -9,13 +9,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatCategoryName } from '@/lib/client/categories/display-category';
+import type { CategoryAllocationRow } from '@/lib/client/categories/instrument-category-allocation';
 import {
+  NA_LABEL,
   formatBeta,
   formatMoney,
   formatPercent,
-  NA_LABEL,
 } from '@/lib/client/presentation/format-values';
-import type { CategoryAllocationRow } from '@/lib/client/categories/instrument-category-allocation';
 import { SignedTableCell } from './SignedTableCell';
 
 type CategoryAllocationTableProps = {
@@ -49,6 +49,7 @@ function CategoryAllocationTable({
             <TableHead>Value</TableHead>
             <TableHead>Allocation</TableHead>
             <TableHead>Beta</TableHead>
+            <TableHead>Alpha</TableHead>
             <TableHead>Unrealized P/L</TableHead>
             <TableHead>Return</TableHead>
           </TableRow>
@@ -91,6 +92,7 @@ function CategoryAllocationTable({
                 <TableCell>
                   {row.beta === null ? NA_LABEL : formatBeta(row.beta)}
                 </TableCell>
+                <SignedTableCell formatter={formatPercent} value={row.alpha} />
                 <SignedTableCell
                   formatter={(value) => formatMoney(value, { hideValues })}
                   value={row.unrealizedPnl}

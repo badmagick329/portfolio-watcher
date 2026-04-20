@@ -1,4 +1,8 @@
 import type { WebHistoricalOrder } from '@portfolio/domain';
+import {
+  type FillDateRangeFilter,
+  filterOrdersByFilledDateRange,
+} from '../portfolio/fill-date-filter';
 import { roundMoney } from './category-allocation-math';
 import type {
   CategorizedInstrumentWithPosition,
@@ -6,10 +10,6 @@ import type {
   CategoryAllocationViewModel,
 } from './category-allocation-types';
 import { UNCATEGORIZED_LABEL } from './category-allocation-types';
-import {
-  filterOrdersByFilledDateRange,
-  type FillDateRangeFilter,
-} from '../portfolio/fill-date-filter';
 
 function buildHistoricalCategoryAllocationViewModel({
   fillDateRangeFilter,
@@ -60,6 +60,7 @@ function buildHistoricalCategoryAllocationViewModel({
         allocationPercent: 0,
         beta: null,
         betaCoveragePercent: null,
+        alpha: null,
         buyCost: 0,
         netInvested: 0,
         returnPercent: null,
@@ -154,10 +155,7 @@ function buildHistoricalCategoryAllocationViewModel({
         Math.abs(right.netInvested ?? 0) - Math.abs(left.netInvested ?? 0),
     );
   const totalCost = rows.reduce((sum, row) => sum + (row.buyCost ?? 0), 0);
-  const totalPnl = rows.reduce(
-    (sum, row) => sum + (row.unrealizedPnl ?? 0),
-    0,
-  );
+  const totalPnl = rows.reduce((sum, row) => sum + (row.unrealizedPnl ?? 0), 0);
   const hasPnl = rows.some((row) => row.unrealizedPnl !== null);
 
   return {
@@ -168,6 +166,14 @@ function buildHistoricalCategoryAllocationViewModel({
     totalReturnPercent: totalCost > 0 && hasPnl ? totalPnl / totalCost : null,
     portfolioBeta: null,
     betaCoveragePercent: null,
+    alphaAssumptions: {
+      marketReturn: 0,
+      riskFreeAnnual: 0.04,
+    },
+    alphaPeriodStart: null,
+    alphaPeriodEnd: null,
+    alphaPeriodLabel: null,
+    portfolioAlpha: null,
     hasCurrentHoldings: rows.length > 0,
     hasPositionSnapshots: true,
     hasFilteredOrders: filteredOrders.length > 0,
@@ -177,10 +183,7 @@ function buildHistoricalCategoryAllocationViewModel({
 
 const getOrderQuantity = (order: WebHistoricalOrder) => {
   if (order.fills.length > 0) {
-    return order.fills.reduce(
-      (sum, fill) => sum + Math.abs(fill.quantity),
-      0,
-    );
+    return order.fills.reduce((sum, fill) => sum + Math.abs(fill.quantity), 0);
   }
 
   const quantity = order.filledQuantity ?? order.quantity;

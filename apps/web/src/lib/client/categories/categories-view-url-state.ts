@@ -1,8 +1,11 @@
 import { parseQueryDate } from '../orders/orders-view-url-state';
+import { DEFAULT_ALPHA_ASSUMPTIONS } from './category-allocation-types';
 
 type CategoriesViewMode = 'manage' | 'allocation';
 
 type CategoriesViewUrlState = {
+  alphaMarketReturn: number;
+  alphaRiskFreeAnnual: number;
   mode: CategoriesViewMode;
   filledFrom?: string;
   filledTo?: string;
@@ -10,14 +13,15 @@ type CategoriesViewUrlState = {
 };
 
 const DEFAULT_CATEGORIES_VIEW_URL_STATE: CategoriesViewUrlState = {
+  alphaMarketReturn: DEFAULT_ALPHA_ASSUMPTIONS.marketReturn,
+  alphaRiskFreeAnnual: DEFAULT_ALPHA_ASSUMPTIONS.riskFreeAnnual,
   mode: 'manage',
   hideValues: false,
 };
 
 const isCategoriesViewMode = (
   value: string | null,
-): value is CategoriesViewMode =>
-  value === 'manage' || value === 'allocation';
+): value is CategoriesViewMode => value === 'manage' || value === 'allocation';
 
 const getCategoriesViewUrlState = (
   searchParams: URLSearchParams | { get(name: string): string | null },
@@ -25,13 +29,26 @@ const getCategoriesViewUrlState = (
   const mode = searchParams.get('mode');
   const filledFrom = searchParams.get('filledFrom');
   const filledTo = searchParams.get('filledTo');
+  const alphaMarketReturn = parseDecimal(
+    searchParams.get('alphaMarketReturn'),
+    DEFAULT_CATEGORIES_VIEW_URL_STATE.alphaMarketReturn,
+  );
+  const alphaRiskFreeAnnual = parseDecimal(
+    searchParams.get('alphaRiskFreeAnnual'),
+    DEFAULT_CATEGORIES_VIEW_URL_STATE.alphaRiskFreeAnnual,
+    { minExclusive: -1 },
+  );
 
   return {
+    alphaMarketReturn,
+    alphaRiskFreeAnnual,
     mode: isCategoriesViewMode(mode)
       ? mode
       : DEFAULT_CATEGORIES_VIEW_URL_STATE.mode,
-    filledFrom: parseQueryDate(filledFrom) ? filledFrom ?? undefined : undefined,
-    filledTo: parseQueryDate(filledTo) ? filledTo ?? undefined : undefined,
+    filledFrom: parseQueryDate(filledFrom)
+      ? (filledFrom ?? undefined)
+      : undefined,
+    filledTo: parseQueryDate(filledTo) ? (filledTo ?? undefined) : undefined,
     hideValues: searchParams.get('hideValues') === '1',
   };
 };
@@ -62,20 +79,76 @@ const getSearchParamsWithCategoriesViewUrlState = (
     nextSearchParams.delete('hideValues');
   }
 
+  setDecimalSearchParam({
+    defaultValue: DEFAULT_CATEGORIES_VIEW_URL_STATE.alphaMarketReturn,
+    name: 'alphaMarketReturn',
+    searchParams: nextSearchParams,
+    value: state.alphaMarketReturn,
+  });
+  setDecimalSearchParam({
+    defaultValue: DEFAULT_CATEGORIES_VIEW_URL_STATE.alphaRiskFreeAnnual,
+    name: 'alphaRiskFreeAnnual',
+    searchParams: nextSearchParams,
+    value: state.alphaRiskFreeAnnual,
+  });
+
   return nextSearchParams;
 };
 
 const getSearchParamsWithUpdatedCategoriesViewUrlState = (
-  searchParams: URLSearchParams | {
-    get(name: string): string | null;
-    toString(): string;
-  },
+  searchParams:
+    | URLSearchParams
+    | {
+        get(name: string): string | null;
+        toString(): string;
+      },
   partialState: Partial<CategoriesViewUrlState>,
 ) =>
   getSearchParamsWithCategoriesViewUrlState(searchParams, {
     ...getCategoriesViewUrlState(searchParams),
     ...partialState,
   });
+
+const parseDecimal = (
+  value: string | null,
+  fallback: number,
+  options: { minExclusive?: number } = {},
+) => {
+  if (value === null || value.trim() === '') {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  if (options.minExclusive !== undefined && parsed <= options.minExclusive) {
+    return fallback;
+  }
+
+  return parsed;
+};
+
+const setDecimalSearchParam = ({
+  defaultValue,
+  name,
+  searchParams,
+  value,
+}: {
+  defaultValue: number;
+  name: string;
+  searchParams: URLSearchParams;
+  value: number;
+}) => {
+  if (!Number.isFinite(value) || value === defaultValue) {
+    searchParams.delete(name);
+    return;
+  }
+
+  searchParams.set(name, String(value));
+};
 
 export {
   DEFAULT_CATEGORIES_VIEW_URL_STATE,

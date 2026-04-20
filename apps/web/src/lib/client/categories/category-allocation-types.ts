@@ -19,9 +19,15 @@ type CategoryAllocationRow = {
   returnPercent: number | null;
   beta: number | null;
   betaCoveragePercent: number | null;
+  alpha: number | null;
   buyCost?: number;
   sellProceeds?: number;
   netInvested?: number;
+};
+
+type AlphaAssumptions = {
+  marketReturn: number;
+  riskFreeAnnual: number;
 };
 
 type CategoryAllocationViewModel = {
@@ -32,6 +38,11 @@ type CategoryAllocationViewModel = {
   totalReturnPercent: number | null;
   portfolioBeta: number | null;
   betaCoveragePercent: number | null;
+  alphaAssumptions: AlphaAssumptions;
+  alphaPeriodStart: string | null;
+  alphaPeriodEnd: string | null;
+  alphaPeriodLabel: string | null;
+  portfolioAlpha: number | null;
   hasCurrentHoldings: boolean;
   hasPositionSnapshots: boolean;
   hasFilteredOrders: boolean;
@@ -39,9 +50,14 @@ type CategoryAllocationViewModel = {
 };
 
 const UNCATEGORIZED_LABEL = 'Uncategorized';
+const DEFAULT_ALPHA_ASSUMPTIONS: AlphaAssumptions = {
+  marketReturn: 0,
+  riskFreeAnnual: 0.04,
+};
 
-export { UNCATEGORIZED_LABEL };
+export { DEFAULT_ALPHA_ASSUMPTIONS, UNCATEGORIZED_LABEL };
 export type {
+  AlphaAssumptions,
   CategorizedInstrumentWithPosition,
   CategoryAllocationRow,
   CategoryAllocationViewModel,

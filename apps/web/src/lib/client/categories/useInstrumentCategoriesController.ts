@@ -1,18 +1,18 @@
 'use client';
 
+import type { CategorizedInstrument } from '@portfolio/domain';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import {
   getCategoriesViewUrlState,
   getSearchParamsWithUpdatedCategoriesViewUrlState,
 } from '@/lib/client/categories/categories-view-url-state';
 import type { CategoriesViewUrlState } from '@/lib/client/categories/categories-view-url-state';
-import type { FillDateRangeFilter } from '@/lib/client/portfolio/fill-date-filter';
 import { buildCategoryAllocationViewModel } from '@/lib/client/categories/instrument-category-allocation';
 import type { CategoryAllocationViewModel } from '@/lib/client/categories/instrument-category-allocation';
 import { useInstrumentCategoriesQuery } from '@/lib/client/categories/useInstrumentCategoriesQuery';
 import { useInstrumentCategoryMutations } from '@/lib/client/categories/useInstrumentCategoryMutations';
-import type { CategorizedInstrument } from '@portfolio/domain';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import type { FillDateRangeFilter } from '@/lib/client/portfolio/fill-date-filter';
 
 type InstrumentCategoriesStatus =
   | { state: 'loading' }
@@ -53,12 +53,18 @@ type CategoryManagementActions = {
 };
 
 type CategoryAllocationPanelModel = {
+  alphaMarketReturn: number;
+  alphaRiskFreeAnnual: number;
   fillDateRangeFilter: FillDateRangeFilter;
   hideValues: boolean;
   viewModel: CategoryAllocationViewModel;
 };
 
 type CategoryAllocationPanelActions = {
+  setAlphaAssumptions: (value: {
+    marketReturn?: number;
+    riskFreeAnnual?: number;
+  }) => void;
   setFillDateRangeFilter: (value: FillDateRangeFilter) => void;
 };
 
@@ -101,11 +107,20 @@ function useInstrumentCategoriesController() {
   const allocationViewModel = useMemo(
     () =>
       buildCategoryAllocationViewModel({
+        alphaAssumptions: {
+          marketReturn: urlState.alphaMarketReturn,
+          riskFreeAnnual: urlState.alphaRiskFreeAnnual,
+        },
         fillDateRangeFilter,
         historicalOrders: data?.historicalOrders ?? [],
         instruments: data?.instruments ?? [],
       }),
-    [data, fillDateRangeFilter],
+    [
+      data,
+      fillDateRangeFilter,
+      urlState.alphaMarketReturn,
+      urlState.alphaRiskFreeAnnual,
+    ],
   );
   const visibleSelectedCount = visibleInstruments.filter((instrument) =>
     selectedIsins.has(instrument.isin),
@@ -118,7 +133,9 @@ function useInstrumentCategoriesController() {
     : error || !data
       ? {
           message:
-            error instanceof Error ? error.message : 'Failed to load categories.',
+            error instanceof Error
+              ? error.message
+              : 'Failed to load categories.',
           state: 'error',
         }
       : { state: 'ready' };
@@ -250,9 +267,24 @@ function useInstrumentCategoriesController() {
 
   return {
     allocationActions: {
+      setAlphaAssumptions: ({ marketReturn, riskFreeAnnual }) => {
+        const nextState: Partial<CategoriesViewUrlState> = {};
+
+        if (marketReturn !== undefined) {
+          nextState.alphaMarketReturn = marketReturn;
+        }
+
+        if (riskFreeAnnual !== undefined) {
+          nextState.alphaRiskFreeAnnual = riskFreeAnnual;
+        }
+
+        replaceUrlState(nextState);
+      },
       setFillDateRangeFilter: replaceUrlState,
     } satisfies CategoryAllocationPanelActions,
     allocationModel: {
+      alphaMarketReturn: urlState.alphaMarketReturn,
+      alphaRiskFreeAnnual: urlState.alphaRiskFreeAnnual,
       fillDateRangeFilter,
       hideValues: urlState.hideValues,
       viewModel: allocationViewModel,

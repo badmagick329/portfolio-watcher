@@ -1,21 +1,24 @@
 import type { WebHistoricalOrder } from '@portfolio/domain';
+import {
+  type FillDateRangeFilter,
+  hasFillDateRangeFilter,
+} from '../portfolio/fill-date-filter';
 import type {
+  AlphaAssumptions,
   CategorizedInstrumentWithPosition,
   CategoryAllocationViewModel,
 } from './category-allocation-types';
 import { UNCATEGORIZED_LABEL } from './category-allocation-types';
 import { buildCurrentCategoryAllocationViewModel } from './current-category-allocation';
-import {
-  hasFillDateRangeFilter,
-  type FillDateRangeFilter,
-} from '../portfolio/fill-date-filter';
 import { buildHistoricalCategoryAllocationViewModel } from './historical-category-allocation';
 
 function buildCategoryAllocationViewModel({
+  alphaAssumptions,
   fillDateRangeFilter = {},
   historicalOrders = [],
   instruments,
 }: {
+  alphaAssumptions?: AlphaAssumptions;
   fillDateRangeFilter?: FillDateRangeFilter;
   historicalOrders?: WebHistoricalOrder[];
   instruments: CategorizedInstrumentWithPosition[];
@@ -28,11 +31,16 @@ function buildCategoryAllocationViewModel({
     });
   }
 
-  return buildCurrentCategoryAllocationViewModel({ instruments });
+  return buildCurrentCategoryAllocationViewModel({
+    alphaAssumptions,
+    historicalOrders,
+    instruments,
+  });
 }
 
 export { buildCategoryAllocationViewModel, UNCATEGORIZED_LABEL };
 export type {
+  AlphaAssumptions,
   CategorizedInstrumentWithPosition,
   CategoryAllocationRow,
   CategoryAllocationViewModel,

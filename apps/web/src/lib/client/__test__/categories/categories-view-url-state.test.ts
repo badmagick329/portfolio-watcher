@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'vitest';
-
 import {
   getCategoriesViewUrlState,
   getSearchParamsWithCategoriesViewUrlState,
@@ -15,6 +14,8 @@ describe('categories view url state', () => {
     );
 
     expect(state).toEqual({
+      alphaMarketReturn: 0,
+      alphaRiskFreeAnnual: 0.04,
       mode: 'allocation',
       filledFrom: '2026-04-01',
       filledTo: '2026-04-03',
@@ -23,7 +24,9 @@ describe('categories view url state', () => {
   });
 
   test('defaults invalid or missing mode to manage', () => {
-    expect(getCategoriesViewUrlState(new URLSearchParams()).mode).toBe('manage');
+    expect(getCategoriesViewUrlState(new URLSearchParams()).mode).toBe(
+      'manage',
+    );
     expect(
       getCategoriesViewUrlState(new URLSearchParams('mode=other')).mode,
     ).toBe('manage');
@@ -37,6 +40,8 @@ describe('categories view url state', () => {
     );
 
     expect(state).toEqual({
+      alphaMarketReturn: 0,
+      alphaRiskFreeAnnual: 0.04,
       mode: 'allocation',
       filledFrom: undefined,
       filledTo: undefined,
@@ -48,6 +53,8 @@ describe('categories view url state', () => {
     const searchParams = getSearchParamsWithCategoriesViewUrlState(
       new URLSearchParams('foo=bar'),
       {
+        alphaMarketReturn: 0,
+        alphaRiskFreeAnnual: 0.04,
         mode: 'allocation',
         filledFrom: '2026-04-01',
         filledTo: '2026-04-03',
@@ -57,6 +64,41 @@ describe('categories view url state', () => {
 
     expect(searchParams.toString()).toBe(
       'foo=bar&mode=allocation&filledFrom=2026-04-01&filledTo=2026-04-03&hideValues=1',
+    );
+  });
+
+  test('parses valid alpha inputs', () => {
+    const state = getCategoriesViewUrlState(
+      new URLSearchParams(
+        'mode=allocation&alphaMarketReturn=0.08&alphaRiskFreeAnnual=0.045',
+      ),
+    );
+
+    expect(state.alphaMarketReturn).toBe(0.08);
+    expect(state.alphaRiskFreeAnnual).toBe(0.045);
+  });
+
+  test('falls back to alpha defaults for invalid inputs', () => {
+    const state = getCategoriesViewUrlState(
+      new URLSearchParams('alphaMarketReturn=bad&alphaRiskFreeAnnual=-1.5'),
+    );
+
+    expect(state.alphaMarketReturn).toBe(0);
+    expect(state.alphaRiskFreeAnnual).toBe(0.04);
+  });
+
+  test('preserves alpha inputs when applying updates', () => {
+    const searchParams = getSearchParamsWithUpdatedCategoriesViewUrlState(
+      new URLSearchParams(
+        'mode=allocation&alphaMarketReturn=0.08&alphaRiskFreeAnnual=0.045',
+      ),
+      {
+        filledFrom: '2026-04-01',
+      },
+    );
+
+    expect(searchParams.toString()).toBe(
+      'mode=allocation&alphaMarketReturn=0.08&alphaRiskFreeAnnual=0.045&filledFrom=2026-04-01',
     );
   });
 
@@ -93,7 +135,8 @@ describe('categories view url state', () => {
       getCategoriesViewUrlState(new URLSearchParams('hideValues=1')).hideValues,
     ).toBe(true);
     expect(
-      getCategoriesViewUrlState(new URLSearchParams('hideValues=true')).hideValues,
+      getCategoriesViewUrlState(new URLSearchParams('hideValues=true'))
+        .hideValues,
     ).toBe(false);
 
     const searchParams = getSearchParamsWithUpdatedCategoriesViewUrlState(

@@ -1,12 +1,12 @@
 'use client';
 
+import type { CategoryAllocationViewModel } from '@/lib/client/categories/instrument-category-allocation';
 import {
+  NA_LABEL,
   formatBeta,
   formatMoney,
   formatPercent,
-  NA_LABEL,
 } from '@/lib/client/presentation/format-values';
-import type { CategoryAllocationViewModel } from '@/lib/client/categories/instrument-category-allocation';
 import {
   getSignedTone,
   getToneTextClassName,
@@ -26,7 +26,7 @@ function CategoryAllocationSummary({
   viewModel,
 }: CategoryAllocationSummaryProps) {
   return (
-    <div className='grid gap-4 sm:grid-cols-3 xl:grid-cols-5'>
+    <div className='grid gap-4 sm:grid-cols-3 xl:grid-cols-6'>
       <PortfolioSummaryMetric
         label={isHistorical ? 'Net invested' : 'Value'}
         value={formatMoney(viewModel.totalCurrentValue, { hideValues })}
@@ -65,6 +65,15 @@ function CategoryAllocationSummary({
               viewModel.betaCoveragePercent === null
                 ? NA_LABEL
                 : formatPercent(viewModel.betaCoveragePercent)
+            }
+          />
+          <PortfolioSummaryMetric
+            label='Portfolio alpha'
+            tone={getSignedTone(viewModel.portfolioAlpha)}
+            value={
+              viewModel.portfolioAlpha === null
+                ? NA_LABEL
+                : formatPercent(viewModel.portfolioAlpha)
             }
           />
         </>

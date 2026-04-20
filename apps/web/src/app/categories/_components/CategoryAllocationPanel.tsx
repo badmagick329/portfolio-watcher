@@ -1,13 +1,14 @@
 'use client';
 
 import { FillDateRangePicker } from '@/app/_components/FillDateRangePicker';
-import { CategoryAllocationCharts } from './CategoryAllocationCharts';
-import { CategoryAllocationSummary } from './CategoryAllocationSummary';
-import { CategoryAllocationTable } from './CategoryAllocationTable';
 import type {
   CategoryAllocationPanelActions,
   CategoryAllocationPanelModel,
 } from '@/lib/client/categories/useInstrumentCategoriesController';
+import { CategoryAllocationCharts } from './CategoryAllocationCharts';
+import { CategoryAllocationSummary } from './CategoryAllocationSummary';
+import { CategoryAllocationTable } from './CategoryAllocationTable';
+import { CategoryAlphaAssumptions } from './CategoryAlphaAssumptions';
 
 type CategoryAllocationPanelProps = {
   actions: CategoryAllocationPanelActions;
@@ -65,6 +66,15 @@ function CategoryAllocationPanel({
         onChange={actions.setFillDateRangeFilter}
         value={model.fillDateRangeFilter}
       />
+
+      {!isHistorical ? (
+        <CategoryAlphaAssumptions
+          marketReturn={model.alphaMarketReturn}
+          onChange={actions.setAlphaAssumptions}
+          periodLabel={model.viewModel.alphaPeriodLabel}
+          riskFreeAnnual={model.alphaRiskFreeAnnual}
+        />
+      ) : null}
 
       <CategoryAllocationSummary
         hideValues={model.hideValues}

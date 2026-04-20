@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
 import type { WebHistoricalOrder } from '@portfolio/domain';
+import { describe, expect, test } from 'vitest';
 import type { CategorizedInstrumentWithPosition } from '../../categories/instrument-category-allocation';
 import { buildCategoryAllocationViewModel } from '../../categories/instrument-category-allocation';
 
@@ -72,6 +72,7 @@ describe('buildCategoryAllocationViewModel', () => {
         allocationPercent: 0.8,
         beta: null,
         betaCoveragePercent: 0,
+        alpha: null,
         returnPercent: 0,
       },
       {
@@ -83,6 +84,7 @@ describe('buildCategoryAllocationViewModel', () => {
         allocationPercent: 0.2,
         beta: null,
         betaCoveragePercent: 0,
+        alpha: null,
         returnPercent: 0,
       },
     ]);
@@ -169,6 +171,118 @@ describe('buildCategoryAllocationViewModel', () => {
     expect(result.betaCoveragePercent).toBeNull();
     expect(result.rows[0]?.beta).toBeNull();
     expect(result.rows[0]?.betaCoveragePercent).toBeNull();
+  });
+
+  test('calculates portfolio and category alpha', () => {
+    const result = buildCategoryAllocationViewModel({
+      alphaAssumptions: {
+        marketReturn: 0.08,
+        riskFreeAnnual: 0.03,
+      },
+      historicalOrders: [
+        historicalOrder({
+          filledAt: '2025-04-16T10:00:00.000Z',
+          isin: 'US0378331005',
+          side: 'BUY',
+          walletNetValue: -80,
+        }),
+      ],
+      instruments: [
+        instrument({
+          currentPositionSnapshot: {
+            ...instrument({}).currentPositionSnapshot!,
+            asOf: '2026-04-16T10:00:00.000Z',
+            currentValue: 100,
+            totalCost: 80,
+            unrealizedProfitLoss: 20,
+          },
+          riskMetric: riskMetric({ beta: 1.2 }),
+        }),
+      ],
+    });
+
+    const periodRiskFreeReturn = 0.03;
+    const expectedReturn =
+      periodRiskFreeReturn + 1.2 * (0.08 - periodRiskFreeReturn);
+
+    expect(result.alphaPeriodStart).toBe('2025-04-16T10:00:00.000Z');
+    expect(result.alphaPeriodEnd).toBe('2026-04-16T10:00:00.000Z');
+    expect(result.portfolioAlpha).toBeCloseTo(0.25 - expectedReturn);
+    expect(result.rows[0]?.alpha).toBeCloseTo(0.25 - expectedReturn);
+  });
+
+  test('converts annual risk-free rate to alpha period return', () => {
+    const result = buildCategoryAllocationViewModel({
+      alphaAssumptions: {
+        marketReturn: 0.08,
+        riskFreeAnnual: 0.03,
+      },
+      historicalOrders: [
+        historicalOrder({
+          filledAt: '2025-10-16T10:00:00.000Z',
+          isin: 'US0378331005',
+          side: 'BUY',
+          walletNetValue: -80,
+        }),
+      ],
+      instruments: [
+        instrument({
+          currentPositionSnapshot: {
+            ...instrument({}).currentPositionSnapshot!,
+            asOf: '2026-04-16T10:00:00.000Z',
+            currentValue: 100,
+            totalCost: 80,
+            unrealizedProfitLoss: 20,
+          },
+          riskMetric: riskMetric({ beta: 1 }),
+        }),
+      ],
+    });
+
+    const periodRiskFreeReturn = (1 + 0.03) ** (182 / 365) - 1;
+    const expectedReturn = periodRiskFreeReturn + (0.08 - periodRiskFreeReturn);
+
+    expect(result.portfolioAlpha).toBeCloseTo(0.25 - expectedReturn);
+  });
+
+  test('returns null alpha when beta is missing', () => {
+    const result = buildCategoryAllocationViewModel({
+      alphaAssumptions: {
+        marketReturn: 0.08,
+        riskFreeAnnual: 0.03,
+      },
+      historicalOrders: [
+        historicalOrder({
+          filledAt: '2025-04-16T10:00:00.000Z',
+          isin: 'US0378331005',
+          side: 'BUY',
+          walletNetValue: -80,
+        }),
+      ],
+      instruments: [instrument({})],
+    });
+
+    expect(result.portfolioAlpha).toBeNull();
+    expect(result.rows[0]?.alpha).toBeNull();
+  });
+
+  test('returns null alpha when period cannot be inferred', () => {
+    const result = buildCategoryAllocationViewModel({
+      alphaAssumptions: {
+        marketReturn: 0.08,
+        riskFreeAnnual: 0.03,
+      },
+      instruments: [
+        instrument({
+          riskMetric: riskMetric({ beta: 1.2 }),
+        }),
+      ],
+    });
+
+    expect(result.alphaPeriodStart).toBeNull();
+    expect(result.alphaPeriodEnd).toBeNull();
+    expect(result.portfolioAlpha).toBeNull();
+    expect(result.rows[0]?.alpha).toBeNull();
   });
 
   test('excludes zero and negative quantity positions', () => {
