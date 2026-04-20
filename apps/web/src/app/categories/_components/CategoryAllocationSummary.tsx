@@ -49,35 +49,31 @@ function CategoryAllocationSummary({
             : formatPercent(viewModel.totalReturnPercent)
         }
       />
-      {!isHistorical ? (
-        <>
-          <PortfolioSummaryMetric
-            label='Portfolio beta'
-            value={
-              viewModel.portfolioBeta === null
-                ? NA_LABEL
-                : formatBeta(viewModel.portfolioBeta)
-            }
-          />
-          <PortfolioSummaryMetric
-            label='Beta coverage'
-            value={
-              viewModel.betaCoveragePercent === null
-                ? NA_LABEL
-                : formatPercent(viewModel.betaCoveragePercent)
-            }
-          />
-          <PortfolioSummaryMetric
-            label='Portfolio alpha'
-            tone={getSignedTone(viewModel.portfolioAlpha)}
-            value={
-              viewModel.portfolioAlpha === null
-                ? NA_LABEL
-                : formatPercent(viewModel.portfolioAlpha)
-            }
-          />
-        </>
-      ) : null}
+      <PortfolioSummaryMetric
+        label='Portfolio beta'
+        value={
+          viewModel.portfolioBeta === null
+            ? NA_LABEL
+            : formatBeta(viewModel.portfolioBeta)
+        }
+      />
+      <PortfolioSummaryMetric
+        label='Beta coverage'
+        value={
+          viewModel.betaCoveragePercent === null
+            ? NA_LABEL
+            : formatPercent(viewModel.betaCoveragePercent)
+        }
+      />
+      <PortfolioSummaryMetric
+        label='Portfolio alpha'
+        tone={getSignedTone(viewModel.portfolioAlpha)}
+        value={
+          viewModel.portfolioAlpha === null
+            ? NA_LABEL
+            : formatPercent(viewModel.portfolioAlpha)
+        }
+      />
     </div>
   );
 }

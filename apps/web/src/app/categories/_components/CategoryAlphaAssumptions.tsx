@@ -8,6 +8,7 @@ import {
 import { formatPercent } from '@/lib/client/presentation/format-values';
 
 type CategoryAlphaAssumptionsProps = {
+  isHistorical: boolean;
   marketReturn: number;
   onChange: (value: { marketReturn?: number; riskFreeAnnual?: number }) => void;
   periodLabel: string | null;
@@ -15,6 +16,7 @@ type CategoryAlphaAssumptionsProps = {
 };
 
 function CategoryAlphaAssumptions({
+  isHistorical,
   marketReturn,
   onChange,
   periodLabel,
@@ -25,8 +27,9 @@ function CategoryAlphaAssumptions({
       <div className='space-y-1'>
         <h2 className='font-mono text-lg'>CAPM assumptions</h2>
         <p className='text-sm text-muted-foreground'>
-          Current alpha uses the period from first known fill in this view to
-          latest valuation. Enter market return for that same period.
+          {isHistorical
+            ? 'Filtered alpha uses the selected fill date range. Enter market return for that same period.'
+            : 'Current alpha uses the period from first known fill in this view to latest valuation. Enter market return for that same period.'}
         </p>
         {periodLabel ? (
           <p className='text-xs text-muted-foreground'>
@@ -35,7 +38,7 @@ function CategoryAlphaAssumptions({
         ) : (
           <p className='text-xs text-muted-foreground'>
             Alpha period unavailable until current holdings have known fills and
-            valuations.
+            valuations, or until filtered orders provide a usable date range.
           </p>
         )}
       </div>

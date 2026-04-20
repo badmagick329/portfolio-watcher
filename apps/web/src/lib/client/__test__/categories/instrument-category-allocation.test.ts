@@ -401,6 +401,152 @@ describe('buildCategoryAllocationViewModel', () => {
     ]);
   });
 
+  test('historical mode calculates buy-cost weighted beta and coverage', () => {
+    const result = buildCategoryAllocationViewModel({
+      fillDateRangeFilter: {
+        filledFrom: '2026-04-01',
+        filledTo: '2026-04-30',
+      },
+      historicalOrders: [
+        historicalOrder({
+          isin: 'US0378331005',
+          side: 'BUY',
+          walletNetValue: -100,
+        }),
+        historicalOrder({
+          isin: 'US5949181045',
+          side: 'BUY',
+          walletNetValue: -300,
+        }),
+        historicalOrder({
+          isin: 'IE00B3XXRP09',
+          side: 'BUY',
+          walletNetValue: -100,
+        }),
+      ],
+      instruments: [
+        instrument({
+          category: 'growth',
+          riskMetric: riskMetric({ beta: 1.2 }),
+        }),
+        instrument({
+          category: 'growth',
+          isin: 'US5949181045',
+          riskMetric: riskMetric({ beta: 0.8, isin: 'US5949181045' }),
+        }),
+        instrument({
+          category: 'defensive',
+          isin: 'IE00B3XXRP09',
+        }),
+      ],
+    });
+
+    expect(result.portfolioBeta).toBeCloseTo(0.9);
+    expect(result.betaCoveragePercent).toBeCloseTo(0.8);
+    expect(result.rows[0]?.category).toBe('growth');
+    expect(result.rows[0]?.beta).toBeCloseTo(0.9);
+    expect(result.rows[0]?.betaCoveragePercent).toBe(1);
+    expect(result.rows[1]?.category).toBe('defensive');
+    expect(result.rows[1]?.beta).toBeNull();
+    expect(result.rows[1]?.betaCoveragePercent).toBe(0);
+  });
+
+  test('historical mode calculates alpha using selected date range', () => {
+    const result = buildCategoryAllocationViewModel({
+      alphaAssumptions: {
+        marketReturn: 0.08,
+        riskFreeAnnual: 0.03,
+      },
+      fillDateRangeFilter: {
+        filledFrom: '2025-04-16',
+        filledTo: '2026-04-15',
+      },
+      historicalOrders: [
+        historicalOrder({
+          filledAt: '2025-04-16T10:00:00.000Z',
+          isin: 'US0378331005',
+          side: 'BUY',
+          walletNetValue: -80,
+        }),
+      ],
+      instruments: [
+        instrument({
+          currentPositionSnapshot: {
+            ...instrument({}).currentPositionSnapshot!,
+            currentValue: 100,
+            totalCost: 80,
+            unrealizedProfitLoss: 20,
+          },
+          riskMetric: riskMetric({ beta: 1.2 }),
+        }),
+      ],
+    });
+
+    const periodRiskFreeReturn =
+      (1 + 0.03) **
+        ((Date.parse('2026-04-15T23:59:59.999Z') -
+          Date.parse('2025-04-16T00:00:00.000Z')) /
+          86_400_000 /
+          365) -
+      1;
+    const expectedReturn =
+      periodRiskFreeReturn + 1.2 * (0.08 - periodRiskFreeReturn);
+
+    expect(result.alphaPeriodStart).toBe('2025-04-16T00:00:00.000Z');
+    expect(result.alphaPeriodEnd).toBe('2026-04-15T23:59:59.999Z');
+    expect(result.portfolioAlpha).toBeCloseTo(0.25 - expectedReturn);
+    expect(result.rows[0]?.alpha).toBeCloseTo(0.25 - expectedReturn);
+  });
+
+  test('historical mode returns null alpha when beta or period is missing', () => {
+    const missingBeta = buildCategoryAllocationViewModel({
+      alphaAssumptions: {
+        marketReturn: 0.08,
+        riskFreeAnnual: 0.03,
+      },
+      fillDateRangeFilter: {
+        filledFrom: '2025-04-16',
+        filledTo: '2026-04-15',
+      },
+      historicalOrders: [
+        historicalOrder({
+          filledAt: '2025-04-16T10:00:00.000Z',
+          isin: 'US0378331005',
+          side: 'BUY',
+          walletNetValue: -80,
+        }),
+      ],
+      instruments: [instrument({})],
+    });
+    const missingPeriod = buildCategoryAllocationViewModel({
+      alphaAssumptions: {
+        marketReturn: 0.08,
+        riskFreeAnnual: 0.03,
+      },
+      fillDateRangeFilter: {
+        filledFrom: '2026-04-16',
+      },
+      historicalOrders: [
+        historicalOrder({
+          filledAt: '2026-04-16T00:00:00.000Z',
+          isin: 'US0378331005',
+          side: 'BUY',
+          walletNetValue: -80,
+        }),
+      ],
+      instruments: [
+        instrument({
+          riskMetric: riskMetric({ beta: 1.2 }),
+        }),
+      ],
+    });
+
+    expect(missingBeta.portfolioAlpha).toBeNull();
+    expect(missingBeta.rows[0]?.alpha).toBeNull();
+    expect(missingPeriod.portfolioAlpha).toBeNull();
+    expect(missingPeriod.rows[0]?.alpha).toBeNull();
+  });
+
   test('historical mode preserves net withdrawals without showing sell-only gains', () => {
     const result = buildCategoryAllocationViewModel({
       fillDateRangeFilter: {
@@ -424,6 +570,8 @@ describe('buildCategoryAllocationViewModel', () => {
     expect(result.rows).toEqual([
       expect.objectContaining({
         category: 'growth',
+        alpha: null,
+        beta: null,
         buyCost: 0,
         currentValue: -75,
         netInvested: -75,

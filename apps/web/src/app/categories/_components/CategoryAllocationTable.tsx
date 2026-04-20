@@ -41,6 +41,8 @@ function CategoryAllocationTable({
             <TableHead>Net invested</TableHead>
             <TableHead>P/L</TableHead>
             <TableHead>Return</TableHead>
+            <TableHead>Beta</TableHead>
+            <TableHead>Alpha</TableHead>
           </TableRow>
         ) : (
           <TableRow>
@@ -80,6 +82,10 @@ function CategoryAllocationTable({
                   formatter={formatPercent}
                   value={row.returnPercent}
                 />
+                <TableCell>
+                  {row.beta === null ? NA_LABEL : formatBeta(row.beta)}
+                </TableCell>
+                <SignedTableCell formatter={formatPercent} value={row.alpha} />
               </>
             ) : (
               <>

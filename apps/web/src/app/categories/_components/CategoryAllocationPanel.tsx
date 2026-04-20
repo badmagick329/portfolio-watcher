@@ -67,14 +67,13 @@ function CategoryAllocationPanel({
         value={model.fillDateRangeFilter}
       />
 
-      {!isHistorical ? (
-        <CategoryAlphaAssumptions
-          marketReturn={model.alphaMarketReturn}
-          onChange={actions.setAlphaAssumptions}
-          periodLabel={model.viewModel.alphaPeriodLabel}
-          riskFreeAnnual={model.alphaRiskFreeAnnual}
-        />
-      ) : null}
+      <CategoryAlphaAssumptions
+        isHistorical={isHistorical}
+        marketReturn={model.alphaMarketReturn}
+        onChange={actions.setAlphaAssumptions}
+        periodLabel={model.viewModel.alphaPeriodLabel}
+        riskFreeAnnual={model.alphaRiskFreeAnnual}
+      />
 
       <CategoryAllocationSummary
         hideValues={model.hideValues}

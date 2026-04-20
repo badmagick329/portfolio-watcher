@@ -25,6 +25,7 @@ function buildCategoryAllocationViewModel({
 }): CategoryAllocationViewModel {
   if (hasFillDateRangeFilter(fillDateRangeFilter)) {
     return buildHistoricalCategoryAllocationViewModel({
+      alphaAssumptions,
       fillDateRangeFilter,
       historicalOrders,
       instruments,
