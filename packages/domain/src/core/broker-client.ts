@@ -11,6 +11,7 @@ import type {
   InstrumentCategoryFilter,
   InstrumentCategoryInstrument,
   InstrumentPriceSnapshot,
+  ObservedInstrumentListing,
   SyncStepResult,
   WebHistoricalOrderInstrument,
   WebHistoricalOrdersFilters,
@@ -77,6 +78,9 @@ interface BrokerDataManager {
   ): ResultAsync<void, AppError>;
   saveCurrentPositionSnapshot(
     snapshot: CurrentPositionSnapshot,
+  ): ResultAsync<void, AppError>;
+  saveObservedInstrumentListing(
+    listing: ObservedInstrumentListing,
   ): ResultAsync<void, AppError>;
   getLatestCurrentPositionSnapshotByIsin(
     isin: string,

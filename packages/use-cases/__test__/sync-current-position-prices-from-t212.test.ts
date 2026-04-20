@@ -5,6 +5,7 @@ import type {
   BrokerDataManager,
   CurrentPositionSnapshot,
   InstrumentPriceSnapshot,
+  ObservedInstrumentListing,
 } from '@portfolio/domain';
 import { okAsync } from 'neverthrow';
 import { createSyncCurrentPositionPricesFromT212 } from '../sync-current-position-prices-from-t212';
@@ -13,6 +14,7 @@ describe('syncCurrentPositionPricesFromT212', () => {
   test('saves price, current-position, and account-summary snapshots', async () => {
     const savedSnapshots: InstrumentPriceSnapshot[] = [];
     const savedCurrentPositionSnapshots: CurrentPositionSnapshot[] = [];
+    const savedObservedInstrumentListings: ObservedInstrumentListing[] = [];
     const savedAccountSummarySnapshots: AccountSummarySnapshot[] = [];
 
     const client = {
@@ -88,6 +90,10 @@ describe('syncCurrentPositionPricesFromT212', () => {
         savedCurrentPositionSnapshots.push(snapshot);
         return okAsync(undefined);
       },
+      saveObservedInstrumentListing: (listing: ObservedInstrumentListing) => {
+        savedObservedInstrumentListings.push(listing);
+        return okAsync(undefined);
+      },
       saveAccountSummarySnapshot: (snapshot: AccountSummarySnapshot) => {
         savedAccountSummarySnapshots.push(snapshot);
         return okAsync(undefined);
@@ -96,6 +102,7 @@ describe('syncCurrentPositionPricesFromT212', () => {
       BrokerDataManager,
       | 'saveInstrumentPriceSnapshot'
       | 'saveCurrentPositionSnapshot'
+      | 'saveObservedInstrumentListing'
       | 'saveAccountSummarySnapshot'
     >;
 
@@ -138,6 +145,20 @@ describe('syncCurrentPositionPricesFromT212', () => {
         priceType: 'position_current',
         asOf: '2026-04-03T19:30:00.000Z',
         fetchedAt: '2026-04-03T19:30:00.000Z',
+      },
+    ]);
+    expect(savedObservedInstrumentListings).toEqual([
+      {
+        ticker: 'AXP_US_EQ',
+        name: 'American Express',
+        isin: 'US0258161092',
+        currency: 'USD',
+      },
+      {
+        ticker: 'VUAG_GB_EQ',
+        name: 'Vanguard S&P 500',
+        isin: 'IE00BFMXXD54',
+        currency: 'GBP',
       },
     ]);
     expect(savedCurrentPositionSnapshots).toEqual([

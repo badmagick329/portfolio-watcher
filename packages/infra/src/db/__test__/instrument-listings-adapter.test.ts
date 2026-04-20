@@ -116,6 +116,73 @@ describe('instrument listing db adapter', () => {
     expect(oldListing[0]?.isin).toBe('IE00B435CG94');
     expect(newListing[0]?.isin).toBe('IE00B435CG94');
   });
+
+  test('catalog sync does not add catalog-only instruments to portfolio reads', async () => {
+    const { dataManager } = await createTestDataManager();
+
+    await unwrap(
+      dataManager.saveT212InstrumentCatalogItems([
+        {
+          ticker: 'RANDO_US_EQ',
+          isin: 'US0000000001',
+          name: 'Random Catalog Stock',
+          shortName: null,
+          instrumentType: 'STOCK',
+          currencyCode: 'USD',
+          extendedHours: false,
+          maxOpenQuantity: null,
+          addedOn: null,
+          fetchedAt: '2026-04-20T10:00:00.000Z',
+        },
+      ]),
+    );
+
+    await expect(unwrap(dataManager.getDistinctInstruments())).resolves.toEqual([]);
+    await expect(
+      unwrap(dataManager.findInstrumentCategoryInstrumentMatches('RANDO')),
+    ).resolves.toEqual([]);
+    await expect(
+      unwrap(dataManager.findT212InstrumentCatalogMatches('RANDO')),
+    ).resolves.toHaveLength(1);
+  });
+
+  test('current position observed listing appears in portfolio reads', async () => {
+    const { dataManager } = await createTestDataManager();
+
+    await unwrap(
+      dataManager.saveObservedInstrumentListing({
+        ticker: 'VUAGl_EQ',
+        name: 'Vanguard S&P 500',
+        isin: 'IE00BFMXXD54',
+        currency: 'GBP',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'IE00BFMXXD54',
+        providerSymbol: 'VUAGl_EQ',
+        quantity: 1,
+        currentPrice: 100,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 100,
+        totalCost: 90,
+        unrealizedProfitLoss: 10,
+        fxImpact: null,
+        asOf: '2026-04-20T10:00:00.000Z',
+        fetchedAt: '2026-04-20T10:00:00.000Z',
+      }),
+    );
+
+    await expect(unwrap(dataManager.getDistinctInstruments())).resolves.toEqual([
+      {
+        ticker: 'VUAGl_EQ',
+        name: 'Vanguard S&P 500',
+        isin: 'IE00BFMXXD54',
+        currency: 'GBP',
+      },
+    ]);
+  });
 });
 
 describe('instrument listing migration', () => {
@@ -141,6 +208,110 @@ describe('instrument listing migration', () => {
     expect(listings).toEqual([
       { ticker: 'XLEPl_EQ', isin: 'IE00B435CG94' },
       { ticker: 'XLESl_EQ', isin: 'IE00B435CG94' },
+    ]);
+  });
+
+  test('cleans catalog-only listings and keeps order/current-position listings', async () => {
+    const sqlite = createEmptyDb();
+    sqlite.exec(`
+      insert into instruments(isin, name, currency)
+      values
+        ('US0000000001', 'Random Catalog Stock', 'USD'),
+        ('IE00B435CG94', 'Invesco Energy S&P US Select Sector (Acc)', 'GBP');
+
+      insert into instrument_listings(ticker, isin, provider, name, currency)
+      values
+        ('RANDO_US_EQ', 'US0000000001', 't212', 'Random Catalog Stock', 'USD'),
+        ('XLEPl_EQ', 'IE00B435CG94', 't212', 'Invesco Energy S&P US Select Sector (Acc)', 'GBP');
+
+      insert into orders(
+        id,
+        strategy,
+        type,
+        ticker,
+        status,
+        currency,
+        extended_hours,
+        initiated_from,
+        side,
+        created_at
+      )
+      values (
+        1,
+        'MANUAL',
+        'MARKET',
+        'XLEPl_EQ',
+        'FILLED',
+        'GBP',
+        0,
+        'WEB',
+        'BUY',
+        '2026-04-17T10:00:00.000Z'
+      );
+
+      insert into t212_instrument_catalog(
+        ticker,
+        isin,
+        name,
+        currency_code,
+        extended_hours,
+        fetched_at
+      )
+      values (
+        'VUAGl_EQ',
+        'IE00BFMXXD54',
+        'Vanguard S&P 500',
+        'GBP',
+        0,
+        '2026-04-20T10:00:00.000Z'
+      );
+
+      insert into current_position_snapshots(
+        isin,
+        provider_symbol,
+        quantity,
+        current_price,
+        instrument_currency,
+        wallet_currency,
+        current_value,
+        total_cost,
+        unrealized_profit_loss,
+        as_of,
+        fetched_at
+      )
+      values (
+        'IE00BFMXXD54',
+        'VUAGl_EQ',
+        1,
+        100,
+        'GBP',
+        'GBP',
+        100,
+        90,
+        10,
+        '2026-04-20T10:00:00.000Z',
+        '2026-04-20T10:00:00.000Z'
+      );
+    `);
+
+    runMigration(sqlite, 'drizzle/0014_clean_portfolio_instrument_universe.sql');
+
+    const fkRows = sqlite.prepare('PRAGMA foreign_key_check').all();
+    const listings = sqlite
+      .prepare('select ticker, isin from instrument_listings order by ticker')
+      .all();
+    const instruments = sqlite
+      .prepare('select isin, name from instruments order by isin')
+      .all();
+
+    expect(fkRows).toEqual([]);
+    expect(listings).toEqual([
+      { ticker: 'VUAGl_EQ', isin: 'IE00BFMXXD54' },
+      { ticker: 'XLEPl_EQ', isin: 'IE00B435CG94' },
+    ]);
+    expect(instruments).toEqual([
+      { isin: 'IE00B435CG94', name: 'Invesco Energy S&P US Select Sector (Acc)' },
+      { isin: 'IE00BFMXXD54', name: 'Vanguard S&P 500' },
     ]);
   });
 });

@@ -45,6 +45,8 @@ type WebHistoricalOrderInstrument = {
   currency: string;
 };
 
+type ObservedInstrumentListing = WebHistoricalOrderInstrument;
+
 type InstrumentCategoryInstrument = WebHistoricalOrderInstrument;
 
 type CategorizedInstrument = InstrumentCategoryInstrument & {
@@ -383,6 +385,7 @@ export type {
   HistoricalOrdersParams,
   RateLimitResponse,
   SyncStepResult,
+  ObservedInstrumentListing,
   WebHistoricalOrder,
   WebHistoricalOrderFill,
   WebHistoricalOrderInstrument,

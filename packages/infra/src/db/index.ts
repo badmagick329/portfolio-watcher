@@ -10,13 +10,14 @@ import type {
   InstrumentRiskMetricSnapshot,
   InstrumentRiskMetricSyncStatus,
   InstrumentRiskProvider,
+  ObservedInstrumentListing,
   OrderSyncState,
   OrderSyncStateManager,
   WebHistoricalOrderInstrument,
   WebHistoricalOrdersFilters,
 } from '@portfolio/domain';
 import Database from 'better-sqlite3';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { ResultAsync } from 'neverthrow';
 import {
@@ -117,24 +118,32 @@ const createOrderSyncStateManager = () => {
 const createBrokerDataManager = (dbClient = db) => {
   const db = dbClient;
 
-  const listPreferredInstrumentRows = () => {
-    const instrumentRows = db
-      .select({
-        isin: instruments.isin,
+  const listObservedListingRows = () =>
+    db
+      .selectDistinct({
+        ticker: instrumentListings.ticker,
+        isin: instrumentListings.isin,
         name: instruments.name,
         currency: instruments.currency,
       })
-      .from(instruments)
-      .all();
-
-    const listingRows = db
-      .select({
-        ticker: instrumentListings.ticker,
-        isin: instrumentListings.isin,
-      })
       .from(instrumentListings)
+      .innerJoin(instruments, eq(instrumentListings.isin, instruments.isin))
+      .leftJoin(orders, eq(instrumentListings.ticker, orders.ticker))
+      .leftJoin(
+        currentPositionSnapshots,
+        eq(instrumentListings.ticker, currentPositionSnapshots.providerSymbol),
+      )
+      .where(
+        or(
+          isNotNull(orders.ticker),
+          isNotNull(currentPositionSnapshots.providerSymbol),
+        ),
+      )
       .orderBy(instrumentListings.ticker)
       .all();
+
+  const listPreferredInstrumentRows = () => {
+    const listingRows = listObservedListingRows();
 
     const snapshotRows = db
       .select({
@@ -148,10 +157,10 @@ const createBrokerDataManager = (dbClient = db) => {
       )
       .all();
 
-    const listingsByIsin = new Map<string, string[]>();
+    const listingsByIsin = new Map<string, (typeof listingRows)[number][]>();
     listingRows.forEach((row) => {
       const existing = listingsByIsin.get(row.isin) ?? [];
-      existing.push(row.ticker);
+      existing.push(row);
       listingsByIsin.set(row.isin, existing);
     });
 
@@ -162,18 +171,19 @@ const createBrokerDataManager = (dbClient = db) => {
       }
     });
 
-    return instrumentRows
-      .map(
-        (row): WebHistoricalOrderInstrument => ({
-          ticker:
-            latestProviderSymbolByIsin.get(row.isin) ??
-            listingsByIsin.get(row.isin)?.[0] ??
-            row.isin,
-          name: row.name,
-          isin: row.isin,
-          currency: row.currency,
-        }),
-      )
+    return [...listingsByIsin.entries()]
+      .map(([isin, listings]): WebHistoricalOrderInstrument => {
+        const preferredTicker = latestProviderSymbolByIsin.get(isin);
+        const preferredListing =
+          listings.find((row) => row.ticker === preferredTicker) ?? listings[0]!;
+
+        return {
+          ticker: preferredListing.ticker,
+          name: preferredListing.name,
+          isin: preferredListing.isin,
+          currency: preferredListing.currency,
+        };
+      })
       .sort((left, right) => left.ticker.localeCompare(right.ticker));
   };
 
@@ -363,28 +373,7 @@ const createBrokerDataManager = (dbClient = db) => {
         return [];
       }
 
-      const portfolioRows = db
-        .selectDistinct({
-          ticker: instrumentListings.ticker,
-          name: instruments.name,
-          isin: instruments.isin,
-          currency: instruments.currency,
-        })
-        .from(instrumentListings)
-        .innerJoin(instruments, eq(instrumentListings.isin, instruments.isin))
-        .all();
-
-      const catalogRows = db
-        .select({
-          ticker: t212InstrumentCatalog.ticker,
-          name: t212InstrumentCatalog.name,
-          isin: t212InstrumentCatalog.isin,
-          currency: t212InstrumentCatalog.currencyCode,
-        })
-        .from(t212InstrumentCatalog)
-        .all();
-
-      const rows = [...portfolioRows, ...catalogRows];
+      const rows = listObservedListingRows();
       const seen = new Set<string>();
 
       return rows.filter((row) => {
@@ -546,6 +535,46 @@ const createBrokerDataManager = (dbClient = db) => {
         .run();
     }, 'save current position snapshot');
 
+  const saveObservedInstrumentListing = (listing: ObservedInstrumentListing) =>
+    wrapDb(() => {
+      db.transaction((tx) => {
+        tx.insert(instruments)
+          .values({
+            isin: listing.isin,
+            name: listing.name,
+            currency: listing.currency,
+          })
+          .onConflictDoUpdate({
+            target: instruments.isin,
+            set: {
+              name: listing.name,
+              currency: listing.currency,
+            },
+          })
+          .run();
+
+        tx.insert(instrumentListings)
+          .values({
+            ticker: listing.ticker,
+            isin: listing.isin,
+            provider: 't212',
+            name: listing.name,
+            currency: listing.currency,
+          })
+          .onConflictDoUpdate({
+            target: instrumentListings.ticker,
+            set: {
+              isin: listing.isin,
+              provider: 't212',
+              name: listing.name,
+              currency: listing.currency,
+              updatedAt: sql`CURRENT_TIMESTAMP`,
+            },
+          })
+          .run();
+      });
+    }, 'save observed instrument listing');
+
   const getLatestCurrentPositionSnapshotByIsin = (isin: string) =>
     wrapDb(() => {
       const row = db
@@ -634,35 +663,6 @@ const createBrokerDataManager = (dbClient = db) => {
   ) =>
     wrapDb(() => {
       items.forEach((item) => {
-        db.insert(instruments)
-          .values({
-            isin: item.isin,
-            name: item.name,
-            currency: item.currencyCode,
-          })
-          .onConflictDoNothing()
-          .run();
-
-        db.insert(instrumentListings)
-          .values({
-            ticker: item.ticker,
-            isin: item.isin,
-            provider: 't212',
-            name: item.name,
-            currency: item.currencyCode,
-          })
-          .onConflictDoUpdate({
-            target: instrumentListings.ticker,
-            set: {
-              isin: item.isin,
-              provider: 't212',
-              name: item.name,
-              currency: item.currencyCode,
-              updatedAt: sql`CURRENT_TIMESTAMP`,
-            },
-          })
-          .run();
-
         db.insert(t212InstrumentCatalog)
           .values({
             ticker: item.ticker,
@@ -1039,6 +1039,7 @@ const createBrokerDataManager = (dbClient = db) => {
     listCategorizedInstruments,
     saveInstrumentPriceSnapshot,
     saveCurrentPositionSnapshot,
+    saveObservedInstrumentListing,
     getLatestCurrentPositionSnapshotByIsin,
     saveAccountSummarySnapshot,
     saveOrderExecutionAttempt,

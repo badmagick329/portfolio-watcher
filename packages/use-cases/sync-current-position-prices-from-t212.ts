@@ -6,6 +6,7 @@ import type {
   BrokerDataManager,
   CurrentPositionSnapshot,
   InstrumentPriceSnapshot,
+  ObservedInstrumentListing,
   Position,
   Positions,
   PortfolioStateSyncResult,
@@ -18,6 +19,7 @@ type Params = {
     BrokerDataManager,
     | 'saveInstrumentPriceSnapshot'
     | 'saveCurrentPositionSnapshot'
+    | 'saveObservedInstrumentListing'
     | 'saveAccountSummarySnapshot'
   >;
   now?: () => Date;
@@ -65,6 +67,7 @@ const persistPortfolioState = ({
     BrokerDataManager,
     | 'saveInstrumentPriceSnapshot'
     | 'saveCurrentPositionSnapshot'
+    | 'saveObservedInstrumentListing'
     | 'saveAccountSummarySnapshot'
   >;
 }): ResultAsync<
@@ -75,44 +78,75 @@ const persistPortfolioState = ({
   },
   AppError
 > =>
-  persistInstrumentPriceSnapshots({
-    snapshots: positions.map((position) =>
-      toInstrumentPriceSnapshot({
-        isin: position.instrument.isin,
-        providerSymbol: position.instrument.ticker,
-        currency: position.instrument.currencyCode,
-        price: position.currentPrice,
-        fetchedAt,
-      }),
-    ),
+  persistObservedInstrumentListings({
+    listings: positions.map(toObservedInstrumentListing),
     dataManager,
-  }).andThen((persistedPrices) =>
-    persistCurrentPositionSnapshots({
-      snapshots: positions
-        .map((position) =>
-          toCurrentPositionSnapshot({
-            position,
-            walletCurrency: accountSummary.currency,
-            fetchedAt,
-          }),
-        )
-        .filter((snapshot): snapshot is CurrentPositionSnapshot => snapshot !== null),
+  }).andThen(() =>
+    persistInstrumentPriceSnapshots({
+      snapshots: positions.map((position) =>
+        toInstrumentPriceSnapshot({
+          isin: position.instrument.isin,
+          providerSymbol: position.instrument.ticker,
+          currency: position.instrument.currencyCode,
+          price: position.currentPrice,
+          fetchedAt,
+        }),
+      ),
       dataManager,
-    }).andThen((persistedPositions) =>
-      dataManager
-        .saveAccountSummarySnapshot(
-          toAccountSummarySnapshot({
-            accountSummary,
-            fetchedAt,
-          }),
-        )
-        .map(() => ({
-          prices: persistedPrices,
-          positions: persistedPositions,
-          accountSummaries: 1,
-        })),
+    }).andThen((persistedPrices) =>
+      persistCurrentPositionSnapshots({
+        snapshots: positions
+          .map((position) =>
+            toCurrentPositionSnapshot({
+              position,
+              walletCurrency: accountSummary.currency,
+              fetchedAt,
+            }),
+          )
+          .filter(
+            (snapshot): snapshot is CurrentPositionSnapshot => snapshot !== null,
+          ),
+        dataManager,
+      }).andThen((persistedPositions) =>
+        dataManager
+          .saveAccountSummarySnapshot(
+            toAccountSummarySnapshot({
+              accountSummary,
+              fetchedAt,
+            }),
+          )
+          .map(() => ({
+            prices: persistedPrices,
+            positions: persistedPositions,
+            accountSummaries: 1,
+          })),
+      ),
     ),
   );
+
+const persistObservedInstrumentListings = ({
+  listings,
+  dataManager,
+  persisted = 0,
+}: {
+  listings: ObservedInstrumentListing[];
+  dataManager: Pick<BrokerDataManager, 'saveObservedInstrumentListing'>;
+  persisted?: number;
+}): ResultAsync<number, AppError> => {
+  const [listing, ...rest] = listings;
+
+  if (!listing) {
+    return okAsync(persisted);
+  }
+
+  return dataManager.saveObservedInstrumentListing(listing).andThen(() =>
+    persistObservedInstrumentListings({
+      listings: rest,
+      dataManager,
+      persisted: persisted + 1,
+    }),
+  );
+};
 
 const persistInstrumentPriceSnapshots = ({
   snapshots,
@@ -213,6 +247,15 @@ const toCurrentPositionSnapshot = ({
     fetchedAt,
   };
 };
+
+const toObservedInstrumentListing = (
+  position: Position,
+): ObservedInstrumentListing => ({
+  ticker: position.instrument.ticker,
+  name: position.instrument.name,
+  isin: position.instrument.isin,
+  currency: position.instrument.currencyCode,
+});
 
 const toAccountSummarySnapshot = ({
   accountSummary,
