@@ -58,6 +58,21 @@ API_SECRET=your_trading212_api_secret
 
 Add `FMP_API_KEY` later only if you want beta/risk metrics.
 
+## Using the app
+
+After starting the web app:
+
+1. open the Orders page
+2. use the `Sync` button to run:
+   - `Sync orders`
+   - `Sync instruments`
+3. wait for your data to appear
+4. use the Categories page to assign categories and view allocation
+
+Notes:
+
+- syncing beta data is still CLI-only
+
 ## Environment variables
 
 Put these in `.env` at the repo root.
@@ -114,48 +129,9 @@ Typecheck:
 pnpm typecheck
 ```
 
-## Trading 212 sync
-
-If you added `API_KEY` and `API_SECRET`, these are the main sync commands:
-
-Sync historical orders:
-
-```bash
-pnpm main sync
-```
-
-Sync full Trading 212 instrument catalog:
-
-```bash
-pnpm main sync-instruments
-```
-
-Notes:
-
-- `pnpm main sync` currently runs the main historical order + price sync flow.
-- if credentials are missing, sync commands will fail with a clear validation error.
-
 ## Categories
 
-You can manage categories in the web UI, or via CLI.
-
-Set a category:
-
-```bash
-pnpm main categories set --instrument AMD --category satellite
-```
-
-Unset a category:
-
-```bash
-pnpm main categories unset --instrument AMD
-```
-
-List categories:
-
-```bash
-pnpm main categories list
-```
+Manage categories in the Categories page.
 
 ## Risk metrics / beta
 
@@ -167,41 +143,39 @@ To use beta features, add:
 FMP_API_KEY=your_fmp_api_key
 ```
 
-Then you can:
+Beta appears in the Categories allocation view after risk metrics have been synced.
 
-1. map any instrument symbols FMP cannot infer
-2. sync risk metrics
+At the moment, beta sync and manual symbol mapping are CLI-only.
 
-Set a manual FMP symbol mapping:
+## CLI (optional)
+
+Most users can ignore this section.
+
+Trading 212 sync:
+
+```bash
+pnpm main sync
+pnpm main sync-instruments
+```
+
+Category management:
+
+```bash
+pnpm main categories set --instrument AMD --category satellite
+pnpm main categories unset --instrument AMD
+pnpm main categories list
+```
+
+Risk metric symbol mapping:
 
 ```bash
 pnpm main risk-symbols set --instrument VOD --provider fmp --symbol VOD.L
-```
-
-Remove a mapping:
-
-```bash
 pnpm main risk-symbols unset --instrument VOD --provider fmp
-```
-
-List mappings:
-
-```bash
 pnpm main risk-symbols list
 ```
 
-Sync beta/risk metrics:
+Risk metric sync:
 
 ```bash
 pnpm main sync-risk-metrics
 ```
-
-## Do I need to migrate?
-
-Yes. Run this at least once after creating `.env`:
-
-```bash
-pnpm db:migrate
-```
-
-Run it again any time the schema changes.
