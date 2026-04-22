@@ -38,7 +38,25 @@ pnpm dev:web
 ```
 
 That is enough to open the app locally.  
-Without API keys, the optional sync/trading/risk features stay unavailable or hidden.
+But in practice, you will usually also want Trading 212 API credentials, otherwise the app has no portfolio/order data to show.
+
+## First-time flow
+
+1. `pnpm install`
+2. create `.env`
+3. add:
+
+```env
+SQLITE_DB=./sqlite/portfolio-watcher.db
+API_KEY=your_trading212_api_key
+API_SECRET=your_trading212_api_secret
+```
+
+4. `pnpm db:migrate`
+5. `pnpm dev:web`
+6. open the local web app
+
+Add `FMP_API_KEY` later only if you want beta/risk metrics.
 
 ## Environment variables
 
@@ -50,17 +68,22 @@ Required:
 SQLITE_DB=./sqlite/portfolio-watcher.db
 ```
 
-Optional:
+Usually needed:
 
 ```env
 API_KEY=your_trading212_api_key
 API_SECRET=your_trading212_api_secret
+```
+
+Optional:
+
+```env
 FMP_API_KEY=your_fmp_api_key
 ```
 
 Notes:
 
-- `API_KEY` + `API_SECRET` enable Trading 212 read features like order sync and portfolio sync.
+- `API_KEY` + `API_SECRET` are what make the app useful for most people. They enable Trading 212 order sync and portfolio sync.
 - live order placement depends on what your Trading 212 key is allowed to do; if it is read-only, the app should fail gracefully.
 - `FMP_API_KEY` is only needed for syncing beta/risk metrics.
 
@@ -93,7 +116,7 @@ pnpm typecheck
 
 ## Trading 212 sync
 
-If you added `API_KEY` and `API_SECRET`, these CLI commands become useful:
+If you added `API_KEY` and `API_SECRET`, these are the main sync commands:
 
 Sync historical orders:
 
@@ -182,16 +205,3 @@ pnpm db:migrate
 ```
 
 Run it again any time the schema changes.
-
-## Typical first-time flow
-
-For a brand new user, the simplest useful flow is:
-
-1. `pnpm install`
-2. create `.env`
-3. `pnpm db:migrate`
-4. `pnpm dev:web`
-5. add Trading 212 credentials later if you want sync
-6. add FMP key later if you want beta
-
-That’s the intended low-friction path.
