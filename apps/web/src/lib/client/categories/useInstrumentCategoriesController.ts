@@ -1,5 +1,7 @@
 'use client';
 
+import type { AppCapabilitiesData } from '@/lib/client/app-capabilities';
+import { EMPTY_APP_CAPABILITIES } from '@/lib/client/app-capabilities';
 import type { CategorizedInstrument } from '@portfolio/domain';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -20,6 +22,7 @@ type InstrumentCategoriesStatus =
   | { state: 'ready' };
 
 type InstrumentCategoriesHeaderModel = {
+  capabilities: AppCapabilitiesData;
   mode: CategoriesViewUrlState['mode'];
 };
 
@@ -55,6 +58,7 @@ type CategoryManagementActions = {
 type CategoryAllocationPanelModel = {
   alphaMarketReturn: number;
   alphaRiskFreeAnnual: number;
+  capabilities: AppCapabilitiesData;
   fillDateRangeFilter: FillDateRangeFilter;
   hideValues: boolean;
   viewModel: CategoryAllocationViewModel;
@@ -91,6 +95,7 @@ function useInstrumentCategoriesController() {
     [urlState.filledFrom, urlState.filledTo],
   );
   const isMutating = setCategories.isPending || unsetCategories.isPending;
+  const capabilities = data?.capabilities ?? EMPTY_APP_CAPABILITIES;
   const selectedIsinsList = useMemo(
     () => Array.from(selectedIsins),
     [selectedIsins],
@@ -285,6 +290,7 @@ function useInstrumentCategoriesController() {
     allocationModel: {
       alphaMarketReturn: urlState.alphaMarketReturn,
       alphaRiskFreeAnnual: urlState.alphaRiskFreeAnnual,
+      capabilities,
       fillDateRangeFilter,
       hideValues: urlState.hideValues,
       viewModel: allocationViewModel,
@@ -293,6 +299,7 @@ function useInstrumentCategoriesController() {
       setMode: (mode) => replaceUrlState({ mode }),
     } satisfies InstrumentCategoriesHeaderActions,
     headerModel: {
+      capabilities,
       mode: urlState.mode,
     } satisfies InstrumentCategoriesHeaderModel,
     managementActions: {

@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 type CategoryAllocationSummaryProps = {
   hideValues: boolean;
   isHistorical: boolean;
+  showBeta: boolean;
   showAlpha: boolean;
   viewModel: CategoryAllocationViewModel;
 };
@@ -24,15 +25,18 @@ type CategoryAllocationSummaryProps = {
 function CategoryAllocationSummary({
   hideValues,
   isHistorical,
+  showBeta,
   showAlpha,
   viewModel,
 }: CategoryAllocationSummaryProps) {
   return (
     <div
       className={
-        showAlpha
+        showBeta && showAlpha
           ? 'grid gap-4 sm:grid-cols-3 xl:grid-cols-6'
-          : 'grid gap-4 sm:grid-cols-3 xl:grid-cols-5'
+          : showBeta
+            ? 'grid gap-4 sm:grid-cols-3 xl:grid-cols-5'
+            : 'grid gap-4 sm:grid-cols-3'
       }
     >
       <PortfolioSummaryMetric
@@ -57,22 +61,26 @@ function CategoryAllocationSummary({
             : formatPercent(viewModel.totalReturnPercent)
         }
       />
-      <PortfolioSummaryMetric
-        label='Portfolio beta'
-        value={
-          viewModel.portfolioBeta === null
-            ? NA_LABEL
-            : formatBeta(viewModel.portfolioBeta)
-        }
-      />
-      <PortfolioSummaryMetric
-        label='Beta coverage'
-        value={
-          viewModel.betaCoveragePercent === null
-            ? NA_LABEL
-            : formatPercent(viewModel.betaCoveragePercent)
-        }
-      />
+      {showBeta ? (
+        <PortfolioSummaryMetric
+          label='Portfolio beta'
+          value={
+            viewModel.portfolioBeta === null
+              ? NA_LABEL
+              : formatBeta(viewModel.portfolioBeta)
+          }
+        />
+      ) : null}
+      {showBeta ? (
+        <PortfolioSummaryMetric
+          label='Beta coverage'
+          value={
+            viewModel.betaCoveragePercent === null
+              ? NA_LABEL
+              : formatPercent(viewModel.betaCoveragePercent)
+          }
+        />
+      ) : null}
       {showAlpha ? (
         <PortfolioSummaryMetric
           label='Portfolio alpha'

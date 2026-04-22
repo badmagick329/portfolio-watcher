@@ -6,6 +6,7 @@ import type {
 } from '@/lib/client/portfolio/instrument-price';
 import type { OrdersExplorerData } from '@/lib/client/orders/orders-explorer-data';
 import {
+  getAppCapabilities,
   getDistinctInstruments,
   getHistoricalOrdersForWeb,
   getLatestAccountSummarySnapshot,
@@ -14,11 +15,12 @@ import {
 } from '@/lib/server/composition';
 
 export async function getOrdersExplorerDataAction(): Promise<OrdersExplorerData> {
-  const [orders, instruments, latestAccountSummarySnapshotResult] =
+  const [orders, instruments, latestAccountSummarySnapshotResult, capabilitiesResult] =
     await Promise.all([
       getOrders(),
       getDistinctInstrumentsForExplorer(),
       getLatestAccountSummarySnapshot(),
+      getAppCapabilities(),
     ]);
 
   if (latestAccountSummarySnapshotResult.isErr()) {
@@ -27,6 +29,10 @@ export async function getOrdersExplorerDataAction(): Promise<OrdersExplorerData>
 
   const latestAccountSummarySnapshot: AccountSummarySnapshot | null =
     latestAccountSummarySnapshotResult.value ?? null;
+
+  if (capabilitiesResult.isErr()) {
+    throw new Error(capabilitiesResult.error.message);
+  }
   const instrumentsWithStoredPrices = await Promise.all(
     instruments.map(async (instrument) => {
       const [latestStoredPriceResult, latestPositionSnapshotResult] =
@@ -60,6 +66,7 @@ export async function getOrdersExplorerDataAction(): Promise<OrdersExplorerData>
   );
 
   return {
+    capabilities: capabilitiesResult.value,
     instruments: instrumentsWithStoredPrices,
     latestAccountSummarySnapshot,
     orders: orders.items.toSorted(

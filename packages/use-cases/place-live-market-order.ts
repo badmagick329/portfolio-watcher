@@ -130,9 +130,10 @@ const createPlaceLiveMarketOrder = ({
     const attemptedAt = now().toISOString();
 
     return placeLiveMarketOrder(input, attemptedAt).orElse((error) => {
+      const normalizedError = normalizeOrderPlacementError(error);
       const validationError = validatePlaceMarketOrderInput(input);
       if (validationError) {
-        return errAsync(error);
+        return errAsync(normalizedError);
       }
 
       return resolveInstrumentForOrder(input.instrument)
@@ -157,19 +158,27 @@ const createPlaceLiveMarketOrder = ({
             executionMode: input.confirm ? 'submitted' : 'dry_run',
             brokerRequestPayload: '',
             brokerResponsePayload: null,
-            errorCode: error.code,
-            errorMessage: error.message,
+            errorCode: normalizedError.code,
+            errorMessage: normalizedError.message,
             attemptedAt,
           };
 
           return dataManager
             .saveOrderExecutionAttempt(fallbackAttempt)
             .orElse(() => okAsync(undefined))
-            .andThen(() => errAsync(error));
+            .andThen(() => errAsync(normalizedError));
         });
     });
   };
 };
+
+const normalizeOrderPlacementError = (error: AppError): AppError =>
+  error.code === 'FORBIDDEN'
+    ? {
+        ...error,
+        message: 'Broker key does not allow live order placement.',
+      }
+    : error;
 
 const validatePlaceMarketOrderInput = (
   input: PlaceMarketOrderInput,

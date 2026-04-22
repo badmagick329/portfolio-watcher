@@ -11,6 +11,7 @@ const portfolioStateSyncQueryKey = ['portfolio-state-sync'] as const;
 
 const getPortfolioStateSyncQueryOptions = (
   invalidateOrdersExplorer: () => Promise<void>,
+  enabled = true,
 ) => ({
   queryKey: portfolioStateSyncQueryKey,
   queryFn: async () => {
@@ -23,6 +24,7 @@ const getPortfolioStateSyncQueryOptions = (
     return result;
   },
   retry: false,
+  enabled,
   staleTime: Number.POSITIVE_INFINITY,
   refetchOnWindowFocus: false,
   refetchOnReconnect: false,
@@ -31,12 +33,13 @@ const getPortfolioStateSyncQueryOptions = (
   refetchIntervalInBackground: false,
 });
 
-function usePortfolioStateSync() {
+function usePortfolioStateSync(enabled = true) {
   const queryClient = useQueryClient();
 
   return useQuery(
     getPortfolioStateSyncQueryOptions(() =>
       queryClient.invalidateQueries({ queryKey: ordersExplorerQueryKey }),
+      enabled,
     ),
   );
 }

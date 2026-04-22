@@ -1,6 +1,7 @@
 'use server';
 
 import {
+  getAppCapabilities,
   getHistoricalOrdersForWeb,
   getLatestCurrentPositionSnapshot,
   getLatestInstrumentRiskMetric,
@@ -11,9 +12,10 @@ import {
 import type { WebHistoricalOrder } from '@portfolio/domain';
 
 export async function getInstrumentCategoriesAction() {
-  const [categoriesResult, ordersResult] = await Promise.all([
+  const [categoriesResult, ordersResult, capabilitiesResult] = await Promise.all([
     listCategorizedInstruments(),
     getHistoricalOrdersForWeb(),
+    getAppCapabilities(),
   ]);
 
   if (categoriesResult.isErr()) {
@@ -22,6 +24,10 @@ export async function getInstrumentCategoriesAction() {
 
   if (ordersResult.isErr()) {
     throw new Error(ordersResult.error.message);
+  }
+
+  if (capabilitiesResult.isErr()) {
+    throw new Error(capabilitiesResult.error.message);
   }
 
   const quantitiesByIsin = getCurrentQuantitiesByIsin(ordersResult.value.items);
@@ -57,6 +63,7 @@ export async function getInstrumentCategoriesAction() {
   );
 
   return {
+    capabilities: capabilitiesResult.value,
     instruments,
     historicalOrders: ordersResult.value.items,
   };

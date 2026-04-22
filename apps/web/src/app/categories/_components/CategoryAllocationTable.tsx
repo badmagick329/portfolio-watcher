@@ -22,6 +22,7 @@ type CategoryAllocationTableProps = {
   hideValues: boolean;
   isHistorical: boolean;
   rows: CategoryAllocationRow[];
+  showBeta: boolean;
   showAlpha: boolean;
 };
 
@@ -29,6 +30,7 @@ function CategoryAllocationTable({
   hideValues,
   isHistorical,
   rows,
+  showBeta,
   showAlpha,
 }: CategoryAllocationTableProps) {
   return (
@@ -43,7 +45,7 @@ function CategoryAllocationTable({
             <TableHead>Net invested</TableHead>
             <TableHead>P/L</TableHead>
             <TableHead>Return</TableHead>
-            <TableHead>Beta</TableHead>
+            {showBeta ? <TableHead>Beta</TableHead> : null}
             {showAlpha ? <TableHead>Alpha</TableHead> : null}
           </TableRow>
         ) : (
@@ -52,7 +54,7 @@ function CategoryAllocationTable({
             <TableHead>Holdings</TableHead>
             <TableHead>Value</TableHead>
             <TableHead>Allocation</TableHead>
-            <TableHead>Beta</TableHead>
+            {showBeta ? <TableHead>Beta</TableHead> : null}
             {showAlpha ? <TableHead>Alpha</TableHead> : null}
             <TableHead>Unrealized P/L</TableHead>
             <TableHead>Return</TableHead>
@@ -84,9 +86,11 @@ function CategoryAllocationTable({
                   formatter={formatPercent}
                   value={row.returnPercent}
                 />
-                <TableCell>
-                  {row.beta === null ? NA_LABEL : formatBeta(row.beta)}
-                </TableCell>
+                {showBeta ? (
+                  <TableCell>
+                    {row.beta === null ? NA_LABEL : formatBeta(row.beta)}
+                  </TableCell>
+                ) : null}
                 {showAlpha ? (
                   <SignedTableCell formatter={formatPercent} value={row.alpha} />
                 ) : null}
@@ -99,9 +103,11 @@ function CategoryAllocationTable({
                   {formatMoney(row.currentValue, { hideValues })}
                 </TableCell>
                 <TableCell>{formatPercent(row.allocationPercent)}</TableCell>
-                <TableCell>
-                  {row.beta === null ? NA_LABEL : formatBeta(row.beta)}
-                </TableCell>
+                {showBeta ? (
+                  <TableCell>
+                    {row.beta === null ? NA_LABEL : formatBeta(row.beta)}
+                  </TableCell>
+                ) : null}
                 {showAlpha ? (
                   <SignedTableCell formatter={formatPercent} value={row.alpha} />
                 ) : null}

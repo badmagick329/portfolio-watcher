@@ -121,16 +121,21 @@ const createPlaceLiveLimitOrder = ({
               ),
           )
           .orElse((error) =>
+            {
+              const normalizedError = normalizeOrderPlacementError(error);
+              return (
             dataManager
               .saveOrderExecutionAttempt({
                 ...baseAttempt,
                 executionMode: 'submitted',
                 brokerResponsePayload: null,
-                errorCode: error.code,
-                errorMessage: error.message,
+                errorCode: normalizedError.code,
+                errorMessage: normalizedError.message,
               })
               .orElse(() => okAsync(undefined))
-              .andThen(() => errAsync(error)),
+              .andThen(() => errAsync(normalizedError))
+              );
+            },
           );
       },
     );
@@ -142,13 +147,14 @@ const createPlaceLiveLimitOrder = ({
     const attemptedAt = now().toISOString();
 
     return placeLiveLimitOrder(input, attemptedAt).orElse((error) => {
+      const normalizedError = normalizeOrderPlacementError(error);
       const validationError = validatePlaceLimitOrderInput(input);
       if (validationError) {
-        return errAsync(error);
+        return errAsync(normalizedError);
       }
 
-      if (error.code !== 'VALIDATION') {
-        return errAsync(error);
+      if (normalizedError.code !== 'VALIDATION') {
+        return errAsync(normalizedError);
       }
 
       const fallbackAttempt: OrderExecutionAttempt = {
@@ -170,18 +176,26 @@ const createPlaceLiveLimitOrder = ({
         executionMode: input.confirm ? 'submitted' : 'dry_run',
         brokerRequestPayload: '',
         brokerResponsePayload: null,
-        errorCode: error.code,
-        errorMessage: error.message,
+        errorCode: normalizedError.code,
+        errorMessage: normalizedError.message,
         attemptedAt,
       };
 
       return dataManager
         .saveOrderExecutionAttempt(fallbackAttempt)
         .orElse(() => okAsync(undefined))
-        .andThen(() => errAsync(error));
+        .andThen(() => errAsync(normalizedError));
     });
   };
 };
+
+const normalizeOrderPlacementError = (error: AppError): AppError =>
+  error.code === 'FORBIDDEN'
+    ? {
+        ...error,
+        message: 'Broker key does not allow live order placement.',
+      }
+    : error;
 
 const validatePlaceLimitOrderInput = (
   input: PlaceLimitOrderInput,

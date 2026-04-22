@@ -1,5 +1,6 @@
 'use client';
 
+import type { AppCapabilitiesData } from '@/lib/client/app-capabilities';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
@@ -24,6 +25,7 @@ import {
 import type { WebHistoricalOrder } from '@portfolio/domain';
 
 type UseOrdersExplorerControllerParams = {
+  capabilities: AppCapabilitiesData;
   instruments: InstrumentWithStoredPrice[];
   latestAccountSummarySnapshot: AccountSummarySnapshot | null;
   orders: WebHistoricalOrder[];
@@ -66,6 +68,7 @@ type OrdersExplorerListActions = {
 };
 
 function useOrdersExplorerController({
+  capabilities,
   instruments,
   latestAccountSummarySnapshot,
   orders,
@@ -109,12 +112,16 @@ function useOrdersExplorerController({
           ? `${selectedInstruments.length} instruments selected`
           : null;
   const emptyMessage =
-    (selection.mode === 'include' || selection.mode === 'single') &&
-    selection.selectedIsins.length === 0
-      ? selection.mode === 'single'
-        ? 'Select an instrument.'
-        : 'Select one or more instruments.'
-      : 'No instruments match the current filter.';
+    orders.length === 0
+      ? capabilities.canSyncOrders
+        ? 'No historical orders yet. Sync orders to get started.'
+        : 'Add Trading 212 API credentials to sync orders.'
+      : (selection.mode === 'include' || selection.mode === 'single') &&
+          selection.selectedIsins.length === 0
+        ? selection.mode === 'single'
+          ? 'Select an instrument.'
+          : 'Select one or more instruments.'
+        : 'No instruments match the current filter.';
 
   const replaceUrlState = (
     partialState: Partial<OrdersViewUrlState>,

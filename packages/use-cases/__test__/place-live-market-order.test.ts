@@ -7,7 +7,7 @@ import type {
   ResolvedOrderInstrument,
   T212MarketOrderResponse,
 } from '@portfolio/domain';
-import { okAsync } from 'neverthrow';
+import { errAsync, okAsync } from 'neverthrow';
 import { createPlaceLiveMarketOrder } from '../place-live-market-order';
 
 const resolvedInstrument: ResolvedOrderInstrument = {
@@ -148,5 +148,39 @@ describe('placeLiveMarketOrder', () => {
         requestedQuantity: 2,
       } satisfies Partial<OrderExecutionAttempt>),
     );
+  });
+
+  test('maps forbidden broker responses to a clear order placement message', async () => {
+    const result = await createPlaceLiveMarketOrder({
+      client: {
+        placeMarketOrder: vi.fn(() =>
+          errAsync({
+            code: 'FORBIDDEN',
+            message: 'raw forbidden',
+          } as const),
+        ),
+      } satisfies Pick<BrokerClient, 'placeMarketOrder'>,
+      dataManager: {
+        getLatestInstrumentPriceByIsin: vi.fn(() => okAsync(undefined)),
+        saveOrderExecutionAttempt: vi.fn(() => okAsync(undefined)),
+      } satisfies Pick<
+        BrokerDataManager,
+        'getLatestInstrumentPriceByIsin' | 'saveOrderExecutionAttempt'
+      >,
+      resolveInstrumentForOrder: () => okAsync(resolvedInstrument),
+      now: () => new Date('2026-04-04T10:20:00.000Z'),
+    })({
+      instrument: 'AAPL_US_EQ',
+      side: 'buy',
+      quantity: 2,
+      confirm: true,
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.message).toBe(
+        'Broker key does not allow live order placement.',
+      );
+    }
   });
 });

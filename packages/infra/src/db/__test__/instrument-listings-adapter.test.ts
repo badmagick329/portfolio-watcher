@@ -183,6 +183,126 @@ describe('instrument listing db adapter', () => {
       },
     ]);
   });
+
+  test('returns app data state from stored rows', async () => {
+    const { sqlite, dataManager } = await createTestDataManager();
+
+    await unwrap(
+      dataManager.saveHistoricalOrders([
+        historicalOrder({
+          id: 1,
+          ticker: 'XLEPl_EQ',
+          fillId: 10,
+        }),
+      ]),
+    );
+    await unwrap(
+      dataManager.setInstrumentCategory('IE00B435CG94', 'energy'),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'IE00B435CG94',
+        providerSymbol: 'XLEPl_EQ',
+        quantity: 1,
+        currentPrice: 10,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 10,
+        totalCost: 8,
+        unrealizedProfitLoss: 2,
+        fxImpact: null,
+        asOf: '2026-04-20T10:00:00.000Z',
+        fetchedAt: '2026-04-20T10:00:00.000Z',
+      }),
+    );
+    sqlite.exec(`
+      insert into account_summary_snapshots(
+        currency,
+        current_value,
+        total_cost,
+        realized_profit_loss,
+        unrealized_profit_loss,
+        total_value,
+        as_of,
+        fetched_at
+      )
+      values(
+        'GBP',
+        10,
+        8,
+        0,
+        2,
+        10,
+        '2026-04-20T10:00:00.000Z',
+        '2026-04-20T10:00:00.000Z'
+      );
+
+      insert into instrument_risk_metrics(
+        isin,
+        provider,
+        provider_symbol,
+        beta,
+        source_type,
+        as_of,
+        fetched_at
+      )
+      values(
+        'IE00B435CG94',
+        'fmp',
+        'XLEP',
+        0.9,
+        'profile',
+        '2026-04-20T10:00:00.000Z',
+        '2026-04-20T10:05:00.000Z'
+      );
+
+      insert into order_execution_attempts(
+        order_type,
+        environment,
+        instrument_input,
+        resolved_ticker,
+        resolved_isin,
+        resolved_name,
+        side,
+        requested_mode,
+        requested_quantity,
+        derived_quantity,
+        extended_hours,
+        execution_mode,
+        broker_request_payload,
+        attempted_at
+      )
+      values(
+        'market',
+        'live',
+        'XLEP',
+        'XLEPl_EQ',
+        'IE00B435CG94',
+        'Invesco Energy S&P US Select Sector (Acc)',
+        'buy',
+        'quantity',
+        1,
+        1,
+        0,
+        'submitted',
+        '{}',
+        '2026-04-20T10:10:00.000Z'
+      );
+    `);
+
+    const result = await unwrap(dataManager.getAppDataState());
+
+    expect(result).toEqual({
+      hasHistoricalOrders: true,
+      hasCurrentHoldings: true,
+      hasCategories: true,
+      hasStoredRiskMetrics: true,
+      hasSuccessfulSubmittedOrderAttempt: true,
+      lastOrdersSyncAt: null,
+      lastPortfolioSyncAt: '2026-04-20T10:00:00.000Z',
+      lastRiskMetricsSyncAt: '2026-04-20T10:05:00.000Z',
+    });
+  });
 });
 
 describe('instrument listing migration', () => {
@@ -529,6 +649,65 @@ function createPostMigrationSupportTables(sqlite: Database.Database) {
       added_on text,
       fetched_at text not null,
       updated_at text not null default CURRENT_TIMESTAMP
+    );
+    create table if not exists account_summary_snapshots (
+      id integer primary key autoincrement,
+      currency text not null,
+      current_value real not null,
+      total_cost real not null,
+      realized_profit_loss real not null,
+      unrealized_profit_loss real not null,
+      total_value real not null,
+      as_of text not null,
+      fetched_at text not null,
+      created_at text not null default CURRENT_TIMESTAMP
+    );
+    create table if not exists sync_state (
+      key text primary key,
+      next_page_path text,
+      backfill_completed integer not null default 0,
+      rate_limit_limit integer,
+      rate_limit_period_sec integer,
+      rate_limit_remaining integer,
+      rate_limit_reset_epoch integer,
+      rate_limit_used integer,
+      updated_at text not null default CURRENT_TIMESTAMP
+    );
+    create table if not exists instrument_risk_metrics (
+      id integer primary key autoincrement,
+      isin text not null,
+      provider text not null,
+      provider_symbol text not null,
+      beta real not null,
+      source_type text not null,
+      as_of text not null,
+      fetched_at text not null,
+      created_at text not null default CURRENT_TIMESTAMP
+    );
+    create table if not exists order_execution_attempts (
+      id integer primary key autoincrement,
+      order_type text not null default 'market',
+      environment text not null,
+      instrument_input text not null,
+      resolved_ticker text not null,
+      resolved_isin text not null,
+      resolved_name text not null,
+      side text not null,
+      requested_mode text not null,
+      requested_quantity real,
+      requested_value real,
+      derived_quantity real not null,
+      reference_price real,
+      extended_hours integer not null,
+      limit_price real,
+      time_validity text,
+      execution_mode text not null,
+      broker_request_payload text not null,
+      broker_response_payload text,
+      error_code text,
+      error_message text,
+      attempted_at text not null,
+      created_at text not null default CURRENT_TIMESTAMP
     );
   `);
 }

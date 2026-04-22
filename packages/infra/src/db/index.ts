@@ -1,4 +1,5 @@
 import type {
+  AppDataState,
   AppError,
   BrokerDataManager,
   CategorizedInstrument,
@@ -364,6 +365,74 @@ const createBrokerDataManager = (dbClient = db) => {
 
   const getDistinctInstruments = () =>
     wrapDb(() => listPreferredInstrumentRows(), 'get distinct instruments');
+
+  const getAppDataState = () =>
+    wrapDb(() => {
+      const latestOrdersSyncRow = db
+        .select({ updatedAt: syncState.updatedAt })
+        .from(syncState)
+        .where(eq(syncState.key, 'historical_orders'))
+        .get();
+      const latestPortfolioSyncRow = db
+        .select({ fetchedAt: accountSummarySnapshots.fetchedAt })
+        .from(accountSummarySnapshots)
+        .orderBy(desc(accountSummarySnapshots.fetchedAt))
+        .get();
+      const latestRiskMetricsSyncRow = db
+        .select({ fetchedAt: instrumentRiskMetrics.fetchedAt })
+        .from(instrumentRiskMetrics)
+        .orderBy(desc(instrumentRiskMetrics.fetchedAt))
+        .get();
+      const hasHistoricalOrders = Boolean(
+        db.select({ id: orders.id }).from(orders).limit(1).get(),
+      );
+      const hasCurrentHoldings = Boolean(
+        db
+          .select({ id: currentPositionSnapshots.id })
+          .from(currentPositionSnapshots)
+          .where(sql`${currentPositionSnapshots.quantity} > 0`)
+          .limit(1)
+          .get(),
+      );
+      const hasCategories = Boolean(
+        db
+          .select({ isin: instrumentCategories.isin })
+          .from(instrumentCategories)
+          .limit(1)
+          .get(),
+      );
+      const hasStoredRiskMetrics = Boolean(
+        db
+          .select({ id: instrumentRiskMetrics.id })
+          .from(instrumentRiskMetrics)
+          .limit(1)
+          .get(),
+      );
+      const hasSuccessfulSubmittedOrderAttempt = Boolean(
+        db
+          .select({ id: orderExecutionAttempts.id })
+          .from(orderExecutionAttempts)
+          .where(
+            and(
+              eq(orderExecutionAttempts.executionMode, 'submitted'),
+              sql`${orderExecutionAttempts.errorCode} IS NULL`,
+            ),
+          )
+          .limit(1)
+          .get(),
+      );
+
+      return {
+        hasHistoricalOrders,
+        hasCurrentHoldings,
+        hasCategories,
+        hasStoredRiskMetrics,
+        hasSuccessfulSubmittedOrderAttempt,
+        lastOrdersSyncAt: latestOrdersSyncRow?.updatedAt ?? null,
+        lastPortfolioSyncAt: latestPortfolioSyncRow?.fetchedAt ?? null,
+        lastRiskMetricsSyncAt: latestRiskMetricsSyncRow?.fetchedAt ?? null,
+      } satisfies AppDataState;
+    }, 'get app data state');
 
   const findInstrumentCategoryInstrumentMatches = (input: string) =>
     wrapDb(() => {
@@ -1031,6 +1100,7 @@ const createBrokerDataManager = (dbClient = db) => {
     getHistoricalOrders,
     getHistoricalOrdersForWeb,
     getDistinctInstruments,
+    getAppDataState,
     findInstrumentCategoryInstrumentMatches,
     setInstrumentCategory,
     unsetInstrumentCategory,

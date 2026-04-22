@@ -28,7 +28,7 @@ describe('syncOrdersAction', () => {
   it('returns ok false when the sync fails', async () => {
     syncHistoricalOrdersMock.mockResolvedValue({
       isErr: () => true,
-      error: { message: 'rate limited' },
+      error: { code: 'RATE_LIMIT', message: 'rate limited' },
     });
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -37,7 +37,7 @@ describe('syncOrdersAction', () => {
     await expect(syncOrdersAction()).resolves.toEqual({
       ok: false,
       kind: 'orders',
-      message: 'Orders sync failed.',
+      message: 'Trading 212 rate limited this request. Try again later.',
     });
 
     warnSpy.mockRestore();

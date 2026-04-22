@@ -3,6 +3,7 @@
 import { FillDateRangePicker } from '@/app/_components/FillDateRangePicker';
 import { OrdersList } from '@/app/_components/OrdersList';
 import { Button } from '@/components/ui/button';
+import type { AppCapabilitiesData } from '@/lib/client/app-capabilities';
 import {
   Combobox,
   ComboboxCollection,
@@ -22,18 +23,21 @@ import type {
 import type { WebHistoricalOrder } from '@portfolio/domain';
 
 type OrdersFilterPanelProps = {
+  capabilities: AppCapabilitiesData;
   instruments: InstrumentWithStoredPrice[];
   latestAccountSummarySnapshot: AccountSummarySnapshot | null;
   orders: WebHistoricalOrder[];
 };
 
 function OrdersFilterPanel({
+  capabilities,
   instruments,
   latestAccountSummarySnapshot,
   orders,
 }: OrdersFilterPanelProps) {
   const { filterActions, filterModel, ordersActions, ordersModel } =
     useOrdersExplorerController({
+      capabilities,
       instruments,
       latestAccountSummarySnapshot,
       orders,

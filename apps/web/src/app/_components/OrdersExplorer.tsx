@@ -1,5 +1,6 @@
 'use client';
 
+import { AppSetupStatusPanel } from '@/app/_components/AppSetupStatusPanel';
 import { OrdersFilterPanel } from '@/app/_components/OrdersFilterPanel';
 import { OrdersSyncMenu } from '@/app/_components/OrdersSyncMenu';
 import { PrivacyToggleButton } from '@/app/_components/PrivacyToggleButton';
@@ -9,7 +10,7 @@ import { usePortfolioStateSync } from '@/lib/client/portfolio/usePortfolioStateS
 export default function OrdersExplorer() {
   const { data, error, isLoading } = useOrdersExplorerQuery();
 
-  usePortfolioStateSync();
+  usePortfolioStateSync(data?.capabilities.canSyncPortfolioState ?? false);
 
   if (isLoading) {
     return <p>Loading orders...</p>;
@@ -32,11 +33,14 @@ export default function OrdersExplorer() {
         </div>
         <div className='flex items-center gap-2'>
           <PrivacyToggleButton />
-          <OrdersSyncMenu />
+          <OrdersSyncMenu capabilities={data.capabilities} />
         </div>
       </div>
 
+      <AppSetupStatusPanel capabilities={data.capabilities} />
+
       <OrdersFilterPanel
+        capabilities={data.capabilities}
         instruments={data.instruments}
         latestAccountSummarySnapshot={data.latestAccountSummarySnapshot}
         orders={data.orders}

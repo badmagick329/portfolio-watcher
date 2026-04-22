@@ -21,6 +21,8 @@ function CategoryAllocationPanel({
   actions,
   model,
 }: CategoryAllocationPanelProps) {
+  const showBeta = model.capabilities.hasStoredRiskMetrics;
+  const canShowAlphaCalculator = showBeta;
   const [showAlphaCalculator, setShowAlphaCalculator] = useState(false);
   const isHistorical = model.viewModel.mode === 'historical';
   const returnRows = isHistorical
@@ -30,7 +32,9 @@ function CategoryAllocationPanel({
   if (!model.viewModel.hasPositionSnapshots) {
     return (
       <p className='text-sm text-muted-foreground'>
-        Sync portfolio state to see allocation.
+        {model.capabilities.canSyncPortfolioState
+          ? 'Sync portfolio state to see allocation.'
+          : 'Add Trading 212 API credentials to sync portfolio state.'}
       </p>
     );
   }
@@ -57,7 +61,9 @@ function CategoryAllocationPanel({
           value={model.fillDateRangeFilter}
         />
         <p className='text-sm text-muted-foreground'>
-          No current holdings to chart.
+          {model.capabilities.canSyncPortfolioState
+            ? 'No current holdings to chart.'
+            : 'Add Trading 212 API credentials to sync portfolio state.'}
         </p>
       </div>
     );
@@ -70,31 +76,42 @@ function CategoryAllocationPanel({
         value={model.fillDateRangeFilter}
       />
 
-      <div className='flex flex-col gap-3'>
-        <div>
-          <Button
-            onClick={() => setShowAlphaCalculator((current) => !current)}
-            type='button'
-            variant='outline'
-          >
-            {showAlphaCalculator ? 'Hide alpha calculator' : 'Show alpha calculator'}
-          </Button>
-        </div>
+      {canShowAlphaCalculator ? (
+        <div className='flex flex-col gap-3'>
+          <div>
+            <Button
+              onClick={() => setShowAlphaCalculator((current) => !current)}
+              type='button'
+              variant='outline'
+            >
+              {showAlphaCalculator
+                ? 'Hide alpha calculator'
+                : 'Show alpha calculator'}
+            </Button>
+          </div>
 
-        {showAlphaCalculator ? (
-          <CategoryAlphaAssumptions
-            isHistorical={isHistorical}
-            marketReturn={model.alphaMarketReturn}
-            onChange={actions.setAlphaAssumptions}
-            periodLabel={model.viewModel.alphaPeriodLabel}
-            riskFreeAnnual={model.alphaRiskFreeAnnual}
-          />
-        ) : null}
-      </div>
+          {showAlphaCalculator ? (
+            <CategoryAlphaAssumptions
+              isHistorical={isHistorical}
+              marketReturn={model.alphaMarketReturn}
+              onChange={actions.setAlphaAssumptions}
+              periodLabel={model.viewModel.alphaPeriodLabel}
+              riskFreeAnnual={model.alphaRiskFreeAnnual}
+            />
+          ) : null}
+        </div>
+      ) : (
+        <p className='text-sm text-muted-foreground'>
+          {model.capabilities.hasFmpApiKey
+            ? 'Risk metrics enabled, but no beta data has been synced yet.'
+            : 'Risk metrics disabled. Add FMP key and sync beta data to see beta and alpha.'}
+        </p>
+      )}
 
       <CategoryAllocationSummary
         hideValues={model.hideValues}
         isHistorical={isHistorical}
+        showBeta={showBeta}
         showAlpha={showAlphaCalculator}
         viewModel={model.viewModel}
       />
@@ -110,6 +127,7 @@ function CategoryAllocationPanel({
         hideValues={model.hideValues}
         isHistorical={isHistorical}
         rows={model.viewModel.rows}
+        showBeta={showBeta}
         showAlpha={showAlphaCalculator}
       />
     </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import type { AppCapabilitiesData } from '@/lib/client/app-capabilities';
 import {
   Popover,
   PopoverContent,
@@ -17,8 +18,17 @@ const syncActions: Array<{
   { kind: 'instruments', label: 'Sync instruments' },
 ];
 
-export function OrdersSyncMenu() {
+type OrdersSyncMenuProps = {
+  capabilities: AppCapabilitiesData;
+};
+
+export function OrdersSyncMenu({ capabilities }: OrdersSyncMenuProps) {
   const { activeKind, isPending, lastResult, sync } = useOrdersSyncActions();
+  const availableActions = capabilities.canSyncOrders ? syncActions : [];
+
+  if (availableActions.length === 0) {
+    return null;
+  }
 
   return (
     <div className='flex flex-col items-end gap-2'>
@@ -30,7 +40,7 @@ export function OrdersSyncMenu() {
         </PopoverTrigger>
         <PopoverContent align='end' className='w-56 p-2'>
           <div className='flex flex-col gap-2'>
-            {syncActions.map((action) => (
+            {availableActions.map((action) => (
               <Button
                 key={action.kind}
                 className='justify-start'

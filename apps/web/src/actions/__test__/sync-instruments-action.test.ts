@@ -30,7 +30,7 @@ describe('syncInstrumentsAction', () => {
   it('returns ok false when the sync fails', async () => {
     syncT212InstrumentCatalogMock.mockResolvedValue({
       isErr: () => true,
-      error: { message: 'forbidden' },
+      error: { code: 'FORBIDDEN', message: 'forbidden' },
     });
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -41,7 +41,7 @@ describe('syncInstrumentsAction', () => {
     await expect(syncInstrumentsAction()).resolves.toEqual({
       ok: false,
       kind: 'instruments',
-      message: 'Instrument sync failed.',
+      message: 'Trading 212 rejected this request. Check API permissions.',
     });
 
     warnSpy.mockRestore();

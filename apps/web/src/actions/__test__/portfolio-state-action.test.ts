@@ -30,7 +30,7 @@ describe('syncPortfolioStateAction', () => {
   it('returns ok false when the sync fails', async () => {
     syncPortfolioStateMock.mockResolvedValue({
       isErr: () => true,
-      error: { message: 'rate limited' },
+      error: { code: 'VALIDATION', message: 'Trading 212 API credentials are required.' },
     });
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -41,7 +41,7 @@ describe('syncPortfolioStateAction', () => {
     await expect(syncPortfolioStateAction()).resolves.toEqual({
       ok: false,
       kind: 'portfolio-state',
-      message: 'Portfolio state sync failed.',
+      message: 'Add Trading 212 API credentials to sync portfolio state.',
     });
 
     warnSpy.mockRestore();

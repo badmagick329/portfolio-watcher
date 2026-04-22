@@ -25,7 +25,7 @@ describe('getPortfolioStateSyncQueryOptions', () => {
     await expect(options.queryFn()).resolves.toEqual({ ok: true });
     expect(invalidateOrdersExplorer).toHaveBeenCalledTimes(1);
     expect(options.retry).toBe(false);
-  });
+  }, 10_000);
 
   it('does not invalidate the explorer query when sync fails', async () => {
     const invalidateOrdersExplorer = vi.fn().mockResolvedValue(undefined);

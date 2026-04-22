@@ -1,5 +1,6 @@
 export { createFetchAccountCash } from '../fetch-account-cash';
 export { createFetchAccountSummary } from '../fetch-account-summary';
+export { createGetAppCapabilities } from '../get-app-capabilities';
 export { createGetDistinctInstruments } from '../get-distinct-instruments';
 export { createGetLatestAccountSummarySnapshot } from '../get-latest-account-summary-snapshot';
 export { createGetLatestCurrentPositionSnapshot } from '../get-latest-current-position-snapshot';

@@ -1,5 +1,6 @@
 'use client';
 
+import { AppSetupStatusPanel } from '@/app/_components/AppSetupStatusPanel';
 import { PrivacyToggleButton } from '@/app/_components/PrivacyToggleButton';
 import { Button } from '@/components/ui/button';
 import { CategoryAllocationPanel } from './CategoryAllocationPanel';
@@ -51,6 +52,8 @@ function InstrumentCategoriesClient() {
           </Button>
         </div>
       </div>
+
+      <AppSetupStatusPanel capabilities={headerModel.capabilities} />
 
       {headerModel.mode === 'allocation' ? (
         <CategoryAllocationPanel

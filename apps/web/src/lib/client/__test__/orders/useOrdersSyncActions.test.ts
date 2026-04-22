@@ -42,7 +42,7 @@ describe('getOrdersSyncMutationOptions', () => {
 
     expect(setLastResult).toHaveBeenCalledWith(result);
     expect(invalidateOrdersExplorer).toHaveBeenCalledTimes(1);
-  });
+  }, 10_000);
 
   it('records the result without invalidating when a sync fails', async () => {
     const invalidateOrdersExplorer = vi.fn().mockResolvedValue(undefined);

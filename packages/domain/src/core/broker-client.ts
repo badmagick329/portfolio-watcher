@@ -1,6 +1,7 @@
 import type { Result, ResultAsync } from 'neverthrow';
 import type {
   AppError,
+  AppDataState,
   HistoricalOrdersParams,
   CategorizedInstrument,
   InstrumentProviderSymbol,
@@ -73,6 +74,7 @@ interface BrokerDataManager {
     filters?: WebHistoricalOrdersFilters,
   ): ResultAsync<WebHistoricalOrdersResult, AppError>;
   getDistinctInstruments(): ResultAsync<WebHistoricalOrderInstrument[], AppError>;
+  getAppDataState(): ResultAsync<AppDataState, AppError>;
   saveInstrumentPriceSnapshot(
     snapshot: InstrumentPriceSnapshot,
   ): ResultAsync<void, AppError>;

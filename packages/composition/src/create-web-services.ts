@@ -5,6 +5,7 @@ import {
 } from '@portfolio/infra';
 import {
   createGetDistinctInstruments,
+  createGetAppCapabilities,
   createGetLatestAccountSummarySnapshot,
   createGetLatestCurrentPositionSnapshot,
   createGetHistoricalOrdersForWeb,
@@ -25,6 +26,7 @@ export const createWebServices = () => {
   const syncStateManager = createOrderSyncStateManager();
 
   return {
+    getAppCapabilities: createGetAppCapabilities({ dataManager }),
     getDistinctInstruments: createGetDistinctInstruments(dataManager),
     getHistoricalOrdersForWeb: createGetHistoricalOrdersForWeb(dataManager),
     getLatestAccountSummarySnapshot:

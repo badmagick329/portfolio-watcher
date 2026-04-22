@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const listCategorizedInstrumentsMock = vi.fn();
 const getHistoricalOrdersForWebMock = vi.fn();
+const getAppCapabilitiesMock = vi.fn();
 const getLatestCurrentPositionSnapshotMock = vi.fn();
 const getLatestInstrumentRiskMetricMock = vi.fn();
 const setInstrumentCategoriesMock = vi.fn();
@@ -9,6 +10,7 @@ const unsetInstrumentCategoriesMock = vi.fn();
 
 vi.mock('@/lib/server/composition', () => ({
   getHistoricalOrdersForWeb: getHistoricalOrdersForWebMock,
+  getAppCapabilities: getAppCapabilitiesMock,
   getLatestCurrentPositionSnapshot: getLatestCurrentPositionSnapshotMock,
   getLatestInstrumentRiskMetric: getLatestInstrumentRiskMetricMock,
   listCategorizedInstruments: listCategorizedInstrumentsMock,
@@ -19,6 +21,7 @@ vi.mock('@/lib/server/composition', () => ({
 describe('instrument category actions', () => {
   beforeEach(() => {
     getHistoricalOrdersForWebMock.mockReset();
+    getAppCapabilitiesMock.mockReset();
     getLatestCurrentPositionSnapshotMock.mockReset();
     getLatestInstrumentRiskMetricMock.mockReset();
     listCategorizedInstrumentsMock.mockReset();
@@ -75,6 +78,26 @@ describe('instrument category actions', () => {
         ],
       },
     });
+    getAppCapabilitiesMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        hasBrokerCredentials: true,
+        canSyncOrders: true,
+        canSyncPortfolioState: true,
+        canPlaceOrders: true,
+        hasFmpApiKey: true,
+        canSyncRiskMetrics: true,
+        brokerAccessMode: 'trading_enabled',
+        hasHistoricalOrders: true,
+        hasCurrentHoldings: true,
+        hasCategories: true,
+        hasStoredRiskMetrics: true,
+        hasSuccessfulSubmittedOrderAttempt: true,
+        lastOrdersSyncAt: null,
+        lastPortfolioSyncAt: null,
+        lastRiskMetricsSyncAt: null,
+      },
+    });
     getLatestCurrentPositionSnapshotMock.mockImplementation((isin) =>
       Promise.resolve({
         isErr: () => false,
@@ -113,6 +136,23 @@ describe('instrument category actions', () => {
     );
 
     await expect(getInstrumentCategoriesAction()).resolves.toEqual({
+      capabilities: {
+        hasBrokerCredentials: true,
+        canSyncOrders: true,
+        canSyncPortfolioState: true,
+        canPlaceOrders: true,
+        hasFmpApiKey: true,
+        canSyncRiskMetrics: true,
+        brokerAccessMode: 'trading_enabled',
+        hasHistoricalOrders: true,
+        hasCurrentHoldings: true,
+        hasCategories: true,
+        hasStoredRiskMetrics: true,
+        hasSuccessfulSubmittedOrderAttempt: true,
+        lastOrdersSyncAt: null,
+        lastPortfolioSyncAt: null,
+        lastRiskMetricsSyncAt: null,
+      },
       historicalOrders: [
         {
           side: 'BUY',
@@ -177,6 +217,26 @@ describe('instrument category actions', () => {
     getHistoricalOrdersForWebMock.mockResolvedValue({
       isErr: () => false,
       value: { items: [] },
+    });
+    getAppCapabilitiesMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        hasBrokerCredentials: false,
+        canSyncOrders: false,
+        canSyncPortfolioState: false,
+        canPlaceOrders: false,
+        hasFmpApiKey: false,
+        canSyncRiskMetrics: false,
+        brokerAccessMode: 'missing',
+        hasHistoricalOrders: false,
+        hasCurrentHoldings: false,
+        hasCategories: false,
+        hasStoredRiskMetrics: false,
+        hasSuccessfulSubmittedOrderAttempt: false,
+        lastOrdersSyncAt: null,
+        lastPortfolioSyncAt: null,
+        lastRiskMetricsSyncAt: null,
+      },
     });
     getLatestCurrentPositionSnapshotMock.mockResolvedValue({
       isErr: () => false,

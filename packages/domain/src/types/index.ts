@@ -88,6 +88,29 @@ type InstrumentRiskProfile = {
   beta: number | null;
 };
 
+type BrokerAccessMode = 'missing' | 'read_only_or_unknown' | 'trading_enabled';
+
+type AppDataState = {
+  hasHistoricalOrders: boolean;
+  hasCurrentHoldings: boolean;
+  hasCategories: boolean;
+  hasStoredRiskMetrics: boolean;
+  hasSuccessfulSubmittedOrderAttempt: boolean;
+  lastOrdersSyncAt: string | null;
+  lastPortfolioSyncAt: string | null;
+  lastRiskMetricsSyncAt: string | null;
+};
+
+type AppCapabilities = AppDataState & {
+  hasBrokerCredentials: boolean;
+  canSyncOrders: boolean;
+  canSyncPortfolioState: boolean;
+  canPlaceOrders: boolean;
+  hasFmpApiKey: boolean;
+  canSyncRiskMetrics: boolean;
+  brokerAccessMode: BrokerAccessMode;
+};
+
 type SyncInstrumentRiskMetricsResult = {
   attempted: number;
   persisted: number;
@@ -395,6 +418,9 @@ export type {
   InstrumentRiskMetricSnapshot,
   InstrumentRiskMetricSyncStatus,
   InstrumentRiskProfile,
+  BrokerAccessMode,
+  AppDataState,
+  AppCapabilities,
   InstrumentRiskProvider,
   SyncInstrumentRiskMetricsResult,
   InstrumentCategoryFilter,

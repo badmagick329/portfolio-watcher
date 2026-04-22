@@ -5,6 +5,7 @@ import { createWebServices } from '@portfolio/composition';
 const webServices = createWebServices();
 
 export const {
+  getAppCapabilities,
   getDistinctInstruments,
   getHistoricalOrdersForWeb,
   getLatestAccountSummarySnapshot,

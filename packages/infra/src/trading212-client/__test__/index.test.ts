@@ -10,7 +10,12 @@ const originalFetch = globalThis.fetch;
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  process.env.API_KEY = 'key';
+  process.env.API_SECRET = 'secret';
 });
+
+process.env.API_KEY = 'key';
+process.env.API_SECRET = 'secret';
 
 const createMemoryCache = (): Cache => {
   const store = new Map<string, string>();
@@ -85,6 +90,22 @@ const marketOrderResponsePayload = {
 };
 
 describe('trading212 client', () => {
+  test('returns validation error when credentials are missing', async () => {
+    delete process.env.API_KEY;
+    delete process.env.API_SECRET;
+
+    const client = createTrading212Client();
+    const result = await client.fetchPositions();
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toEqual({
+        code: 'VALIDATION',
+        message: 'Trading 212 API credentials are required.',
+      });
+    }
+  });
+
   test('fetchHistoricalOrders resolves relative nextPagePath', async () => {
     const requestedUrls: string[] = [];
     globalThis.fetch = ((async (input: string | URL | Request) => {

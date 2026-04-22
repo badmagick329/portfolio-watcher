@@ -1,4 +1,5 @@
 import type {
+  AppError,
   BrokerClient,
   BrokerClientWithCache,
   Cache,
@@ -13,15 +14,23 @@ import {
   marketOrderResponseSchema,
   positionsSchema,
 } from '@portfolio/domain';
-import { okAsync } from 'neverthrow';
+import { errAsync, okAsync } from 'neverthrow';
 import { endPoints, resolveEndPoint } from './end-points';
 import { request } from './transport';
 
-const createCreds = () =>
-  Buffer.from(
-    `${process.env.API_KEY}:${process.env.API_SECRET}`,
-    'utf-8',
-  ).toString('base64');
+const getTrading212Credentials = (): string | AppError => {
+  const apiKey = process.env.API_KEY?.trim();
+  const apiSecret = process.env.API_SECRET?.trim();
+
+  if (!apiKey || !apiSecret) {
+    return {
+      code: 'VALIDATION',
+      message: 'Trading 212 API credentials are required.',
+    };
+  }
+
+  return Buffer.from(`${apiKey}:${apiSecret}`, 'utf-8').toString('base64');
+};
 
 const resolveHistoricalOrdersEndpoint = (input: HistoricalOrdersInput) =>
   'nextPagePath' in input
@@ -29,7 +38,19 @@ const resolveHistoricalOrdersEndpoint = (input: HistoricalOrdersInput) =>
     : endPoints.historicalOrders(input);
 
 const createTrading212Client = () => {
-  const creds = createCreds();
+  const creds = getTrading212Credentials();
+
+  if (typeof creds !== 'string') {
+    return {
+      fetchAccountCash: () => errAsync(creds),
+      fetchAccountSummary: () => errAsync(creds),
+      fetchHistoricalOrders: () => errAsync(creds),
+      fetchInstrumentsMetadata: () => errAsync(creds),
+      placeMarketOrder: () => errAsync(creds),
+      placeLimitOrder: () => errAsync(creds),
+      fetchPositions: () => errAsync(creds),
+    } satisfies BrokerClient;
+  }
 
   const fetchAccountCash = () =>
     request({
