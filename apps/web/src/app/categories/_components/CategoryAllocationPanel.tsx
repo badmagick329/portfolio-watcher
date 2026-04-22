@@ -25,6 +25,7 @@ function CategoryAllocationPanel({
   const canShowAlphaCalculator = showBeta;
   const [showAlphaCalculator, setShowAlphaCalculator] = useState(false);
   const isHistorical = model.viewModel.mode === 'historical';
+  const hasSyncedPortfolioState = model.capabilities.lastPortfolioSyncAt !== null;
   const returnRows = isHistorical
     ? model.viewModel.rows.filter((row) => row.returnPercent !== null)
     : model.viewModel.rows;
@@ -32,24 +33,12 @@ function CategoryAllocationPanel({
   if (!model.viewModel.hasPositionSnapshots) {
     return (
       <p className='text-sm text-muted-foreground'>
-        {model.capabilities.canSyncPortfolioState
-          ? 'Sync portfolio state to see allocation.'
-          : 'Add Trading 212 API credentials to sync portfolio state.'}
+        {!model.capabilities.canSyncPortfolioState
+          ? 'Add Trading 212 API credentials to sync portfolio state.'
+          : hasSyncedPortfolioState
+            ? 'No current holdings to chart.'
+            : 'Sync portfolio state to see allocation.'}
       </p>
-    );
-  }
-
-  if (isHistorical && !model.viewModel.hasFilteredOrders) {
-    return (
-      <div className='flex flex-col gap-4'>
-        <FillDateRangePicker
-          onChange={actions.setFillDateRangeFilter}
-          value={model.fillDateRangeFilter}
-        />
-        <p className='text-sm text-muted-foreground'>
-          No filled orders in this date range.
-        </p>
-      </div>
     );
   }
 
@@ -63,7 +52,21 @@ function CategoryAllocationPanel({
         <p className='text-sm text-muted-foreground'>
           {model.capabilities.canSyncPortfolioState
             ? 'No current holdings to chart.'
-            : 'Add Trading 212 API credentials to sync portfolio state.'}
+          : 'Add Trading 212 API credentials to sync portfolio state.'}
+        </p>
+      </div>
+    );
+  }
+
+  if (isHistorical && !model.viewModel.hasFilteredOrders) {
+    return (
+      <div className='flex flex-col gap-4'>
+        <FillDateRangePicker
+          onChange={actions.setFillDateRangeFilter}
+          value={model.fillDateRangeFilter}
+        />
+        <p className='text-sm text-muted-foreground'>
+          No filled orders in this date range.
         </p>
       </div>
     );
