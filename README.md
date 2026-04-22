@@ -31,6 +31,8 @@ SQLITE_DB=./sqlite/portfolio-watcher.db
 pnpm db:migrate
 ```
 
+The SQLite parent folder is created automatically.
+
 4. Start the web app
 
 ```bash

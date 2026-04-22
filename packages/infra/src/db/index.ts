@@ -21,6 +21,8 @@ import Database from 'better-sqlite3';
 import { and, desc, eq, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { ResultAsync } from 'neverthrow';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   mapApiOrderItemToDbObjects,
   mapDbHistoricalOrdersToApi,
@@ -44,7 +46,16 @@ import {
   t212InstrumentCatalog,
 } from './schema';
 
-const sqlite = new Database(process.env.SQLITE_DB!);
+const ensureSqliteParentDirectory = (sqlitePath: string) => {
+  const resolvedPath = path.resolve(sqlitePath);
+  const parent = path.dirname(resolvedPath);
+
+  fs.mkdirSync(parent, { recursive: true });
+
+  return resolvedPath;
+};
+
+const sqlite = new Database(ensureSqliteParentDirectory(process.env.SQLITE_DB!));
 const db = drizzle(sqlite);
 const wrapDb = <T>(fn: () => T, action: string) =>
   ResultAsync.fromPromise(
