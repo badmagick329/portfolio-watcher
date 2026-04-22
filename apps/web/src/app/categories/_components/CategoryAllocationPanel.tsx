@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { FillDateRangePicker } from '@/app/_components/FillDateRangePicker';
+import { Button } from '@/components/ui/button';
 import type {
   CategoryAllocationPanelActions,
   CategoryAllocationPanelModel,
@@ -19,6 +21,7 @@ function CategoryAllocationPanel({
   actions,
   model,
 }: CategoryAllocationPanelProps) {
+  const [showAlphaCalculator, setShowAlphaCalculator] = useState(false);
   const isHistorical = model.viewModel.mode === 'historical';
   const returnRows = isHistorical
     ? model.viewModel.rows.filter((row) => row.returnPercent !== null)
@@ -67,17 +70,32 @@ function CategoryAllocationPanel({
         value={model.fillDateRangeFilter}
       />
 
-      <CategoryAlphaAssumptions
-        isHistorical={isHistorical}
-        marketReturn={model.alphaMarketReturn}
-        onChange={actions.setAlphaAssumptions}
-        periodLabel={model.viewModel.alphaPeriodLabel}
-        riskFreeAnnual={model.alphaRiskFreeAnnual}
-      />
+      <div className='flex flex-col gap-3'>
+        <div>
+          <Button
+            onClick={() => setShowAlphaCalculator((current) => !current)}
+            type='button'
+            variant='outline'
+          >
+            {showAlphaCalculator ? 'Hide alpha calculator' : 'Show alpha calculator'}
+          </Button>
+        </div>
+
+        {showAlphaCalculator ? (
+          <CategoryAlphaAssumptions
+            isHistorical={isHistorical}
+            marketReturn={model.alphaMarketReturn}
+            onChange={actions.setAlphaAssumptions}
+            periodLabel={model.viewModel.alphaPeriodLabel}
+            riskFreeAnnual={model.alphaRiskFreeAnnual}
+          />
+        ) : null}
+      </div>
 
       <CategoryAllocationSummary
         hideValues={model.hideValues}
         isHistorical={isHistorical}
+        showAlpha={showAlphaCalculator}
         viewModel={model.viewModel}
       />
       <CategoryAllocationCharts
@@ -92,6 +110,7 @@ function CategoryAllocationPanel({
         hideValues={model.hideValues}
         isHistorical={isHistorical}
         rows={model.viewModel.rows}
+        showAlpha={showAlphaCalculator}
       />
     </div>
   );

@@ -17,16 +17,24 @@ import { cn } from '@/lib/utils';
 type CategoryAllocationSummaryProps = {
   hideValues: boolean;
   isHistorical: boolean;
+  showAlpha: boolean;
   viewModel: CategoryAllocationViewModel;
 };
 
 function CategoryAllocationSummary({
   hideValues,
   isHistorical,
+  showAlpha,
   viewModel,
 }: CategoryAllocationSummaryProps) {
   return (
-    <div className='grid gap-4 sm:grid-cols-3 xl:grid-cols-6'>
+    <div
+      className={
+        showAlpha
+          ? 'grid gap-4 sm:grid-cols-3 xl:grid-cols-6'
+          : 'grid gap-4 sm:grid-cols-3 xl:grid-cols-5'
+      }
+    >
       <PortfolioSummaryMetric
         label={isHistorical ? 'Net invested' : 'Value'}
         value={formatMoney(viewModel.totalCurrentValue, { hideValues })}
@@ -65,15 +73,17 @@ function CategoryAllocationSummary({
             : formatPercent(viewModel.betaCoveragePercent)
         }
       />
-      <PortfolioSummaryMetric
-        label='Portfolio alpha'
-        tone={getSignedTone(viewModel.portfolioAlpha)}
-        value={
-          viewModel.portfolioAlpha === null
-            ? NA_LABEL
-            : formatPercent(viewModel.portfolioAlpha)
-        }
-      />
+      {showAlpha ? (
+        <PortfolioSummaryMetric
+          label='Portfolio alpha'
+          tone={getSignedTone(viewModel.portfolioAlpha)}
+          value={
+            viewModel.portfolioAlpha === null
+              ? NA_LABEL
+              : formatPercent(viewModel.portfolioAlpha)
+          }
+        />
+      ) : null}
     </div>
   );
 }

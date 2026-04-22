@@ -22,12 +22,14 @@ type CategoryAllocationTableProps = {
   hideValues: boolean;
   isHistorical: boolean;
   rows: CategoryAllocationRow[];
+  showAlpha: boolean;
 };
 
 function CategoryAllocationTable({
   hideValues,
   isHistorical,
   rows,
+  showAlpha,
 }: CategoryAllocationTableProps) {
   return (
     <Table>
@@ -42,7 +44,7 @@ function CategoryAllocationTable({
             <TableHead>P/L</TableHead>
             <TableHead>Return</TableHead>
             <TableHead>Beta</TableHead>
-            <TableHead>Alpha</TableHead>
+            {showAlpha ? <TableHead>Alpha</TableHead> : null}
           </TableRow>
         ) : (
           <TableRow>
@@ -51,7 +53,7 @@ function CategoryAllocationTable({
             <TableHead>Value</TableHead>
             <TableHead>Allocation</TableHead>
             <TableHead>Beta</TableHead>
-            <TableHead>Alpha</TableHead>
+            {showAlpha ? <TableHead>Alpha</TableHead> : null}
             <TableHead>Unrealized P/L</TableHead>
             <TableHead>Return</TableHead>
           </TableRow>
@@ -85,7 +87,9 @@ function CategoryAllocationTable({
                 <TableCell>
                   {row.beta === null ? NA_LABEL : formatBeta(row.beta)}
                 </TableCell>
-                <SignedTableCell formatter={formatPercent} value={row.alpha} />
+                {showAlpha ? (
+                  <SignedTableCell formatter={formatPercent} value={row.alpha} />
+                ) : null}
               </>
             ) : (
               <>
@@ -98,7 +102,9 @@ function CategoryAllocationTable({
                 <TableCell>
                   {row.beta === null ? NA_LABEL : formatBeta(row.beta)}
                 </TableCell>
-                <SignedTableCell formatter={formatPercent} value={row.alpha} />
+                {showAlpha ? (
+                  <SignedTableCell formatter={formatPercent} value={row.alpha} />
+                ) : null}
                 <SignedTableCell
                   formatter={(value) => formatMoney(value, { hideValues })}
                   value={row.unrealizedPnl}
