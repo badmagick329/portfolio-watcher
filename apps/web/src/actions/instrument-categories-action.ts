@@ -1,21 +1,46 @@
 'use server';
 
 import {
+  clearInstrumentProviderResolution,
+  confirmInstrumentProviderResolution,
   getAppCapabilities,
   getHistoricalOrdersForWeb,
   getLatestCurrentPositionSnapshot,
   getLatestInstrumentRiskMetric,
+  listInstrumentProviderResolutionCandidates,
+  listInstrumentProviderResolutionStatuses,
+  listInstrumentProviderSymbols,
+  listInstrumentRiskMetricSyncStatuses,
   listCategorizedInstruments,
+  resolveInstrumentProviderMappings,
   setInstrumentCategories,
   unsetInstrumentCategories,
 } from '@/lib/server/composition';
-import type { WebHistoricalOrder } from '@portfolio/domain';
+import type {
+  InstrumentProviderResolutionCandidate,
+  InstrumentProviderResolutionStatus,
+  InstrumentProviderSymbol,
+  InstrumentRiskMetricSyncStatus,
+  WebHistoricalOrder,
+} from '@portfolio/domain';
 
 export async function getInstrumentCategoriesAction() {
-  const [categoriesResult, ordersResult, capabilitiesResult] = await Promise.all([
+  const [
+    categoriesResult,
+    ordersResult,
+    capabilitiesResult,
+    providerSymbolsResult,
+    resolutionStatusesResult,
+    resolutionCandidatesResult,
+    riskMetricSyncStatusesResult,
+  ] = await Promise.all([
     listCategorizedInstruments(),
     getHistoricalOrdersForWeb(),
     getAppCapabilities(),
+    listInstrumentProviderSymbols('fmp'),
+    listInstrumentProviderResolutionStatuses('fmp'),
+    listInstrumentProviderResolutionCandidates('fmp'),
+    listInstrumentRiskMetricSyncStatuses('fmp'),
   ]);
 
   if (categoriesResult.isErr()) {
@@ -29,8 +54,35 @@ export async function getInstrumentCategoriesAction() {
   if (capabilitiesResult.isErr()) {
     throw new Error(capabilitiesResult.error.message);
   }
+  if (providerSymbolsResult.isErr()) {
+    throw new Error(providerSymbolsResult.error.message);
+  }
+  if (resolutionStatusesResult.isErr()) {
+    throw new Error(resolutionStatusesResult.error.message);
+  }
+  if (resolutionCandidatesResult.isErr()) {
+    throw new Error(resolutionCandidatesResult.error.message);
+  }
+  if (riskMetricSyncStatusesResult.isErr()) {
+    throw new Error(riskMetricSyncStatusesResult.error.message);
+  }
 
   const quantitiesByIsin = getCurrentQuantitiesByIsin(ordersResult.value.items);
+  const providerSymbolsByIsin = new Map(
+    providerSymbolsResult.value.map((item) => [item.isin, item]),
+  );
+  const resolutionStatusByIsin = new Map(
+    resolutionStatusesResult.value.map((item) => [item.isin, item]),
+  );
+  const resolutionCandidatesByIsin = groupByIsin(
+    resolutionCandidatesResult.value,
+  );
+  const latestRiskMetricSyncStatusByKey = new Map(
+    riskMetricSyncStatusesResult.value.map((item) => [
+      `${item.isin}:${item.providerSymbol}`,
+      item,
+    ]),
+  );
 
   const instruments = await Promise.all(
     categoriesResult.value.map(async (instrument) => {
@@ -51,6 +103,15 @@ export async function getInstrumentCategoriesAction() {
 
       const currentPositionSnapshot = snapshotResult.value ?? null;
       const riskMetric = riskMetricResult.value ?? null;
+      const providerSymbol = providerSymbolsByIsin.get(instrument.isin) ?? null;
+      const resolutionStatus =
+        resolutionStatusByIsin.get(instrument.isin) ?? null;
+      const candidates = resolutionCandidatesByIsin.get(instrument.isin) ?? [];
+      const riskMetricSyncStatus = providerSymbol
+        ? (latestRiskMetricSyncStatusByKey.get(
+            `${instrument.isin}:${providerSymbol.providerSymbol}`,
+          ) ?? null)
+        : null;
 
       return {
         ...instrument,
@@ -58,14 +119,31 @@ export async function getInstrumentCategoriesAction() {
         currentlyHeld: currentQuantity > 0,
         currentPositionSnapshot,
         riskMetric,
+        riskMapping: {
+          candidates,
+          mapping: providerSymbol,
+          resolutionStatus,
+          riskMetricSyncStatus,
+          status: getRiskMappingStatus({
+            mapping: providerSymbol,
+            resolutionStatus,
+            riskMetricSyncStatus,
+          }),
+        },
       };
     }),
   );
+  const unresolvedCurrentHoldingsCount = instruments.filter(
+    (instrument) => instrument.currentlyHeld && !instrument.riskMapping.mapping,
+  ).length;
 
   return {
     capabilities: capabilitiesResult.value,
     instruments,
     historicalOrders: ordersResult.value.items,
+    riskMappingSummary: {
+      unresolvedCurrentHoldingsCount,
+    },
   };
 }
 
@@ -96,6 +174,67 @@ export async function unsetInstrumentCategoriesAction(params: { isins: string[] 
   }
 
   const result = await unsetInstrumentCategories(params);
+
+  if (result.isErr()) {
+    throw new Error(result.error.message);
+  }
+
+  return result.value;
+}
+
+export async function refreshInstrumentProviderMappingsAction(params?: {
+  force?: boolean;
+  isins?: string[];
+}) {
+  const result = await resolveInstrumentProviderMappings({
+    force: params?.force,
+    isins: params?.isins,
+    provider: 'fmp',
+  });
+
+  if (result.isErr()) {
+    throw new Error(result.error.message);
+  }
+
+  return result.value;
+}
+
+export async function confirmInstrumentProviderResolutionAction(params: {
+  isin: string;
+  providerSymbol: string;
+}) {
+  if (params.isin.trim().length === 0) {
+    throw new Error('ISIN is required.');
+  }
+
+  if (params.providerSymbol.trim().length === 0) {
+    throw new Error('Provider symbol is required.');
+  }
+
+  const result = await confirmInstrumentProviderResolution({
+    isin: params.isin,
+    provider: 'fmp',
+    providerSymbol: params.providerSymbol,
+  });
+
+  if (result.isErr()) {
+    throw new Error(result.error.message);
+  }
+
+  return result.value;
+}
+
+export async function clearInstrumentProviderResolutionAction(params: {
+  isin: string;
+}) {
+  if (params.isin.trim().length === 0) {
+    throw new Error('ISIN is required.');
+  }
+
+  const result = await clearInstrumentProviderResolution({
+    isin: params.isin,
+    provider: 'fmp',
+  });
 
   if (result.isErr()) {
     throw new Error(result.error.message);
@@ -140,4 +279,36 @@ const getFilledQuantity = (order: WebHistoricalOrder) => {
 const roundQuantity = (quantity: number) => {
   const rounded = Math.round(quantity * 1e10) / 1e10;
   return Math.abs(rounded) < 1e-10 ? 0 : rounded;
+};
+
+const groupByIsin = (items: InstrumentProviderResolutionCandidate[]) => {
+  const grouped = new Map<string, InstrumentProviderResolutionCandidate[]>();
+
+  items.forEach((item) => {
+    const current = grouped.get(item.isin) ?? [];
+    current.push(item);
+    grouped.set(item.isin, current);
+  });
+
+  return grouped;
+};
+
+const getRiskMappingStatus = ({
+  mapping,
+  resolutionStatus,
+  riskMetricSyncStatus,
+}: {
+  mapping: InstrumentProviderSymbol | null;
+  resolutionStatus: InstrumentProviderResolutionStatus | null;
+  riskMetricSyncStatus: InstrumentRiskMetricSyncStatus | null;
+}) => {
+  if (mapping && riskMetricSyncStatus?.status === 'missing_beta') {
+    return 'missing_beta' as const;
+  }
+
+  if (resolutionStatus) {
+    return resolutionStatus.status;
+  }
+
+  return mapping ? ('resolved' as const) : ('unresolved' as const);
 };

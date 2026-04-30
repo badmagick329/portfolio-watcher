@@ -16,7 +16,9 @@ const createSetInstrumentProviderSymbol =
   (
     dataManager: Pick<
       BrokerDataManager,
-      'findInstrumentCategoryInstrumentMatches' | 'setInstrumentProviderSymbol'
+      | 'findInstrumentCategoryInstrumentMatches'
+      | 'setInstrumentProviderSymbol'
+      | 'saveInstrumentProviderResolutionStatus'
     >,
   ) =>
   (input: Input) => {
@@ -40,6 +42,22 @@ const createSetInstrumentProviderSymbol =
           provider: input.provider,
           providerSymbol,
         })
+        .andThen(() =>
+          dataManager.saveInstrumentProviderResolutionStatus({
+            isin: instrument.isin,
+            provider: input.provider,
+            status: 'resolved',
+            resolvedSymbol: providerSymbol,
+            resolutionMethod: 'manual',
+            confidence: 'high',
+            message: null,
+            evidence: null,
+            fetchedAt: null,
+            noCandidates: false,
+            lastErrorCode: null,
+            lastErrorMessage: null,
+          }),
+        )
         .map(
           (): Pick<
             InstrumentProviderSymbol,

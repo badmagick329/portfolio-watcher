@@ -16,6 +16,7 @@ describe('syncCurrentPositionPricesFromT212', () => {
     const savedCurrentPositionSnapshots: CurrentPositionSnapshot[] = [];
     const savedObservedInstrumentListings: ObservedInstrumentListing[] = [];
     const savedAccountSummarySnapshots: AccountSummarySnapshot[] = [];
+    const prunedCutoffs: string[] = [];
 
     const client = {
       fetchAccountSummary: () =>
@@ -98,12 +99,17 @@ describe('syncCurrentPositionPricesFromT212', () => {
         savedAccountSummarySnapshots.push(snapshot);
         return okAsync(undefined);
       },
+      prunePortfolioStateSnapshotsOlderThan: (cutoffAsOf: string) => {
+        prunedCutoffs.push(cutoffAsOf);
+        return okAsync(undefined);
+      },
     } satisfies Pick<
       BrokerDataManager,
       | 'saveInstrumentPriceSnapshot'
       | 'saveCurrentPositionSnapshot'
       | 'saveObservedInstrumentListing'
       | 'saveAccountSummarySnapshot'
+      | 'prunePortfolioStateSnapshotsOlderThan'
     >;
 
     const syncCurrentPositionPricesFromT212 =
@@ -203,5 +209,6 @@ describe('syncCurrentPositionPricesFromT212', () => {
         fetchedAt: '2026-04-03T19:30:00.000Z',
       },
     ]);
+    expect(prunedCutoffs).toEqual(['2026-01-03T19:30:00.000Z']);
   });
 });

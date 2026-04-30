@@ -7,8 +7,11 @@ import type {
   InstrumentProviderSymbol,
   InstrumentRiskMetricSnapshot,
   InstrumentRiskMetricSyncStatus,
+  InstrumentProviderResolutionCandidate,
+  InstrumentProviderResolutionStatus,
   InstrumentRiskProfile,
   InstrumentRiskProvider,
+  InstrumentRiskSearchCandidate,
   InstrumentCategoryFilter,
   InstrumentCategoryInstrument,
   InstrumentPriceSnapshot,
@@ -59,6 +62,9 @@ interface InstrumentRiskClient {
   fetchInstrumentRiskProfile: (
     symbol: string,
   ) => ResultAsync<InstrumentRiskProfile, AppError>;
+  searchInstrumentRiskCandidatesByIsin: (
+    isin: string,
+  ) => ResultAsync<InstrumentRiskSearchCandidate[], AppError>;
 }
 
 interface ClientCache {
@@ -84,11 +90,18 @@ interface BrokerDataManager {
   saveObservedInstrumentListing(
     listing: ObservedInstrumentListing,
   ): ResultAsync<void, AppError>;
+  getLatestPortfolioSnapshotAsOf(): ResultAsync<string | undefined, AppError>;
+  getLatestCurrentPortfolioPositionSnapshotByIsin(
+    isin: string,
+  ): ResultAsync<CurrentPositionSnapshot | undefined, AppError>;
   getLatestCurrentPositionSnapshotByIsin(
     isin: string,
   ): ResultAsync<CurrentPositionSnapshot | undefined, AppError>;
   saveAccountSummarySnapshot(
     snapshot: AccountSummarySnapshot,
+  ): ResultAsync<void, AppError>;
+  prunePortfolioStateSnapshotsOlderThan(
+    cutoffAsOf: string,
   ): ResultAsync<void, AppError>;
   saveOrderExecutionAttempt(
     attempt: OrderExecutionAttempt,
@@ -136,6 +149,26 @@ interface BrokerDataManager {
     isin: string,
     provider: InstrumentRiskProvider,
   ): ResultAsync<InstrumentProviderSymbol | undefined, AppError>;
+  saveInstrumentProviderResolutionStatus(
+    status: Omit<InstrumentProviderResolutionStatus, 'updatedAt'>,
+  ): ResultAsync<void, AppError>;
+  getInstrumentProviderResolutionStatus(
+    isin: string,
+    provider: InstrumentRiskProvider,
+  ): ResultAsync<InstrumentProviderResolutionStatus | undefined, AppError>;
+  listInstrumentProviderResolutionStatuses(
+    provider?: InstrumentRiskProvider,
+  ): ResultAsync<InstrumentProviderResolutionStatus[], AppError>;
+  replaceInstrumentProviderResolutionCandidates(input: {
+    isin: string;
+    provider: InstrumentRiskProvider;
+    candidates: Array<
+      Omit<InstrumentProviderResolutionCandidate, 'isin' | 'provider'>
+    >;
+  }): ResultAsync<void, AppError>;
+  listInstrumentProviderResolutionCandidates(
+    provider?: InstrumentRiskProvider,
+  ): ResultAsync<InstrumentProviderResolutionCandidate[], AppError>;
   saveInstrumentRiskMetricSnapshot(
     snapshot: InstrumentRiskMetricSnapshot,
   ): ResultAsync<void, AppError>;
@@ -152,6 +185,9 @@ interface BrokerDataManager {
       'isin' | 'provider' | 'providerSymbol'
     >,
   ): ResultAsync<InstrumentRiskMetricSyncStatus | undefined, AppError>;
+  listInstrumentRiskMetricSyncStatuses(
+    provider?: InstrumentRiskProvider,
+  ): ResultAsync<InstrumentRiskMetricSyncStatus[], AppError>;
 }
 
 type BrokerClientWithCache = BrokerClient & ClientCache;

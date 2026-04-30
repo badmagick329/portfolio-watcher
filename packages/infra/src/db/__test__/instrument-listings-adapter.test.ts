@@ -38,6 +38,56 @@ describe('instrument listing db adapter', () => {
     );
   });
 
+  test('saves multiple fills for a single order id', async () => {
+    const { sqlite, dataManager } = await createTestDataManager();
+
+    await unwrap(
+      dataManager.saveHistoricalOrders([
+        historicalOrder({
+          id: 1,
+          ticker: 'CSH2l_EQ',
+          fillId: 10,
+          fillQuantity: 6.57363843,
+          fillPrice: 123020,
+          fillWalletNetValue: 8086.89,
+          fillWalletFxRate: 100,
+        }),
+        historicalOrder({
+          id: 1,
+          ticker: 'CSH2l_EQ',
+          fillId: 11,
+          fillQuantity: 0.74245655,
+          fillPrice: 123020,
+          fillWalletNetValue: 913.37,
+          fillWalletFxRate: 100,
+        }),
+        historicalOrder({
+          id: 1,
+          ticker: 'CSH2l_EQ',
+          fillId: 12,
+          fillQuantity: 2.43841967,
+          fillPrice: 123020,
+          fillWalletNetValue: 2999.74,
+          fillWalletFxRate: 100,
+        }),
+      ]),
+    );
+
+    const result = await unwrap(dataManager.getHistoricalOrdersForWeb());
+    const storedFills = sqlite
+      .prepare('select id, order_id from fills where order_id = 1 order by id')
+      .all();
+
+    expect(result.items).toHaveLength(1);
+    expect(storedFills).toHaveLength(3);
+    expect(storedFills).toEqual([
+      { id: 10, order_id: 1 },
+      { id: 11, order_id: 1 },
+      { id: 12, order_id: 1 },
+    ]);
+    expect(result.items[0]?.fills).toHaveLength(3);
+  });
+
   test('dedupes instruments by ISIN and prefers latest current position ticker', async () => {
     const { dataManager } = await createTestDataManager();
 
@@ -182,6 +232,196 @@ describe('instrument listing db adapter', () => {
         currency: 'GBP',
       },
     ]);
+  });
+
+  test('latest coherent portfolio snapshot ignores stale sold positions', async () => {
+    const { dataManager } = await createTestDataManager();
+
+    await unwrap(
+      dataManager.saveAccountSummarySnapshot({
+        currency: 'GBP',
+        currentValue: 300,
+        totalCost: 250,
+        realizedProfitLoss: 0,
+        unrealizedProfitLoss: 50,
+        totalValue: 300,
+        asOf: '2026-04-20T10:00:00.000Z',
+        fetchedAt: '2026-04-20T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'IE00BFMXXD54',
+        providerSymbol: 'VUAGl_EQ',
+        quantity: 1,
+        currentPrice: 100,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 100,
+        totalCost: 90,
+        unrealizedProfitLoss: 10,
+        fxImpact: null,
+        asOf: '2026-04-20T10:00:00.000Z',
+        fetchedAt: '2026-04-20T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'IE00BK5BR626',
+        providerSymbol: 'VHYGl_EQ',
+        quantity: 2,
+        currentPrice: 100,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 200,
+        totalCost: 160,
+        unrealizedProfitLoss: 40,
+        fxImpact: null,
+        asOf: '2026-04-20T10:00:00.000Z',
+        fetchedAt: '2026-04-20T10:00:00.000Z',
+      }),
+    );
+
+    await unwrap(
+      dataManager.saveAccountSummarySnapshot({
+        currency: 'GBP',
+        currentValue: 105,
+        totalCost: 90,
+        realizedProfitLoss: 0,
+        unrealizedProfitLoss: 15,
+        totalValue: 105,
+        asOf: '2026-04-21T10:00:00.000Z',
+        fetchedAt: '2026-04-21T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'IE00BFMXXD54',
+        providerSymbol: 'VUAGl_EQ',
+        quantity: 1,
+        currentPrice: 105,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 105,
+        totalCost: 90,
+        unrealizedProfitLoss: 15,
+        fxImpact: null,
+        asOf: '2026-04-21T10:00:00.000Z',
+        fetchedAt: '2026-04-21T10:00:00.000Z',
+      }),
+    );
+
+    await expect(
+      unwrap(dataManager.getLatestPortfolioSnapshotAsOf()),
+    ).resolves.toBe('2026-04-21T10:00:00.000Z');
+    await expect(
+      unwrap(
+        dataManager.getLatestCurrentPortfolioPositionSnapshotByIsin(
+          'IE00BFMXXD54',
+        ),
+      ),
+    ).resolves.toMatchObject({
+      isin: 'IE00BFMXXD54',
+      currentValue: 105,
+      asOf: '2026-04-21T10:00:00.000Z',
+    });
+    await expect(
+      unwrap(
+        dataManager.getLatestCurrentPortfolioPositionSnapshotByIsin(
+          'IE00BK5BR626',
+        ),
+      ),
+    ).resolves.toBeUndefined();
+    await expect(
+      unwrap(dataManager.getLatestCurrentPositionSnapshotByIsin('IE00BK5BR626')),
+    ).resolves.toMatchObject({
+      isin: 'IE00BK5BR626',
+      currentValue: 200,
+      asOf: '2026-04-20T10:00:00.000Z',
+    });
+  });
+
+  test('prunes portfolio-state snapshots older than 90 days cutoff', async () => {
+    const { sqlite, dataManager } = await createTestDataManager();
+
+    await unwrap(
+      dataManager.saveAccountSummarySnapshot({
+        currency: 'GBP',
+        currentValue: 50,
+        totalCost: 40,
+        realizedProfitLoss: 0,
+        unrealizedProfitLoss: 10,
+        totalValue: 50,
+        asOf: '2025-12-31T10:00:00.000Z',
+        fetchedAt: '2025-12-31T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'IE00BFMXXD54',
+        providerSymbol: 'VUAGl_EQ',
+        quantity: 1,
+        currentPrice: 50,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 50,
+        totalCost: 40,
+        unrealizedProfitLoss: 10,
+        fxImpact: null,
+        asOf: '2025-12-31T10:00:00.000Z',
+        fetchedAt: '2025-12-31T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveAccountSummarySnapshot({
+        currency: 'GBP',
+        currentValue: 100,
+        totalCost: 90,
+        realizedProfitLoss: 0,
+        unrealizedProfitLoss: 10,
+        totalValue: 100,
+        asOf: '2026-04-20T10:00:00.000Z',
+        fetchedAt: '2026-04-20T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'IE00BK5BR626',
+        providerSymbol: 'VHYGl_EQ',
+        quantity: 1,
+        currentPrice: 100,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 100,
+        totalCost: 90,
+        unrealizedProfitLoss: 10,
+        fxImpact: null,
+        asOf: '2026-04-20T10:00:00.000Z',
+        fetchedAt: '2026-04-20T10:00:00.000Z',
+      }),
+    );
+
+    await unwrap(
+      dataManager.prunePortfolioStateSnapshotsOlderThan(
+        '2026-01-20T10:00:00.000Z',
+      ),
+    );
+
+    const remainingSummaryAsOfs = sqlite
+      .prepare(
+        'select as_of from account_summary_snapshots order by as_of',
+      )
+      .all()
+      .map((row: { as_of: string }) => row.as_of);
+    const remainingPositionAsOfs = sqlite
+      .prepare(
+        'select as_of from current_position_snapshots order by as_of',
+      )
+      .all()
+      .map((row: { as_of: string }) => row.as_of);
+
+    expect(remainingSummaryAsOfs).toEqual(['2026-04-20T10:00:00.000Z']);
+    expect(remainingPositionAsOfs).toEqual(['2026-04-20T10:00:00.000Z']);
   });
 
   test('returns app data state from stored rows', async () => {
@@ -479,7 +719,7 @@ async function createLegacyDbAndMigrate() {
 
     create table fills (
       id integer primary key not null,
-      order_id integer not null unique references orders(id),
+      order_id integer not null references orders(id),
       quantity real not null,
       price real not null,
       type text not null,
@@ -591,7 +831,7 @@ function createEmptyDb() {
     );
     create table fills (
       id integer primary key not null,
-      order_id integer not null unique references orders(id),
+      order_id integer not null references orders(id),
       quantity real not null,
       price real not null,
       type text not null,
@@ -738,10 +978,22 @@ function historicalOrder({
   id,
   ticker,
   fillId,
+  fillQuantity = 1,
+  fillPrice = 10,
+  fillWalletNetValue = 10,
+  fillWalletFxRate = 1,
+  isin = 'IE00B435CG94',
+  name = 'Invesco Energy S&P US Select Sector (Acc)',
 }: {
   id: number;
   ticker: string;
   fillId: number;
+  fillQuantity?: number;
+  fillPrice?: number;
+  fillWalletNetValue?: number;
+  fillWalletFxRate?: number;
+  isin?: string;
+  name?: string;
 }): HistoricalOrdersItem {
   return {
     order: {
@@ -749,10 +1001,10 @@ function historicalOrder({
       strategy: 'MANUAL',
       type: 'MARKET',
       ticker,
-      quantity: 1,
-      filledQuantity: 1,
-      value: 10,
-      filledValue: 10,
+      quantity: fillQuantity,
+      filledQuantity: fillQuantity,
+      value: fillWalletNetValue,
+      filledValue: fillWalletNetValue,
       status: 'FILLED',
       currency: 'GBP',
       extendedHours: false,
@@ -761,22 +1013,22 @@ function historicalOrder({
       createdAt: '2026-04-20T10:00:00.000Z',
       instrument: {
         ticker,
-        name: 'Invesco Energy S&P US Select Sector (Acc)',
-        isin: 'IE00B435CG94',
+        name,
+        isin,
         currency: 'GBP',
       },
     },
     fill: {
       id: fillId,
-      quantity: 1,
-      price: 10,
+      quantity: fillQuantity,
+      price: fillPrice,
       type: 'MARKET',
       tradingMethod: 'CLASSIC',
       filledAt: '2026-04-20T10:01:00.000Z',
       walletImpact: {
         currency: 'GBP',
-        netValue: 10,
-        fxRate: 1,
+        netValue: fillWalletNetValue,
+        fxRate: fillWalletFxRate,
         taxes: [],
       },
     },

@@ -56,6 +56,7 @@ function CategoryAllocationTable({
             <TableHead>Allocation</TableHead>
             {showBeta ? <TableHead>Beta</TableHead> : null}
             {showAlpha ? <TableHead>Alpha</TableHead> : null}
+            <TableHead>Realized P/L</TableHead>
             <TableHead>Unrealized P/L</TableHead>
             <TableHead>Return</TableHead>
           </TableRow>
@@ -111,6 +112,10 @@ function CategoryAllocationTable({
                 {showAlpha ? (
                   <SignedTableCell formatter={formatPercent} value={row.alpha} />
                 ) : null}
+                <SignedTableCell
+                  formatter={(value) => formatMoney(value, { hideValues })}
+                  value={row.realizedPnl}
+                />
                 <SignedTableCell
                   formatter={(value) => formatMoney(value, { hideValues })}
                   value={row.unrealizedPnl}

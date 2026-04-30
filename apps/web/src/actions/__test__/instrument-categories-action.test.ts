@@ -5,15 +5,32 @@ const getHistoricalOrdersForWebMock = vi.fn();
 const getAppCapabilitiesMock = vi.fn();
 const getLatestCurrentPositionSnapshotMock = vi.fn();
 const getLatestInstrumentRiskMetricMock = vi.fn();
+const listInstrumentProviderSymbolsMock = vi.fn();
+const listInstrumentProviderResolutionStatusesMock = vi.fn();
+const listInstrumentProviderResolutionCandidatesMock = vi.fn();
+const listInstrumentRiskMetricSyncStatusesMock = vi.fn();
+const resolveInstrumentProviderMappingsMock = vi.fn();
+const confirmInstrumentProviderResolutionMock = vi.fn();
+const clearInstrumentProviderResolutionMock = vi.fn();
 const setInstrumentCategoriesMock = vi.fn();
 const unsetInstrumentCategoriesMock = vi.fn();
 
 vi.mock('@/lib/server/composition', () => ({
+  clearInstrumentProviderResolution: clearInstrumentProviderResolutionMock,
+  confirmInstrumentProviderResolution: confirmInstrumentProviderResolutionMock,
   getHistoricalOrdersForWeb: getHistoricalOrdersForWebMock,
   getAppCapabilities: getAppCapabilitiesMock,
   getLatestCurrentPositionSnapshot: getLatestCurrentPositionSnapshotMock,
   getLatestInstrumentRiskMetric: getLatestInstrumentRiskMetricMock,
+  listInstrumentProviderResolutionCandidates:
+    listInstrumentProviderResolutionCandidatesMock,
+  listInstrumentProviderResolutionStatuses:
+    listInstrumentProviderResolutionStatusesMock,
+  listInstrumentProviderSymbols: listInstrumentProviderSymbolsMock,
+  listInstrumentRiskMetricSyncStatuses:
+    listInstrumentRiskMetricSyncStatusesMock,
   listCategorizedInstruments: listCategorizedInstrumentsMock,
+  resolveInstrumentProviderMappings: resolveInstrumentProviderMappingsMock,
   setInstrumentCategories: setInstrumentCategoriesMock,
   unsetInstrumentCategories: unsetInstrumentCategoriesMock,
 }));
@@ -24,6 +41,13 @@ describe('instrument category actions', () => {
     getAppCapabilitiesMock.mockReset();
     getLatestCurrentPositionSnapshotMock.mockReset();
     getLatestInstrumentRiskMetricMock.mockReset();
+    listInstrumentProviderSymbolsMock.mockReset();
+    listInstrumentProviderResolutionStatusesMock.mockReset();
+    listInstrumentProviderResolutionCandidatesMock.mockReset();
+    listInstrumentRiskMetricSyncStatusesMock.mockReset();
+    resolveInstrumentProviderMappingsMock.mockReset();
+    confirmInstrumentProviderResolutionMock.mockReset();
+    clearInstrumentProviderResolutionMock.mockReset();
     listCategorizedInstrumentsMock.mockReset();
     setInstrumentCategoriesMock.mockReset();
     unsetInstrumentCategoriesMock.mockReset();
@@ -113,6 +137,45 @@ describe('instrument category actions', () => {
             : undefined,
       }),
     );
+    listInstrumentProviderSymbolsMock.mockResolvedValue({
+      isErr: () => false,
+      value: [
+        {
+          isin: 'US0378331005',
+          provider: 'fmp',
+          providerSymbol: 'AAPL',
+          updatedAt: '2026-04-17T10:00:00.000Z',
+        },
+      ],
+    });
+    listInstrumentProviderResolutionStatusesMock.mockResolvedValue({
+      isErr: () => false,
+      value: [
+        {
+          isin: 'US0378331005',
+          provider: 'fmp',
+          status: 'resolved',
+          resolvedSymbol: 'AAPL',
+          resolutionMethod: 'manual',
+          confidence: 'high',
+          message: null,
+          evidence: null,
+          fetchedAt: '2026-04-17T10:00:00.000Z',
+          noCandidates: false,
+          lastErrorCode: null,
+          lastErrorMessage: null,
+          updatedAt: '2026-04-17T10:00:00.000Z',
+        },
+      ],
+    });
+    listInstrumentProviderResolutionCandidatesMock.mockResolvedValue({
+      isErr: () => false,
+      value: [],
+    });
+    listInstrumentRiskMetricSyncStatusesMock.mockResolvedValue({
+      isErr: () => false,
+      value: [],
+    });
     getLatestInstrumentRiskMetricMock.mockImplementation((isin) =>
       Promise.resolve({
         isErr: () => false,
@@ -197,6 +260,32 @@ describe('instrument category actions', () => {
             asOf: '2026-04-17T10:00:00.000Z',
             fetchedAt: '2026-04-17T10:00:00.000Z',
           },
+          riskMapping: {
+            candidates: [],
+            mapping: {
+              isin: 'US0378331005',
+              provider: 'fmp',
+              providerSymbol: 'AAPL',
+              updatedAt: '2026-04-17T10:00:00.000Z',
+            },
+            resolutionStatus: {
+              isin: 'US0378331005',
+              provider: 'fmp',
+              status: 'resolved',
+              resolvedSymbol: 'AAPL',
+              resolutionMethod: 'manual',
+              confidence: 'high',
+              message: null,
+              evidence: null,
+              fetchedAt: '2026-04-17T10:00:00.000Z',
+              noCandidates: false,
+              lastErrorCode: null,
+              lastErrorMessage: null,
+              updatedAt: '2026-04-17T10:00:00.000Z',
+            },
+            riskMetricSyncStatus: null,
+            status: 'resolved',
+          },
         },
         {
           ...rows[1],
@@ -204,8 +293,18 @@ describe('instrument category actions', () => {
           currentlyHeld: false,
           currentPositionSnapshot: null,
           riskMetric: null,
+          riskMapping: {
+            candidates: [],
+            mapping: null,
+            resolutionStatus: null,
+            riskMetricSyncStatus: null,
+            status: 'unresolved',
+          },
         },
       ],
+      riskMappingSummary: {
+        unresolvedCurrentHoldingsCount: 0,
+      },
     });
   });
 
@@ -241,6 +340,22 @@ describe('instrument category actions', () => {
     getLatestCurrentPositionSnapshotMock.mockResolvedValue({
       isErr: () => false,
       value: undefined,
+    });
+    listInstrumentProviderSymbolsMock.mockResolvedValue({
+      isErr: () => false,
+      value: [],
+    });
+    listInstrumentProviderResolutionStatusesMock.mockResolvedValue({
+      isErr: () => false,
+      value: [],
+    });
+    listInstrumentProviderResolutionCandidatesMock.mockResolvedValue({
+      isErr: () => false,
+      value: [],
+    });
+    listInstrumentRiskMetricSyncStatusesMock.mockResolvedValue({
+      isErr: () => false,
+      value: [],
     });
     getLatestInstrumentRiskMetricMock.mockResolvedValue({
       isErr: () => false,
@@ -303,5 +418,80 @@ describe('instrument category actions', () => {
     await expect(unsetInstrumentCategoriesAction({ isins: [] })).rejects.toThrow(
       'Select at least one instrument.',
     );
+  });
+
+  it('refreshes provider mapping suggestions', async () => {
+    resolveInstrumentProviderMappingsMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        processed: 1,
+        resolved: 1,
+        ambiguous: 0,
+        unresolved: 0,
+        failed: 0,
+        skippedFresh: 0,
+        skippedCooldown: 0,
+        rateLimited: false,
+      },
+    });
+
+    const { refreshInstrumentProviderMappingsAction } = await import(
+      '@/actions/instrument-categories-action'
+    );
+
+    await expect(
+      refreshInstrumentProviderMappingsAction({ isins: ['US0378331005'] }),
+    ).resolves.toEqual({
+      processed: 1,
+      resolved: 1,
+      ambiguous: 0,
+      unresolved: 0,
+      failed: 0,
+      skippedFresh: 0,
+      skippedCooldown: 0,
+      rateLimited: false,
+    });
+  });
+
+  it('confirms and clears provider resolution', async () => {
+    confirmInstrumentProviderResolutionMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        isin: 'US0378331005',
+        provider: 'fmp',
+        providerSymbol: 'AAPL',
+      },
+    });
+    clearInstrumentProviderResolutionMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        isin: 'US0378331005',
+        provider: 'fmp',
+      },
+    });
+
+    const {
+      clearInstrumentProviderResolutionAction,
+      confirmInstrumentProviderResolutionAction,
+    } = await import('@/actions/instrument-categories-action');
+
+    await expect(
+      confirmInstrumentProviderResolutionAction({
+        isin: 'US0378331005',
+        providerSymbol: 'AAPL',
+      }),
+    ).resolves.toEqual({
+      isin: 'US0378331005',
+      provider: 'fmp',
+      providerSymbol: 'AAPL',
+    });
+    await expect(
+      clearInstrumentProviderResolutionAction({
+        isin: 'US0378331005',
+      }),
+    ).resolves.toEqual({
+      isin: 'US0378331005',
+      provider: 'fmp',
+    });
   });
 });

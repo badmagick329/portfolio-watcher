@@ -122,9 +122,7 @@ function CategoryAllocationCharts({
       <section className='flex min-h-96 flex-col gap-3'>
         <div>
           <h2 className='font-mono text-lg'>
-            {isHistorical
-              ? 'Return by category'
-              : 'Unrealized return by category'}
+            Return by category
           </h2>
         </div>
         {returnRows.length > 0 ? (

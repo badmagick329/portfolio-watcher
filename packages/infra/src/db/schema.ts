@@ -73,7 +73,6 @@ const fills = sqliteTable(
     id: integer('id').primaryKey(),
     orderId: integer('order_id')
       .notNull()
-      .unique()
       .references(() => orders.id),
     quantity: real('quantity').notNull(),
     price: real('price').notNull(),
@@ -189,6 +188,57 @@ const instrumentProviderSymbols = sqliteTable(
       table.isin,
     ),
     index('instrument_provider_symbols_isin_idx').on(table.isin),
+  ],
+);
+
+const instrumentProviderResolutionStatus = sqliteTable(
+  'instrument_provider_resolution_status',
+  {
+    isin: text('isin').notNull(),
+    provider: text('provider').notNull(),
+    status: text('status').notNull(),
+    resolvedSymbol: text('resolved_symbol'),
+    resolutionMethod: text('resolution_method'),
+    confidence: text('confidence'),
+    message: text('message'),
+    evidence: text('evidence'),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex('instrument_provider_resolution_status_unique_idx').on(
+      table.provider,
+      table.isin,
+    ),
+    index('instrument_provider_resolution_status_updated_at_idx').on(
+      table.updatedAt,
+    ),
+  ],
+);
+
+const instrumentProviderResolutionCandidates = sqliteTable(
+  'instrument_provider_resolution_candidates',
+  {
+    isin: text('isin').notNull(),
+    provider: text('provider').notNull(),
+    candidateSymbol: text('candidate_symbol').notNull(),
+    candidateName: text('candidate_name'),
+    candidateIsin: text('candidate_isin'),
+    marketCap: real('market_cap'),
+    score: integer('score').notNull(),
+    evidence: text('evidence'),
+    fetchedAt: text('fetched_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('instrument_provider_resolution_candidates_unique_idx').on(
+      table.provider,
+      table.isin,
+      table.candidateSymbol,
+    ),
+    index('instrument_provider_resolution_candidates_fetched_at_idx').on(
+      table.fetchedAt,
+    ),
   ],
 );
 
@@ -380,6 +430,16 @@ type InstrumentProviderSymbol = typeof instrumentProviderSymbols.$inferSelect;
 type NewInstrumentProviderSymbol =
   typeof instrumentProviderSymbols.$inferInsert;
 
+type InstrumentProviderResolutionStatus =
+  typeof instrumentProviderResolutionStatus.$inferSelect;
+type NewInstrumentProviderResolutionStatus =
+  typeof instrumentProviderResolutionStatus.$inferInsert;
+
+type InstrumentProviderResolutionCandidate =
+  typeof instrumentProviderResolutionCandidates.$inferSelect;
+type NewInstrumentProviderResolutionCandidate =
+  typeof instrumentProviderResolutionCandidates.$inferInsert;
+
 type InstrumentRiskMetric = typeof instrumentRiskMetrics.$inferSelect;
 type NewInstrumentRiskMetric = typeof instrumentRiskMetrics.$inferInsert;
 
@@ -418,6 +478,10 @@ export type {
   NewInstrumentCategory,
   InstrumentProviderSymbol,
   NewInstrumentProviderSymbol,
+  InstrumentProviderResolutionStatus,
+  NewInstrumentProviderResolutionStatus,
+  InstrumentProviderResolutionCandidate,
+  NewInstrumentProviderResolutionCandidate,
   InstrumentRiskMetric,
   NewInstrumentRiskMetric,
   InstrumentRiskMetricSyncStatus,
@@ -442,6 +506,8 @@ export {
   instrumentPrices,
   instrumentCategories,
   instrumentProviderSymbols,
+  instrumentProviderResolutionStatus,
+  instrumentProviderResolutionCandidates,
   instrumentRiskMetrics,
   instrumentRiskMetricSyncStatus,
   currentPositionSnapshots,

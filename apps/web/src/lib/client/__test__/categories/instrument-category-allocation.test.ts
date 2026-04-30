@@ -60,6 +60,7 @@ describe('buildCategoryAllocationViewModel', () => {
 
     expect(result.totalCurrentValue).toBe(500);
     expect(result.totalCost).toBe(500);
+    expect(result.totalRealizedPnl).toBe(0);
     expect(result.totalPnl).toBe(0);
     expect(result.totalReturnPercent).toBe(0);
     expect(result.rows).toEqual([
@@ -68,6 +69,7 @@ describe('buildCategoryAllocationViewModel', () => {
         holdingCount: 2,
         currentValue: 400,
         totalCost: 400,
+        realizedPnl: 0,
         unrealizedPnl: 0,
         allocationPercent: 0.8,
         beta: null,
@@ -80,6 +82,7 @@ describe('buildCategoryAllocationViewModel', () => {
         holdingCount: 1,
         currentValue: 100,
         totalCost: 100,
+        realizedPnl: 0,
         unrealizedPnl: 0,
         allocationPercent: 0.2,
         beta: null,
@@ -113,6 +116,43 @@ describe('buildCategoryAllocationViewModel', () => {
     });
 
     expect(result.rows[0]?.returnPercent).toBe(-0.2);
+  });
+
+  test('calculates realized pnl for current holdings from historical cashflow', () => {
+    const result = buildCategoryAllocationViewModel({
+      historicalOrders: [
+        historicalOrder({
+          isin: 'US0378331005',
+          quantity: 2,
+          side: 'BUY',
+          walletNetValue: -200,
+        }),
+        historicalOrder({
+          filledAt: '2026-04-11T10:00:00.000Z',
+          isin: 'US0378331005',
+          quantity: 1,
+          side: 'SELL',
+          walletNetValue: 150,
+        }),
+      ],
+      instruments: [
+        instrument({
+          currentPositionSnapshot: {
+            ...instrument({}).currentPositionSnapshot!,
+            quantity: 1,
+            currentValue: 120,
+            totalCost: 100,
+            unrealizedProfitLoss: 20,
+          },
+        }),
+      ],
+    });
+
+    expect(result.totalRealizedPnl).toBe(50);
+    expect(result.rows[0]?.realizedPnl).toBe(50);
+    expect(result.totalPnl).toBe(20);
+    expect(result.totalReturnPercent).toBe(0.7);
+    expect(result.rows[0]?.returnPercent).toBe(0.7);
   });
 
   test('calculates weighted portfolio and category beta coverage', () => {
@@ -385,6 +425,7 @@ describe('buildCategoryAllocationViewModel', () => {
         buyCost: 200,
         currentValue: 200,
         netInvested: 200,
+        realizedPnl: null,
         returnPercent: -0.05,
         sellProceeds: 0,
         unrealizedPnl: -10,
@@ -394,6 +435,7 @@ describe('buildCategoryAllocationViewModel', () => {
         buyCost: 100,
         currentValue: 40,
         netInvested: 40,
+        realizedPnl: null,
         returnPercent: 0.2,
         sellProceeds: 60,
         unrealizedPnl: 20,
@@ -565,6 +607,7 @@ describe('buildCategoryAllocationViewModel', () => {
 
     expect(result.totalCurrentValue).toBe(-75);
     expect(result.totalCost).toBe(0);
+    expect(result.totalRealizedPnl).toBeNull();
     expect(result.totalPnl).toBeNull();
     expect(result.totalReturnPercent).toBeNull();
     expect(result.rows).toEqual([

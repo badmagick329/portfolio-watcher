@@ -1,7 +1,7 @@
 import { parseQueryDate } from '../orders/orders-view-url-state';
 import { DEFAULT_ALPHA_ASSUMPTIONS } from './category-allocation-types';
 
-type CategoriesViewMode = 'manage' | 'allocation';
+type CategoriesViewMode = 'manage' | 'allocation' | 'risk-mappings';
 
 type CategoriesViewUrlState = {
   alphaMarketReturn: number;
@@ -21,7 +21,10 @@ const DEFAULT_CATEGORIES_VIEW_URL_STATE: CategoriesViewUrlState = {
 
 const isCategoriesViewMode = (
   value: string | null,
-): value is CategoriesViewMode => value === 'manage' || value === 'allocation';
+): value is CategoriesViewMode =>
+  value === 'manage' ||
+  value === 'allocation' ||
+  value === 'risk-mappings';
 
 const getCategoriesViewUrlState = (
   searchParams: URLSearchParams | { get(name: string): string | null },

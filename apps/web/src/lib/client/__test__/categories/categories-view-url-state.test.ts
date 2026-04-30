@@ -23,6 +23,14 @@ describe('categories view url state', () => {
     });
   });
 
+  test('parses risk mappings mode', () => {
+    const state = getCategoriesViewUrlState(
+      new URLSearchParams('mode=risk-mappings'),
+    );
+
+    expect(state.mode).toBe('risk-mappings');
+  });
+
   test('defaults invalid or missing mode to manage', () => {
     expect(getCategoriesViewUrlState(new URLSearchParams()).mode).toBe(
       'manage',

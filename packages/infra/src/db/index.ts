@@ -7,6 +7,8 @@ import type {
   InstrumentCategoryFilter,
   InstrumentCategoryInstrument,
   InstrumentPriceSnapshot,
+  InstrumentProviderResolutionCandidate,
+  InstrumentProviderResolutionStatus,
   InstrumentProviderSymbol,
   InstrumentRiskMetricSnapshot,
   InstrumentRiskMetricSyncStatus,
@@ -36,6 +38,8 @@ import {
   instrumentCategories,
   instrumentListings,
   instrumentPrices,
+  instrumentProviderResolutionCandidates,
+  instrumentProviderResolutionStatus,
   instrumentProviderSymbols,
   instrumentRiskMetricSyncStatus,
   instrumentRiskMetrics,
@@ -55,8 +59,24 @@ const ensureSqliteParentDirectory = (sqlitePath: string) => {
   return resolvedPath;
 };
 
-const sqlite = new Database(ensureSqliteParentDirectory(process.env.SQLITE_DB!));
-const db = drizzle(sqlite);
+let defaultDbClient: ReturnType<typeof drizzle> | null = null;
+
+const getDefaultDbClient = () => {
+  if (defaultDbClient) {
+    return defaultDbClient;
+  }
+
+  if (!process.env.SQLITE_DB?.trim()) {
+    throw new Error('SQLITE_DB is required.');
+  }
+
+  const sqlite = new Database(
+    ensureSqliteParentDirectory(process.env.SQLITE_DB),
+  );
+  defaultDbClient = drizzle(sqlite);
+  return defaultDbClient;
+};
+
 const wrapDb = <T>(fn: () => T, action: string) =>
   ResultAsync.fromPromise(
     Promise.resolve().then(fn),
@@ -66,7 +86,8 @@ const wrapDb = <T>(fn: () => T, action: string) =>
     }),
   );
 
-const createOrderSyncStateManager = () => {
+const createOrderSyncStateManager = (dbClient = getDefaultDbClient()) => {
+  const db = dbClient;
   const key = 'historical_orders';
 
   const setState = (params: OrderSyncState) =>
@@ -127,7 +148,7 @@ const createOrderSyncStateManager = () => {
   } satisfies OrderSyncStateManager;
 };
 
-const createBrokerDataManager = (dbClient = db) => {
+const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
   const db = dbClient;
 
   const listObservedListingRows = () =>
@@ -655,6 +676,68 @@ const createBrokerDataManager = (dbClient = db) => {
       });
     }, 'save observed instrument listing');
 
+  const getLatestPortfolioSnapshotAsOf = () =>
+    wrapDb(() => {
+      const row = db
+        .select({ asOf: accountSummarySnapshots.asOf })
+        .from(accountSummarySnapshots)
+        .orderBy(
+          desc(accountSummarySnapshots.asOf),
+          desc(accountSummarySnapshots.fetchedAt),
+        )
+        .get();
+
+      return row?.asOf;
+    }, 'get latest portfolio snapshot as of');
+
+  const getLatestCurrentPortfolioPositionSnapshotByIsin = (isin: string) =>
+    wrapDb(() => {
+      const latestAsOf = db
+        .select({ asOf: accountSummarySnapshots.asOf })
+        .from(accountSummarySnapshots)
+        .orderBy(
+          desc(accountSummarySnapshots.asOf),
+          desc(accountSummarySnapshots.fetchedAt),
+        )
+        .get()?.asOf;
+
+      if (!latestAsOf) {
+        return undefined;
+      }
+
+      const row = db
+        .select({
+          isin: currentPositionSnapshots.isin,
+          providerSymbol: currentPositionSnapshots.providerSymbol,
+          quantity: currentPositionSnapshots.quantity,
+          currentPrice: currentPositionSnapshots.currentPrice,
+          instrumentCurrency: currentPositionSnapshots.instrumentCurrency,
+          walletCurrency: currentPositionSnapshots.walletCurrency,
+          currentValue: currentPositionSnapshots.currentValue,
+          totalCost: currentPositionSnapshots.totalCost,
+          unrealizedProfitLoss: currentPositionSnapshots.unrealizedProfitLoss,
+          fxImpact: currentPositionSnapshots.fxImpact,
+          asOf: currentPositionSnapshots.asOf,
+          fetchedAt: currentPositionSnapshots.fetchedAt,
+        })
+        .from(currentPositionSnapshots)
+        .where(
+          and(
+            eq(currentPositionSnapshots.isin, isin),
+            eq(currentPositionSnapshots.asOf, latestAsOf),
+          ),
+        )
+        .orderBy(desc(currentPositionSnapshots.fetchedAt))
+        .get();
+
+      return row
+        ? ({
+            ...row,
+            fxImpact: row.fxImpact ?? null,
+          } satisfies import('@portfolio/domain').CurrentPositionSnapshot)
+        : undefined;
+    }, 'get latest current portfolio position snapshot by isin');
+
   const getLatestCurrentPositionSnapshotByIsin = (isin: string) =>
     wrapDb(() => {
       const row = db
@@ -706,6 +789,18 @@ const createBrokerDataManager = (dbClient = db) => {
         .onConflictDoNothing()
         .run();
     }, 'save account summary snapshot');
+
+  const prunePortfolioStateSnapshotsOlderThan = (cutoffAsOf: string) =>
+    wrapDb(() => {
+      db.transaction((tx) => {
+        tx.delete(currentPositionSnapshots)
+          .where(sql`${currentPositionSnapshots.asOf} < ${cutoffAsOf}`)
+          .run();
+        tx.delete(accountSummarySnapshots)
+          .where(sql`${accountSummarySnapshots.asOf} < ${cutoffAsOf}`)
+          .run();
+      });
+    }, 'prune portfolio state snapshots');
 
   const saveOrderExecutionAttempt = (
     attempt: import('@portfolio/domain').OrderExecutionAttempt,
@@ -984,6 +1079,185 @@ const createBrokerDataManager = (dbClient = db) => {
         : undefined;
     }, 'get instrument provider symbol');
 
+  const saveInstrumentProviderResolutionStatus = (
+    status: Omit<InstrumentProviderResolutionStatus, 'updatedAt'>,
+  ) =>
+    wrapDb(() => {
+      db.insert(instrumentProviderResolutionStatus)
+        .values({
+          isin: status.isin,
+          provider: status.provider,
+          status: status.status,
+          resolvedSymbol: status.resolvedSymbol,
+            resolutionMethod: status.resolutionMethod,
+            confidence: status.confidence,
+            message: status.message,
+            evidence: stringifyResolutionStatusEvidence(status),
+          })
+          .onConflictDoUpdate({
+            target: [
+              instrumentProviderResolutionStatus.provider,
+            instrumentProviderResolutionStatus.isin,
+          ],
+          set: {
+            status: status.status,
+            resolvedSymbol: status.resolvedSymbol,
+              resolutionMethod: status.resolutionMethod,
+              confidence: status.confidence,
+              message: status.message,
+              evidence: stringifyResolutionStatusEvidence(status),
+              updatedAt: sql`CURRENT_TIMESTAMP`,
+            },
+          })
+          .run();
+    }, 'save instrument provider resolution status');
+
+  const getInstrumentProviderResolutionStatus = (
+    isin: string,
+    provider: InstrumentRiskProvider,
+  ) =>
+    wrapDb(() => {
+      const row = db
+        .select({
+          isin: instrumentProviderResolutionStatus.isin,
+          provider: instrumentProviderResolutionStatus.provider,
+          status: instrumentProviderResolutionStatus.status,
+          resolvedSymbol: instrumentProviderResolutionStatus.resolvedSymbol,
+          resolutionMethod:
+            instrumentProviderResolutionStatus.resolutionMethod,
+          confidence: instrumentProviderResolutionStatus.confidence,
+          message: instrumentProviderResolutionStatus.message,
+          evidence: instrumentProviderResolutionStatus.evidence,
+          updatedAt: instrumentProviderResolutionStatus.updatedAt,
+        })
+        .from(instrumentProviderResolutionStatus)
+        .where(
+          and(
+            eq(instrumentProviderResolutionStatus.isin, isin),
+            eq(instrumentProviderResolutionStatus.provider, provider),
+          ),
+        )
+        .get();
+
+      return row
+        ? toResolutionStatus(row)
+        : undefined;
+    }, 'get instrument provider resolution status');
+
+  const listInstrumentProviderResolutionStatuses = (
+    provider?: InstrumentRiskProvider,
+  ) =>
+    wrapDb(() => {
+      const query = db
+        .select({
+          isin: instrumentProviderResolutionStatus.isin,
+          provider: instrumentProviderResolutionStatus.provider,
+          status: instrumentProviderResolutionStatus.status,
+          resolvedSymbol: instrumentProviderResolutionStatus.resolvedSymbol,
+          resolutionMethod:
+            instrumentProviderResolutionStatus.resolutionMethod,
+          confidence: instrumentProviderResolutionStatus.confidence,
+          message: instrumentProviderResolutionStatus.message,
+          evidence: instrumentProviderResolutionStatus.evidence,
+          updatedAt: instrumentProviderResolutionStatus.updatedAt,
+        })
+        .from(instrumentProviderResolutionStatus)
+        .orderBy(
+          instrumentProviderResolutionStatus.provider,
+          instrumentProviderResolutionStatus.isin,
+        );
+
+      const rows = provider
+        ? query
+            .where(eq(instrumentProviderResolutionStatus.provider, provider))
+            .all()
+        : query.all();
+
+      return rows.map(toResolutionStatus);
+    }, 'list instrument provider resolution statuses');
+
+  const replaceInstrumentProviderResolutionCandidates = ({
+    isin,
+    provider,
+    candidates,
+  }: {
+    isin: string;
+    provider: InstrumentRiskProvider;
+    candidates: Array<
+      Omit<InstrumentProviderResolutionCandidate, 'isin' | 'provider'>
+    >;
+  }) =>
+    wrapDb(() => {
+      db.transaction((tx) => {
+        tx.delete(instrumentProviderResolutionCandidates)
+          .where(
+            and(
+              eq(instrumentProviderResolutionCandidates.isin, isin),
+              eq(instrumentProviderResolutionCandidates.provider, provider),
+            ),
+          )
+          .run();
+
+        candidates.forEach((candidate) => {
+          tx.insert(instrumentProviderResolutionCandidates)
+            .values({
+              isin,
+              provider,
+              candidateSymbol: candidate.candidateSymbol,
+              candidateName: candidate.candidateName,
+              candidateIsin: candidate.candidateIsin,
+              marketCap: candidate.marketCap,
+              score: candidate.score,
+              evidence: candidate.evidence,
+              fetchedAt: candidate.fetchedAt,
+            })
+            .run();
+        });
+      });
+    }, 'replace instrument provider resolution candidates');
+
+  const listInstrumentProviderResolutionCandidates = (
+    provider?: InstrumentRiskProvider,
+  ) =>
+    wrapDb(() => {
+      const query = db
+        .select({
+          isin: instrumentProviderResolutionCandidates.isin,
+          provider: instrumentProviderResolutionCandidates.provider,
+          candidateSymbol: instrumentProviderResolutionCandidates.candidateSymbol,
+          candidateName: instrumentProviderResolutionCandidates.candidateName,
+          candidateIsin: instrumentProviderResolutionCandidates.candidateIsin,
+          marketCap: instrumentProviderResolutionCandidates.marketCap,
+          score: instrumentProviderResolutionCandidates.score,
+          evidence: instrumentProviderResolutionCandidates.evidence,
+          fetchedAt: instrumentProviderResolutionCandidates.fetchedAt,
+        })
+        .from(instrumentProviderResolutionCandidates)
+        .orderBy(
+          instrumentProviderResolutionCandidates.provider,
+          instrumentProviderResolutionCandidates.isin,
+          desc(instrumentProviderResolutionCandidates.score),
+          instrumentProviderResolutionCandidates.candidateSymbol,
+        );
+
+      const rows = provider
+        ? query
+            .where(eq(instrumentProviderResolutionCandidates.provider, provider))
+            .all()
+        : query.all();
+
+      return rows.map(
+        (row): InstrumentProviderResolutionCandidate => ({
+          ...row,
+          provider: row.provider as InstrumentRiskProvider,
+          candidateName: row.candidateName ?? null,
+          candidateIsin: row.candidateIsin ?? null,
+          marketCap: row.marketCap ?? null,
+          evidence: row.evidence ?? null,
+        }),
+      );
+    }, 'list instrument provider resolution candidates');
+
   const saveInstrumentRiskMetricSnapshot = (
     snapshot: InstrumentRiskMetricSnapshot,
   ) =>
@@ -1106,6 +1380,40 @@ const createBrokerDataManager = (dbClient = db) => {
         : undefined;
     }, 'get instrument risk metric sync status');
 
+  const listInstrumentRiskMetricSyncStatuses = (
+    provider?: InstrumentRiskProvider,
+  ) =>
+    wrapDb(() => {
+      const query = db
+        .select({
+          isin: instrumentRiskMetricSyncStatus.isin,
+          provider: instrumentRiskMetricSyncStatus.provider,
+          providerSymbol: instrumentRiskMetricSyncStatus.providerSymbol,
+          status: instrumentRiskMetricSyncStatus.status,
+          checkedAt: instrumentRiskMetricSyncStatus.checkedAt,
+          message: instrumentRiskMetricSyncStatus.message,
+        })
+        .from(instrumentRiskMetricSyncStatus)
+        .orderBy(
+          instrumentRiskMetricSyncStatus.provider,
+          instrumentRiskMetricSyncStatus.isin,
+          desc(instrumentRiskMetricSyncStatus.checkedAt),
+        );
+
+      const rows = provider
+        ? query.where(eq(instrumentRiskMetricSyncStatus.provider, provider)).all()
+        : query.all();
+
+      return rows.map(
+        (row): InstrumentRiskMetricSyncStatus => ({
+          ...row,
+          provider: row.provider as InstrumentRiskProvider,
+          status: row.status as InstrumentRiskMetricSyncStatus['status'],
+          message: row.message ?? null,
+        }),
+      );
+    }, 'list instrument risk metric sync statuses');
+
   return {
     saveHistoricalOrders,
     getHistoricalOrders,
@@ -1121,8 +1429,11 @@ const createBrokerDataManager = (dbClient = db) => {
     saveInstrumentPriceSnapshot,
     saveCurrentPositionSnapshot,
     saveObservedInstrumentListing,
+    getLatestPortfolioSnapshotAsOf,
+    getLatestCurrentPortfolioPositionSnapshotByIsin,
     getLatestCurrentPositionSnapshotByIsin,
     saveAccountSummarySnapshot,
+    prunePortfolioStateSnapshotsOlderThan,
     saveOrderExecutionAttempt,
     saveT212InstrumentCatalogItems,
     findT212InstrumentCatalogMatches,
@@ -1132,13 +1443,108 @@ const createBrokerDataManager = (dbClient = db) => {
     unsetInstrumentProviderSymbol,
     listInstrumentProviderSymbols,
     getInstrumentProviderSymbol,
+    saveInstrumentProviderResolutionStatus,
+    getInstrumentProviderResolutionStatus,
+    listInstrumentProviderResolutionStatuses,
+    replaceInstrumentProviderResolutionCandidates,
+    listInstrumentProviderResolutionCandidates,
     saveInstrumentRiskMetricSnapshot,
     getLatestInstrumentRiskMetricByIsin,
     saveInstrumentRiskMetricSyncStatus,
     getInstrumentRiskMetricSyncStatus,
+    listInstrumentRiskMetricSyncStatuses,
   } satisfies BrokerDataManager;
 };
 
-const normalize = (value: string) => value.trim().toLowerCase();
+  const normalize = (value: string) => value.trim().toLowerCase();
 
-export { db, createOrderSyncStateManager, createBrokerDataManager };
+  const parseJson = (value: string | null) => {
+    if (!value) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  };
+
+  const stringifyResolutionStatusEvidence = (
+    status: Omit<InstrumentProviderResolutionStatus, 'updatedAt'>,
+  ) =>
+    JSON.stringify({
+      evidence: parseJson(status.evidence),
+      fetchedAt: status.fetchedAt,
+      noCandidates: status.noCandidates,
+      lastErrorCode: status.lastErrorCode,
+      lastErrorMessage: status.lastErrorMessage,
+    });
+
+  const toResolutionStatus = (row: {
+    isin: string;
+    provider: string;
+    status: string;
+    resolvedSymbol: string | null;
+    resolutionMethod: string | null;
+    confidence: string | null;
+    message: string | null;
+    evidence: string | null;
+    updatedAt: string;
+  }): InstrumentProviderResolutionStatus => {
+    const parsed = parseJson(row.evidence);
+    const nestedEvidence =
+      parsed &&
+      typeof parsed === 'object' &&
+      'evidence' in parsed &&
+      parsed.evidence !== undefined
+        ? JSON.stringify(parsed.evidence)
+        : row.evidence;
+
+    return {
+      ...row,
+      provider: row.provider as InstrumentRiskProvider,
+      status: row.status as InstrumentProviderResolutionStatus['status'],
+      resolvedSymbol: row.resolvedSymbol ?? null,
+      resolutionMethod:
+        row.resolutionMethod as InstrumentProviderResolutionStatus['resolutionMethod'],
+      confidence:
+        row.confidence as InstrumentProviderResolutionStatus['confidence'],
+      message: row.message ?? null,
+      evidence: nestedEvidence ?? null,
+      fetchedAt:
+        parsed &&
+        typeof parsed === 'object' &&
+        'fetchedAt' in parsed &&
+        typeof parsed.fetchedAt === 'string'
+          ? parsed.fetchedAt
+          : null,
+      noCandidates:
+        parsed &&
+        typeof parsed === 'object' &&
+        'noCandidates' in parsed &&
+        typeof parsed.noCandidates === 'boolean'
+          ? parsed.noCandidates
+          : false,
+      lastErrorCode:
+        parsed &&
+        typeof parsed === 'object' &&
+        'lastErrorCode' in parsed &&
+        typeof parsed.lastErrorCode === 'string'
+          ? parsed.lastErrorCode
+          : null,
+      lastErrorMessage:
+        parsed &&
+        typeof parsed === 'object' &&
+        'lastErrorMessage' in parsed &&
+        typeof parsed.lastErrorMessage === 'string'
+          ? parsed.lastErrorMessage
+          : null,
+    };
+  };
+
+export {
+  getDefaultDbClient as db,
+  createOrderSyncStateManager,
+  createBrokerDataManager,
+};

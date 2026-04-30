@@ -188,7 +188,7 @@ describe('buildOrdersSummary', () => {
         fills: [
           {
             id: 2,
-            quantity: 1,
+            quantity: 10,
             price: 200,
             type: 'FILL',
             tradingMethod: 'MARKET',
@@ -312,6 +312,84 @@ describe('buildOrdersSummary', () => {
     expect(summary.averageCost).toBeCloseTo(106.6666666667);
   });
 
+  test('prefers fill-derived wallet cost over rounded wallet net value', () => {
+    const summary = buildOrdersSummary([
+      createOrder({
+        filledValue: 100,
+        value: 100,
+        filledQuantity: 0.40111426,
+        quantity: 0.40111426,
+        fills: [
+          {
+            id: 1,
+            quantity: 0.40111426,
+            price: 335.5,
+            type: 'FILL',
+            tradingMethod: 'MARKET',
+            filledAt: '2026-04-29T20:27:53.000Z',
+            walletImpact: {
+              currency: 'GBP',
+              netValue: -100,
+              fxRate: 1.34775998,
+              taxes: [],
+            },
+          },
+        ],
+      }),
+    ]);
+
+    expect(summary.costBasis).toBeCloseTo(99.85, 2);
+    expect(summary.averageCost).toBeCloseTo(248.93, 2);
+    expect(summary.netCashflow).toBeCloseTo(-99.85, 2);
+    expect(summary.realizedPnL).toBeCloseTo(0, 6);
+  });
+
+  test('sums all fills for quantity and cost basis', () => {
+    const summary = buildOrdersSummary([
+      createOrder({
+        filledValue: 20,
+        value: 20,
+        filledQuantity: 0.04,
+        quantity: 0.04,
+        fills: [
+          {
+            id: 1,
+            quantity: 0.02,
+            price: 323.99,
+            type: 'FILL',
+            tradingMethod: 'MARKET',
+            filledAt: '2026-04-28T09:31:22.000Z',
+            walletImpact: {
+              currency: 'GBP',
+              netValue: -4.81,
+              fxRate: 1.34995833,
+              taxes: [],
+            },
+          },
+          {
+            id: 2,
+            quantity: 0.02,
+            price: 323.69,
+            type: 'FILL',
+            tradingMethod: 'MARKET',
+            filledAt: '2026-04-28T09:32:04.000Z',
+            walletImpact: {
+              currency: 'GBP',
+              netValue: -4.81,
+              fxRate: 1.34870833,
+              taxes: [],
+            },
+          },
+        ],
+      }),
+    ]);
+
+    expect(summary.remainingQuantity).toBeCloseTo(0.04, 8);
+    expect(summary.costBasis).toBeCloseTo(9.6, 2);
+    expect(summary.netCashflow).toBeCloseTo(-9.6, 2);
+    expect(summary.realizedPnL).toBeCloseTo(0, 6);
+  });
+
   test('hides position-only metrics when no holding remains', () => {
     const summary = buildOrdersSummary([
       createOrder({
@@ -352,7 +430,7 @@ describe('buildOrdersSummary', () => {
           filledAt: '2026-03-26T12:00:00.000Z',
           walletImpact: {
             currency: 'USD',
-            netValue: -2000,
+            netValue: -1000,
             fxRate: 2,
             taxes: [],
           },
@@ -385,7 +463,7 @@ describe('buildOrdersSummary', () => {
 
     expect(summary.estimatedPositionValue).toBe(1600);
     expect(summary.estimatedCurrentValue).toBe(1500);
-    expect(summary.lifetimePnL).toBe(-1400);
+    expect(summary.lifetimePnL).toBe(-400);
     expect(summary.instrumentPriceUsed).toBeNull();
     expect(summary.effectiveInstrumentPrice).toBeNull();
     expect(summary.manualPriceInput).toBe('');
@@ -422,7 +500,58 @@ describe('buildOrdersSummary', () => {
     expect(summary.currentValue).toBe(550);
     expect(summary.costBasis).toBe(550);
     expect(summary.unrealizedPnL).toBe(0);
-    expect(summary.lifetimePnL).toBeCloseTo(0);
+    expect(summary.realizedPnL).toBeCloseTo(-450);
+    expect(summary.lifetimePnL).toBeCloseTo(-450);
+  });
+
+  test('recomputes realized P/L from current snapshot cost basis in t212 position mode', () => {
+    const order = createOrder({
+      filledValue: 100,
+      value: 100,
+      filledQuantity: 0.40111426,
+      quantity: 0.40111426,
+      fills: [
+        {
+          id: 1,
+          quantity: 0.40111426,
+          price: 335.5,
+          type: 'FILL',
+          tradingMethod: 'MARKET',
+          filledAt: '2026-04-29T20:27:53.000Z',
+          walletImpact: {
+            currency: 'GBP',
+            netValue: -100,
+            fxRate: 1.34775998,
+            taxes: [],
+          },
+        },
+      ],
+    });
+    const currentPositionSnapshot: CurrentPositionSnapshot = {
+      isin: 'US0079031078',
+      providerSymbol: 'AMD_US_EQ',
+      quantity: 0.40111426,
+      currentPrice: 335.5,
+      instrumentCurrency: 'USD',
+      walletCurrency: 'GBP',
+      currentValue: 99.85,
+      totalCost: 99.85,
+      unrealizedProfitLoss: 0,
+      fxImpact: null,
+      asOf: '2026-04-29T20:34:59.605Z',
+      fetchedAt: '2026-04-29T20:34:59.605Z',
+    };
+
+    const summary = buildOrdersSummaryFromCurrentPosition(
+      [order],
+      null,
+      currentPositionSnapshot,
+    );
+
+    expect(summary.netCashflow).toBeCloseTo(-99.85, 2);
+    expect(summary.realizedPnL).toBeCloseTo(0, 6);
+    expect(summary.unrealizedPnL).toBeCloseTo(0, 6);
+    expect(summary.lifetimePnL).toBeCloseTo(0, 6);
   });
 
   test('uses t212 account summary for the unfiltered all-instruments view', () => {
@@ -505,7 +634,7 @@ describe('buildOrdersSummary', () => {
 
     expect(summary.summarySource).toBe('t212_position');
     expect(summary.estimatedPositionValue).toBe(1400);
-    expect(summary.lifetimePnL).toBeCloseTo(0);
+    expect(summary.lifetimePnL).toBeCloseTo(-600);
   });
 
   test('manual override still changes only the price, not the selected fx source', () => {

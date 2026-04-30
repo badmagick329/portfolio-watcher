@@ -5,6 +5,7 @@ import { PrivacyToggleButton } from '@/app/_components/PrivacyToggleButton';
 import { Button } from '@/components/ui/button';
 import { CategoryAllocationPanel } from './CategoryAllocationPanel';
 import { CategoryManagementPanel } from './CategoryManagementPanel';
+import { RiskMappingsPanel } from './RiskMappingsPanel';
 import { useInstrumentCategoriesController } from '@/lib/client/categories/useInstrumentCategoriesController';
 
 function InstrumentCategoriesClient() {
@@ -15,6 +16,8 @@ function InstrumentCategoriesClient() {
     headerModel,
     managementActions,
     managementModel,
+    riskMappingsActions,
+    riskMappingsModel,
     status,
   } = useInstrumentCategoriesController();
 
@@ -50,6 +53,17 @@ function InstrumentCategoriesClient() {
           >
             Portfolio allocation
           </Button>
+          {headerModel.showRiskMappings ? (
+            <Button
+              onClick={() => headerActions.setMode('risk-mappings')}
+              type='button'
+              variant={
+                headerModel.mode === 'risk-mappings' ? 'default' : 'outline'
+              }
+            >
+              Risk mappings
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -59,6 +73,11 @@ function InstrumentCategoriesClient() {
         <CategoryAllocationPanel
           actions={allocationActions}
           model={allocationModel}
+        />
+      ) : headerModel.mode === 'risk-mappings' ? (
+        <RiskMappingsPanel
+          actions={riskMappingsActions}
+          model={riskMappingsModel}
         />
       ) : (
         <CategoryManagementPanel

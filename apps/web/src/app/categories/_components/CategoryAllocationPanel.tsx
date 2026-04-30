@@ -111,6 +111,25 @@ function CategoryAllocationPanel({
         </p>
       )}
 
+      {model.viewModel.mode === 'current' &&
+      model.capabilities.hasFmpApiKey &&
+      model.unresolvedCurrentHoldingsCount > 0 ? (
+        <div className='flex flex-col gap-2 border border-border p-3 sm:flex-row sm:items-center sm:justify-between'>
+          <p className='text-sm text-muted-foreground'>
+            {model.unresolvedCurrentHoldingsCount} current holding
+            {model.unresolvedCurrentHoldingsCount === 1 ? '' : 's'} need
+            FMP mapping to improve beta coverage.
+          </p>
+          <Button
+            onClick={actions.openRiskMappings}
+            type='button'
+            variant='outline'
+          >
+            Review risk mappings
+          </Button>
+        </div>
+      ) : null}
+
       <CategoryAllocationSummary
         hideValues={model.hideValues}
         isHistorical={isHistorical}

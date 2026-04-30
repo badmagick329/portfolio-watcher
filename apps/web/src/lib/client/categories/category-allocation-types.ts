@@ -14,6 +14,7 @@ type CategoryAllocationRow = {
   holdingCount: number;
   currentValue: number;
   totalCost: number;
+  realizedPnl: number | null;
   unrealizedPnl: number | null;
   allocationPercent: number;
   returnPercent: number | null;
@@ -34,6 +35,7 @@ type CategoryAllocationViewModel = {
   rows: CategoryAllocationRow[];
   totalCurrentValue: number;
   totalCost: number;
+  totalRealizedPnl: number | null;
   totalPnl: number | null;
   totalReturnPercent: number | null;
   portfolioBeta: number | null;

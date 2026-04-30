@@ -17,7 +17,7 @@ type Params = {
   dataManager: Pick<
     BrokerDataManager,
     | 'listCategorizedInstruments'
-    | 'getLatestCurrentPositionSnapshotByIsin'
+    | 'getLatestCurrentPortfolioPositionSnapshotByIsin'
     | 'getInstrumentProviderSymbol'
     | 'getLatestInstrumentRiskMetricByIsin'
     | 'getInstrumentRiskMetricSyncStatus'
@@ -174,7 +174,10 @@ async function getCurrentHoldings({
   dataManager,
   instruments,
 }: {
-  dataManager: Pick<BrokerDataManager, 'getLatestCurrentPositionSnapshotByIsin'>;
+  dataManager: Pick<
+    BrokerDataManager,
+    'getLatestCurrentPortfolioPositionSnapshotByIsin'
+  >;
   instruments: CategorizedInstrument[];
 }) {
   const holdings: Array<{
@@ -196,11 +199,14 @@ async function getCurrentHoldings({
 }
 
 async function getCurrentHoldingSnapshot(
-  dataManager: Pick<BrokerDataManager, 'getLatestCurrentPositionSnapshotByIsin'>,
+  dataManager: Pick<
+    BrokerDataManager,
+    'getLatestCurrentPortfolioPositionSnapshotByIsin'
+  >,
   instrument: CategorizedInstrument,
 ) {
   const result = await dataManager
-    .getLatestCurrentPositionSnapshotByIsin(instrument.isin)
+    .getLatestCurrentPortfolioPositionSnapshotByIsin(instrument.isin)
     .match(
       (snapshot) => snapshot,
       () => undefined,
@@ -224,13 +230,8 @@ async function resolveProviderSymbol(
     return mapping.providerSymbol;
   }
 
-  const publicTicker = instrument.ticker.split('_')[0] ?? instrument.ticker;
-
-  return isSimpleUsTicker(publicTicker, instrument.currency) ? publicTicker : null;
+  return null;
 }
-
-const isSimpleUsTicker = (ticker: string, currency: string) =>
-  currency === 'USD' && /^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker);
 
 const isRecent = (
   isoDate: string | undefined,

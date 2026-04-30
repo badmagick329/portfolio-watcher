@@ -14,7 +14,9 @@ const createUnsetInstrumentProviderSymbol =
   (
     dataManager: Pick<
       BrokerDataManager,
-      'findInstrumentCategoryInstrumentMatches' | 'unsetInstrumentProviderSymbol'
+      | 'findInstrumentCategoryInstrumentMatches'
+      | 'unsetInstrumentProviderSymbol'
+      | 'saveInstrumentProviderResolutionStatus'
     >,
   ) =>
   (input: Input) => {
@@ -28,6 +30,22 @@ const createUnsetInstrumentProviderSymbol =
     ).andThen((instrument) =>
       dataManager
         .unsetInstrumentProviderSymbol(instrument.isin, input.provider)
+        .andThen(() =>
+          dataManager.saveInstrumentProviderResolutionStatus({
+            isin: instrument.isin,
+            provider: input.provider,
+            status: 'unresolved',
+            resolvedSymbol: null,
+            resolutionMethod: null,
+            confidence: null,
+            message: 'Mapping cleared.',
+            evidence: null,
+            fetchedAt: null,
+            noCandidates: false,
+            lastErrorCode: null,
+            lastErrorMessage: null,
+          }),
+        )
         .map(() => ({
           instrument,
           provider: input.provider,

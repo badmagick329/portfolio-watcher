@@ -5,6 +5,7 @@ import {
   getPeriodRiskFreeReturn,
   roundMoney,
 } from './category-allocation-math';
+import { buildOrdersSummaryFromCurrentPosition } from '../orders/orders-list-math';
 import type {
   AlphaAssumptions,
   CategorizedInstrumentWithPosition,
@@ -30,9 +31,11 @@ function buildCurrentCategoryAllocationViewModel({
     CategoryAllocationRow & {
       betaCoveredValue: number;
       betaWeightedValue: number;
+      realizedPnl: number;
       unrealizedPnl: number;
     }
   >();
+  const historicalOrdersByIsin = groupHistoricalOrdersByIsin(historicalOrders);
 
   instruments.forEach((instrument) => {
     const snapshot = instrument.currentPositionSnapshot;
@@ -53,6 +56,7 @@ function buildCurrentCategoryAllocationViewModel({
         holdingCount: 0,
         currentValue: 0,
         totalCost: 0,
+        realizedPnl: 0,
         unrealizedPnl: 0,
         allocationPercent: 0,
         beta: null,
@@ -70,6 +74,12 @@ function buildCurrentCategoryAllocationViewModel({
     existing.holdingCount += 1;
     existing.currentValue += snapshot.currentValue;
     existing.totalCost += snapshot.totalCost;
+    existing.realizedPnl +=
+      buildOrdersSummaryFromCurrentPosition(
+        historicalOrdersByIsin.get(instrument.isin) ?? [],
+        null,
+        snapshot,
+      ).realizedPnL ?? 0;
     existing.unrealizedPnl += snapshot.unrealizedProfitLoss;
     if (instrument.riskMetric) {
       existing.betaCoveredValue += snapshot.currentValue;
@@ -93,6 +103,10 @@ function buildCurrentCategoryAllocationViewModel({
   );
   const totalPnl = Array.from(groups.values()).reduce(
     (sum, row) => sum + row.unrealizedPnl,
+    0,
+  );
+  const totalRealizedPnl = Array.from(groups.values()).reduce(
+    (sum, row) => sum + row.realizedPnl,
     0,
   );
   const totalBetaValue = Array.from(groups.values()).reduce(
@@ -119,13 +133,15 @@ function buildCurrentCategoryAllocationViewModel({
     .map(({ betaCoveredValue, betaWeightedValue, ...row }) => {
       const beta =
         betaCoveredValue > 0 ? betaWeightedValue / betaCoveredValue : null;
+      const totalCategoryPnl = row.realizedPnl + row.unrealizedPnl;
       const returnPercent =
-        row.totalCost > 0 ? row.unrealizedPnl / row.totalCost : null;
+        row.totalCost > 0 ? totalCategoryPnl / row.totalCost : null;
 
       return {
         ...row,
         currentValue: roundMoney(row.currentValue),
         totalCost: roundMoney(row.totalCost),
+        realizedPnl: roundMoney(row.realizedPnl),
         unrealizedPnl: roundMoney(row.unrealizedPnl),
         allocationPercent:
           totalCurrentValue > 0 ? row.currentValue / totalCurrentValue : 0,
@@ -144,12 +160,14 @@ function buildCurrentCategoryAllocationViewModel({
     .sort((left, right) => right.currentValue - left.currentValue);
   const portfolioBeta =
     totalBetaCoveredValue > 0 ? totalBetaValue / totalBetaCoveredValue : null;
-  const totalReturnPercent = totalCost > 0 ? totalPnl / totalCost : null;
+  const totalReturnPercent =
+    totalCost > 0 ? (totalRealizedPnl + totalPnl) / totalCost : null;
 
   return {
     rows,
     totalCurrentValue: roundMoney(totalCurrentValue),
     totalCost: roundMoney(totalCost),
+    totalRealizedPnl: roundMoney(totalRealizedPnl),
     totalPnl: roundMoney(totalPnl),
     totalReturnPercent,
     portfolioBeta,
@@ -178,6 +196,18 @@ function buildCurrentCategoryAllocationViewModel({
     mode: 'current',
   };
 }
+
+const groupHistoricalOrdersByIsin = (historicalOrders: WebHistoricalOrder[]) => {
+  const ordersByIsin = new Map<string, WebHistoricalOrder[]>();
+
+  historicalOrders.forEach((order) => {
+    const current = ordersByIsin.get(order.instrument.isin) ?? [];
+    current.push(order);
+    ordersByIsin.set(order.instrument.isin, current);
+  });
+
+  return ordersByIsin;
+};
 
 const getCurrentAlphaPeriod = ({
   historicalOrders,

@@ -78,11 +78,36 @@ function ReturnTooltip({
           : formatPercent(row.returnPercent)}
       </p>
       <p>
-        {mode === 'historical' ? 'P/L' : 'Unrealized P/L'}:{' '}
+        {mode === 'historical' ? 'P/L' : 'Total P/L'}:{' '}
         {row.unrealizedPnl === null
           ? NA_LABEL
-          : formatMoney(row.unrealizedPnl, { hideValues })}
+          : formatMoney((row.realizedPnl ?? 0) + row.unrealizedPnl, {
+              hideValues,
+            })}
       </p>
+      {mode === 'current' ? (
+        <>
+          <p>
+            Realized P/L:{' '}
+            {row.realizedPnl === null
+              ? NA_LABEL
+              : formatMoney(row.realizedPnl, { hideValues })}
+          </p>
+          <p>
+            Unrealized P/L:{' '}
+            {row.unrealizedPnl === null
+              ? NA_LABEL
+              : formatMoney(row.unrealizedPnl, { hideValues })}
+          </p>
+        </>
+      ) : (
+        <p>
+          P/L:{' '}
+          {row.unrealizedPnl === null
+            ? NA_LABEL
+            : formatMoney(row.unrealizedPnl, { hideValues })}
+        </p>
+      )}
     </div>
   );
 }

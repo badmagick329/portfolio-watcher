@@ -81,11 +81,60 @@ type InstrumentRiskMetricSyncStatus = {
   message: string | null;
 };
 
+type InstrumentProviderResolutionMethod =
+  | 'manual'
+  | 'auto_isin_exact'
+  | 'user_confirmed';
+
+type InstrumentProviderResolutionConfidence = 'high' | 'medium';
+
+type InstrumentProviderResolutionState =
+  | 'resolved'
+  | 'ambiguous'
+  | 'unresolved';
+
+type InstrumentProviderResolutionCandidate = {
+  isin: string;
+  provider: InstrumentRiskProvider;
+  candidateSymbol: string;
+  candidateName: string | null;
+  candidateIsin: string | null;
+  marketCap: number | null;
+  score: number;
+  evidence: string | null;
+  fetchedAt: string;
+};
+
+type InstrumentProviderResolutionStatus = {
+  isin: string;
+  provider: InstrumentRiskProvider;
+  status: InstrumentProviderResolutionState;
+  resolvedSymbol: string | null;
+  resolutionMethod: InstrumentProviderResolutionMethod | null;
+  confidence: InstrumentProviderResolutionConfidence | null;
+  message: string | null;
+  evidence: string | null;
+  fetchedAt: string | null;
+  noCandidates: boolean;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
+  updatedAt: string;
+};
+
 type InstrumentRiskProfile = {
   symbol: string;
   companyName: string | null;
   isin: string | null;
   beta: number | null;
+  exchange: string | null;
+  exchangeFullName: string | null;
+};
+
+type InstrumentRiskSearchCandidate = {
+  symbol: string;
+  name: string | null;
+  isin: string | null;
+  marketCap: number | null;
 };
 
 type BrokerAccessMode = 'missing' | 'read_only_or_unknown' | 'trading_enabled';
@@ -119,6 +168,17 @@ type SyncInstrumentRiskMetricsResult = {
   failed: number;
   skippedFresh: number;
   skippedMissing: number;
+  rateLimited: boolean;
+};
+
+type ResolveInstrumentProviderMappingsResult = {
+  processed: number;
+  resolved: number;
+  ambiguous: number;
+  unresolved: number;
+  failed: number;
+  skippedFresh: number;
+  skippedCooldown: number;
   rateLimited: boolean;
 };
 
@@ -417,12 +477,19 @@ export type {
   InstrumentProviderSymbol,
   InstrumentRiskMetricSnapshot,
   InstrumentRiskMetricSyncStatus,
+  InstrumentProviderResolutionMethod,
+  InstrumentProviderResolutionConfidence,
+  InstrumentProviderResolutionState,
+  InstrumentProviderResolutionCandidate,
+  InstrumentProviderResolutionStatus,
   InstrumentRiskProfile,
+  InstrumentRiskSearchCandidate,
   BrokerAccessMode,
   AppDataState,
   AppCapabilities,
   InstrumentRiskProvider,
   SyncInstrumentRiskMetricsResult,
+  ResolveInstrumentProviderMappingsResult,
   InstrumentCategoryFilter,
   SetInstrumentCategoryInput,
   UnsetInstrumentCategoryInput,

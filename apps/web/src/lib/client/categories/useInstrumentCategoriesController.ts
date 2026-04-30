@@ -2,7 +2,10 @@
 
 import type { AppCapabilitiesData } from '@/lib/client/app-capabilities';
 import { EMPTY_APP_CAPABILITIES } from '@/lib/client/app-capabilities';
-import type { CategorizedInstrument } from '@portfolio/domain';
+import type {
+  CategorizedInstrument,
+  ResolveInstrumentProviderMappingsResult,
+} from '@portfolio/domain';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import {
@@ -24,6 +27,7 @@ type InstrumentCategoriesStatus =
 type InstrumentCategoriesHeaderModel = {
   capabilities: AppCapabilitiesData;
   mode: CategoriesViewUrlState['mode'];
+  showRiskMappings: boolean;
 };
 
 type InstrumentCategoriesHeaderActions = {
@@ -61,10 +65,12 @@ type CategoryAllocationPanelModel = {
   capabilities: AppCapabilitiesData;
   fillDateRangeFilter: FillDateRangeFilter;
   hideValues: boolean;
+  unresolvedCurrentHoldingsCount: number;
   viewModel: CategoryAllocationViewModel;
 };
 
 type CategoryAllocationPanelActions = {
+  openRiskMappings: () => void;
   setAlphaAssumptions: (value: {
     marketReturn?: number;
     riskFreeAnnual?: number;
@@ -72,12 +78,35 @@ type CategoryAllocationPanelActions = {
   setFillDateRangeFilter: (value: FillDateRangeFilter) => void;
 };
 
+type RiskMappingsPanelModel = {
+  capabilities: AppCapabilitiesData;
+  instruments: NonNullable<
+    ReturnType<typeof useInstrumentCategoriesQuery>['data']
+  >['instruments'];
+  isRefreshing: boolean;
+  refreshSummary: ResolveInstrumentProviderMappingsResult | null;
+  unresolvedCurrentHoldingsCount: number;
+};
+
+type RiskMappingsPanelActions = {
+  clearMapping: (isin: string) => void;
+  confirmMapping: (params: { isin: string; providerSymbol: string }) => void;
+  refreshAllUnresolved: () => void;
+  refreshInstrument: (isin: string) => void;
+};
+
 function useInstrumentCategoriesController() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data, error, isLoading } = useInstrumentCategoriesQuery();
-  const { setCategories, unsetCategories } = useInstrumentCategoryMutations();
+  const {
+    clearRiskMapping,
+    confirmRiskMapping,
+    refreshRiskMappings,
+    setCategories,
+    unsetCategories,
+  } = useInstrumentCategoryMutations();
   const [selectedIsins, setSelectedIsins] = useState<Set<string>>(new Set());
   const [draftCategories, setDraftCategories] = useState<
     Record<string, string>
@@ -94,8 +123,21 @@ function useInstrumentCategoriesController() {
     }),
     [urlState.filledFrom, urlState.filledTo],
   );
-  const isMutating = setCategories.isPending || unsetCategories.isPending;
+  const isMutating =
+    setCategories.isPending ||
+    unsetCategories.isPending ||
+    clearRiskMapping.isPending ||
+    confirmRiskMapping.isPending ||
+    refreshRiskMappings.isPending;
   const capabilities = data?.capabilities ?? EMPTY_APP_CAPABILITIES;
+  const showRiskMappings =
+    capabilities.hasFmpApiKey ||
+    (data?.instruments.some(
+      (instrument) =>
+        instrument.riskMapping.mapping !== null ||
+        instrument.riskMapping.candidates.length > 0,
+    ) ??
+      false);
   const selectedIsinsList = useMemo(
     () => Array.from(selectedIsins),
     [selectedIsins],
@@ -272,6 +314,7 @@ function useInstrumentCategoriesController() {
 
   return {
     allocationActions: {
+      openRiskMappings: () => replaceUrlState({ mode: 'risk-mappings' }),
       setAlphaAssumptions: ({ marketReturn, riskFreeAnnual }) => {
         const nextState: Partial<CategoriesViewUrlState> = {};
 
@@ -293,6 +336,8 @@ function useInstrumentCategoriesController() {
       capabilities,
       fillDateRangeFilter,
       hideValues: urlState.hideValues,
+      unresolvedCurrentHoldingsCount:
+        data?.riskMappingSummary.unresolvedCurrentHoldingsCount ?? 0,
       viewModel: allocationViewModel,
     } satisfies CategoryAllocationPanelModel,
     headerActions: {
@@ -301,6 +346,7 @@ function useInstrumentCategoriesController() {
     headerModel: {
       capabilities,
       mode: urlState.mode,
+      showRiskMappings,
     } satisfies InstrumentCategoriesHeaderModel,
     managementActions: {
       saveBulkCategory,
@@ -325,6 +371,28 @@ function useInstrumentCategoriesController() {
       showCurrentOnly,
       showUncategorizedOnly,
     } satisfies CategoryManagementModel,
+    riskMappingsActions: {
+      clearMapping: (isin) => {
+        clearRiskMapping.mutate({ isin });
+      },
+      confirmMapping: ({ isin, providerSymbol }) => {
+        confirmRiskMapping.mutate({ isin, providerSymbol });
+      },
+      refreshAllUnresolved: () => {
+        refreshRiskMappings.mutate({ force: false });
+      },
+      refreshInstrument: (isin) => {
+        refreshRiskMappings.mutate({ force: true, isins: [isin] });
+      },
+    } satisfies RiskMappingsPanelActions,
+    riskMappingsModel: {
+      capabilities,
+      instruments: data?.instruments ?? [],
+      isRefreshing: refreshRiskMappings.isPending,
+      refreshSummary: refreshRiskMappings.data ?? null,
+      unresolvedCurrentHoldingsCount:
+        data?.riskMappingSummary.unresolvedCurrentHoldingsCount ?? 0,
+    } satisfies RiskMappingsPanelModel,
     status,
   };
 }
@@ -338,4 +406,6 @@ export type {
   InstrumentCategoriesHeaderActions,
   InstrumentCategoriesHeaderModel,
   InstrumentCategoriesStatus,
+  RiskMappingsPanelActions,
+  RiskMappingsPanelModel,
 };

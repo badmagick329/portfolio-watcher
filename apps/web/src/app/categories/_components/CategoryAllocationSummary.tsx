@@ -29,14 +29,20 @@ function CategoryAllocationSummary({
   showAlpha,
   viewModel,
 }: CategoryAllocationSummaryProps) {
+  const baseMetricCount = isHistorical ? 3 : 4;
+  const metricCount =
+    baseMetricCount + (showBeta ? 2 : 0) + (showAlpha ? 1 : 0);
+
   return (
     <div
       className={
-        showBeta && showAlpha
-          ? 'grid gap-4 sm:grid-cols-3 xl:grid-cols-6'
-          : showBeta
-            ? 'grid gap-4 sm:grid-cols-3 xl:grid-cols-5'
-            : 'grid gap-4 sm:grid-cols-3'
+        metricCount >= 7
+          ? 'grid gap-4 sm:grid-cols-3 xl:grid-cols-7'
+          : metricCount === 6
+            ? 'grid gap-4 sm:grid-cols-3 xl:grid-cols-6'
+            : metricCount === 5
+              ? 'grid gap-4 sm:grid-cols-3 xl:grid-cols-5'
+              : 'grid gap-4 sm:grid-cols-3 xl:grid-cols-4'
       }
     >
       <PortfolioSummaryMetric
@@ -52,6 +58,17 @@ function CategoryAllocationSummary({
             : formatMoney(viewModel.totalPnl, { hideValues })
         }
       />
+      {!isHistorical ? (
+        <PortfolioSummaryMetric
+          label='Realized P/L'
+          tone={getSignedTone(viewModel.totalRealizedPnl)}
+          value={
+            viewModel.totalRealizedPnl === null
+              ? NA_LABEL
+              : formatMoney(viewModel.totalRealizedPnl, { hideValues })
+          }
+        />
+      ) : null}
       <PortfolioSummaryMetric
         label='Return'
         tone={getSignedTone(viewModel.totalReturnPercent)}

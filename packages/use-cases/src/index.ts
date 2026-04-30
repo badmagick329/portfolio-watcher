@@ -1,3 +1,5 @@
+export { createClearInstrumentProviderResolution } from '../clear-instrument-provider-resolution';
+export { createConfirmInstrumentProviderResolution } from '../confirm-instrument-provider-resolution';
 export { createFetchAccountCash } from '../fetch-account-cash';
 export { createFetchAccountSummary } from '../fetch-account-summary';
 export { createGetAppCapabilities } from '../get-app-capabilities';
@@ -8,9 +10,13 @@ export { createGetHistoricalOrdersForWeb } from '../get-historical-orders-for-we
 export { createGetLatestInstrumentPrice } from '../get-latest-instrument-price';
 export { createGetLatestInstrumentRiskMetric } from '../get-latest-instrument-risk-metric';
 export { createListInstrumentProviderSymbols } from '../list-instrument-provider-symbols';
+export { createListInstrumentProviderResolutionCandidates } from '../list-instrument-provider-resolution-candidates';
+export { createListInstrumentProviderResolutionStatuses } from '../list-instrument-provider-resolution-statuses';
+export { createListInstrumentRiskMetricSyncStatuses } from '../list-instrument-risk-metric-sync-statuses';
 export { createListCategorizedInstruments } from '../list-categorized-instruments';
 export { createPlaceLiveLimitOrder } from '../place-live-limit-order';
 export { createPlaceLiveMarketOrder } from '../place-live-market-order';
+export { createResolveInstrumentProviderMappings } from '../resolve-instrument-provider-mappings';
 export { createResolveInstrumentForOrder } from '../resolve-instrument-for-order';
 export { createSaveManualInstrumentPrice } from '../save-manual-instrument-price';
 export { createSetInstrumentCategory } from '../set-instrument-category';

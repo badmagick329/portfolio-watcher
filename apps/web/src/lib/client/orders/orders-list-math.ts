@@ -141,6 +141,15 @@ function chooseStoredPrice({
 }
 
 function getOrderQuantity(order: WebHistoricalOrder) {
+  if (order.fills.length > 0) {
+    const fillQuantity = order.fills.reduce(
+      (sum, fill) => sum + Math.abs(fill.quantity),
+      0,
+    );
+
+    return fillQuantity > 0 ? fillQuantity : null;
+  }
+
   const quantity = order.filledQuantity ?? order.quantity;
 
   if (quantity === null) {
@@ -150,21 +159,48 @@ function getOrderQuantity(order: WebHistoricalOrder) {
   return Math.abs(quantity);
 }
 
+function getFillExecutedWalletAmount(fill: WebHistoricalOrderFill) {
+  const quantity = Math.abs(fill.quantity);
+
+  if (quantity > 0 && fill.price > 0 && fill.walletImpact.fxRate > 0) {
+    return (quantity * fill.price) / fill.walletImpact.fxRate;
+  }
+
+  return Math.abs(fill.walletImpact.netValue);
+}
+
+function getOrderExecutedWalletAmount(order: WebHistoricalOrder) {
+  if (order.fills.length > 0) {
+    return order.fills.reduce(
+      (sum, fill) => sum + getFillExecutedWalletAmount(fill),
+      0,
+    );
+  }
+
+  const amount = order.filledValue ?? order.value;
+
+  if (amount === null) {
+    return null;
+  }
+
+  return Math.abs(amount);
+}
+
 function getNextPositionCostState(
   state: PositionCostState,
   order: WebHistoricalOrder,
 ): PositionCostState {
-  const fill = getLatestFill(order);
   const quantity = getOrderQuantity(order);
+  const executedWalletAmount = getOrderExecutedWalletAmount(order);
 
-  if (!fill || quantity === null || quantity === 0) {
+  if (quantity === null || quantity === 0 || executedWalletAmount === null) {
     return state;
   }
 
   if (order.side === 'BUY') {
     return {
       quantity: state.quantity + quantity,
-      costBasis: state.costBasis + Math.abs(fill.walletImpact.netValue),
+      costBasis: state.costBasis + executedWalletAmount,
     };
   }
 
@@ -184,14 +220,13 @@ function getNextPositionCostState(
 }
 
 function getSignedOrderAmount(order: WebHistoricalOrder) {
-  const amount = order.filledValue ?? order.value;
+  const amount = getOrderExecutedWalletAmount(order);
 
   if (amount === null) {
     return null;
   }
 
-  const absoluteAmount = Math.abs(amount);
-  return order.side === 'SELL' ? absoluteAmount : -absoluteAmount;
+  return order.side === 'SELL' ? amount : -amount;
 }
 
 function getWeightedDisplayedOrderPrice(order: WebHistoricalOrder) {
@@ -533,7 +568,12 @@ function buildOrdersSummaryFromCurrentPosition(
   const unrealizedPnL = currentValue - costBasis;
   const unrealizedPnLPercent =
     costBasis > 0 ? unrealizedPnL / costBasis : null;
-  const realizedPnL = historicalSummary.realizedPnL ?? 0;
+  const hasHistoricalCashflow = orders.some(
+    (order) => getSignedOrderAmount(order) !== null,
+  );
+  const realizedPnL = hasHistoricalCashflow
+    ? historicalSummary.netCashflow + costBasis
+    : 0;
   const lifetimePnL = realizedPnL + unrealizedPnL;
 
   return {
@@ -562,14 +602,6 @@ function buildMultiOrdersSummaryFromCurrentPositions({
   selectedInstruments: InstrumentWithStoredPrice[];
 }): OrdersSummary {
   const historicalSummary = buildMultiOrdersSummary(orders, selectedInstruments);
-  const historicalRealizedPnL = selectedInstruments.reduce((sum, instrument) => {
-    const instrumentSummary = buildOrdersSummary(
-      orders.filter((order) => order.instrument.isin === instrument.isin),
-      instrument.latestStoredPrice,
-    );
-
-    return sum + (instrumentSummary.realizedPnL ?? 0);
-  }, 0);
   const activePositionSnapshots = selectedInstruments
     .map((instrument) => instrument.latestPositionSnapshot)
     .filter((snapshot): snapshot is CurrentPositionSnapshot => snapshot !== null);
@@ -597,7 +629,12 @@ function buildMultiOrdersSummaryFromCurrentPositions({
     (sum, snapshot) => sum + snapshot.unrealizedProfitLoss,
     0,
   );
-  const lifetimePnL = historicalRealizedPnL + unrealizedPnL;
+  const hasHistoricalCashflow = orders.some(
+    (order) => getSignedOrderAmount(order) !== null,
+  );
+  const lifetimePnL = hasHistoricalCashflow
+    ? historicalSummary.netCashflow + currentValue
+    : unrealizedPnL;
 
   return {
     ...historicalSummary,

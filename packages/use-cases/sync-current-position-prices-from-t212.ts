@@ -21,6 +21,7 @@ type Params = {
     | 'saveCurrentPositionSnapshot'
     | 'saveObservedInstrumentListing'
     | 'saveAccountSummarySnapshot'
+    | 'prunePortfolioStateSnapshotsOlderThan'
   >;
   now?: () => Date;
 };
@@ -54,6 +55,8 @@ const createSyncCurrentPositionPricesFromT212 = ({
   return syncCurrentPositionPricesFromT212;
 };
 
+const PORTFOLIO_STATE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+
 const persistPortfolioState = ({
   accountSummary,
   positions,
@@ -69,6 +72,7 @@ const persistPortfolioState = ({
     | 'saveCurrentPositionSnapshot'
     | 'saveObservedInstrumentListing'
     | 'saveAccountSummarySnapshot'
+    | 'prunePortfolioStateSnapshotsOlderThan'
   >;
 }): ResultAsync<
   {
@@ -115,6 +119,11 @@ const persistPortfolioState = ({
               fetchedAt,
             }),
           )
+          .andThen(() =>
+            dataManager.prunePortfolioStateSnapshotsOlderThan(
+              toPortfolioStateRetentionCutoffAsOf(fetchedAt),
+            ),
+          )
           .map(() => ({
             prices: persistedPrices,
             positions: persistedPositions,
@@ -123,6 +132,9 @@ const persistPortfolioState = ({
       ),
     ),
   );
+
+const toPortfolioStateRetentionCutoffAsOf = (fetchedAt: string) =>
+  new Date(Date.parse(fetchedAt) - PORTFOLIO_STATE_RETENTION_MS).toISOString();
 
 const persistObservedInstrumentListings = ({
   listings,

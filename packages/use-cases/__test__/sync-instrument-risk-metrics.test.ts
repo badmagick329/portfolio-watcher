@@ -68,7 +68,7 @@ describe('sync instrument risk metrics', () => {
     ]);
   });
 
-  test('uses US public ticker fallback without mapping', async () => {
+  test('counts missing mapping without explicit resolution', async () => {
     const saved: InstrumentRiskMetricSnapshot[] = [];
     const sync = createSyncInstrumentRiskMetrics({
       client: riskClient({ betaBySymbol: { AAPL: 1.2 } }),
@@ -82,7 +82,11 @@ describe('sync instrument risk metrics', () => {
     const result = await sync();
 
     expect(result.isOk()).toBe(true);
-    expect(saved[0]?.providerSymbol).toBe('AAPL');
+    if (result.isOk()) {
+      expect(result.value.missingMapping).toBe(1);
+      expect(result.value.persisted).toBe(0);
+    }
+    expect(saved).toEqual([]);
   });
 
   test('skips missing mapping and missing beta', async () => {
@@ -92,7 +96,7 @@ describe('sync instrument risk metrics', () => {
       client: riskClient({ betaBySymbol: { AAPL: null } }),
       dataManager: dataManager({
         instruments: [apple, vodafone],
-        mappings: {},
+        mappings: { US0378331005: 'AAPL' },
         saved,
         savedStatuses,
       }),
@@ -125,7 +129,10 @@ describe('sync instrument risk metrics', () => {
       client: riskClient({ betaBySymbol: { AAPL: 1.1 }, failedSymbols: ['VOD.L'] }),
       dataManager: dataManager({
         instruments: [apple, vodafone],
-        mappings: { GB00BH4HKS39: 'VOD.L' },
+        mappings: {
+          GB00BH4HKS39: 'VOD.L',
+          US0378331005: 'AAPL',
+        },
         saved,
       }),
     });
@@ -148,7 +155,10 @@ describe('sync instrument risk metrics', () => {
       }),
       dataManager: dataManager({
         instruments: [apple, vodafone],
-        mappings: { GB00BH4HKS39: 'VOD.L' },
+        mappings: {
+          GB00BH4HKS39: 'VOD.L',
+          US0378331005: 'AAPL',
+        },
         saved: [],
         existingMetrics: {
           US0378331005: {
@@ -196,7 +206,10 @@ describe('sync instrument risk metrics', () => {
       }),
       dataManager: dataManager({
         instruments: [apple, vodafone],
-        mappings: { GB00BH4HKS39: 'VOD.L' },
+        mappings: {
+          GB00BH4HKS39: 'VOD.L',
+          US0378331005: 'AAPL',
+        },
         saved: [],
         currentValues: {
           US0378331005: 100,
@@ -224,10 +237,11 @@ describe('sync instrument risk metrics', () => {
             code: 'VALIDATION',
             message: 'FMP_API_KEY is required.',
           }),
+        searchInstrumentRiskCandidatesByIsin: () => okAsync([]),
       },
       dataManager: dataManager({
         instruments: [apple],
-        mappings: {},
+        mappings: { US0378331005: 'AAPL' },
         saved: [],
       }),
     });
@@ -263,7 +277,7 @@ function dataManager({
 }): Pick<
   BrokerDataManager,
   | 'listCategorizedInstruments'
-  | 'getLatestCurrentPositionSnapshotByIsin'
+  | 'getLatestCurrentPortfolioPositionSnapshotByIsin'
   | 'getInstrumentProviderSymbol'
   | 'getLatestInstrumentRiskMetricByIsin'
   | 'getInstrumentRiskMetricSyncStatus'
@@ -272,7 +286,7 @@ function dataManager({
 > {
   return {
     listCategorizedInstruments: () => okAsync(instruments),
-    getLatestCurrentPositionSnapshotByIsin: (isin) =>
+    getLatestCurrentPortfolioPositionSnapshotByIsin: (isin) =>
       okAsync(positionSnapshot(isin, currentValues[isin] ?? 100)),
     getInstrumentProviderSymbol: (isin) =>
       okAsync(
@@ -340,6 +354,7 @@ function riskClient({
         beta: betaBySymbol[symbol] ?? null,
       });
     },
+    searchInstrumentRiskCandidatesByIsin: () => okAsync([]),
   };
 }
 

@@ -3,6 +3,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import {
+  clearInstrumentProviderResolutionAction,
+  confirmInstrumentProviderResolutionAction,
+  refreshInstrumentProviderMappingsAction,
   setInstrumentCategoriesAction,
   unsetInstrumentCategoriesAction,
 } from '@/actions/instrument-categories-action';
@@ -33,6 +36,18 @@ function useInstrumentCategoryMutations() {
     queryClient.invalidateQueries({ queryKey: instrumentCategoriesQueryKey });
 
   return {
+    clearRiskMapping: useMutation({
+      mutationFn: clearInstrumentProviderResolutionAction,
+      onSuccess: invalidateInstrumentCategories,
+    }),
+    confirmRiskMapping: useMutation({
+      mutationFn: confirmInstrumentProviderResolutionAction,
+      onSuccess: invalidateInstrumentCategories,
+    }),
+    refreshRiskMappings: useMutation({
+      mutationFn: refreshInstrumentProviderMappingsAction,
+      onSuccess: invalidateInstrumentCategories,
+    }),
     setCategories: useMutation(
       getSetInstrumentCategoriesMutationOptions({
         invalidateInstrumentCategories,
