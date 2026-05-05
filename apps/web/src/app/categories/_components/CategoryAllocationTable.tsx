@@ -16,6 +16,7 @@ import {
   formatMoney,
   formatPercent,
 } from '@/lib/client/presentation/format-values';
+import { getSignedToneTextClassName } from '@/lib/client/presentation/presentation-tone';
 import { SignedTableCell } from './SignedTableCell';
 
 type CategoryAllocationTableProps = {
@@ -56,8 +57,7 @@ function CategoryAllocationTable({
             <TableHead>Allocation</TableHead>
             {showBeta ? <TableHead>Beta</TableHead> : null}
             {showAlpha ? <TableHead>Alpha</TableHead> : null}
-            <TableHead>Realized P/L</TableHead>
-            <TableHead>Unrealized P/L</TableHead>
+            <TableHead>P/L</TableHead>
             <TableHead>Return</TableHead>
           </TableRow>
         )}
@@ -93,7 +93,10 @@ function CategoryAllocationTable({
                   </TableCell>
                 ) : null}
                 {showAlpha ? (
-                  <SignedTableCell formatter={formatPercent} value={row.alpha} />
+                  <SignedTableCell
+                    formatter={formatPercent}
+                    value={row.alpha}
+                  />
                 ) : null}
               </>
             ) : (
@@ -110,16 +113,18 @@ function CategoryAllocationTable({
                   </TableCell>
                 ) : null}
                 {showAlpha ? (
-                  <SignedTableCell formatter={formatPercent} value={row.alpha} />
+                  <SignedTableCell
+                    formatter={formatPercent}
+                    value={row.alpha}
+                  />
                 ) : null}
-                <SignedTableCell
-                  formatter={(value) => formatMoney(value, { hideValues })}
-                  value={row.realizedPnl}
-                />
-                <SignedTableCell
-                  formatter={(value) => formatMoney(value, { hideValues })}
-                  value={row.unrealizedPnl}
-                />
+                <TableCell>
+                  <ConsolidatedPnlCell
+                    hideValues={hideValues}
+                    realizedPnl={row.realizedPnl}
+                    unrealizedPnl={row.unrealizedPnl}
+                  />
+                </TableCell>
                 <SignedTableCell
                   formatter={formatPercent}
                   value={row.returnPercent}
@@ -130,6 +135,43 @@ function CategoryAllocationTable({
         ))}
       </TableBody>
     </Table>
+  );
+}
+
+function ConsolidatedPnlCell({
+  hideValues,
+  realizedPnl,
+  unrealizedPnl,
+}: {
+  hideValues: boolean;
+  realizedPnl: number | null;
+  unrealizedPnl: number | null;
+}) {
+  const totalPnl =
+    realizedPnl === null && unrealizedPnl === null
+      ? null
+      : (realizedPnl ?? 0) + (unrealizedPnl ?? 0);
+
+  if (totalPnl === null) {
+    return NA_LABEL;
+  }
+
+  return (
+    <div className='flex flex-col gap-1'>
+      <div className={`text-sm ${getSignedToneTextClassName(totalPnl)}`}>
+        {formatMoney(totalPnl, { hideValues })}
+      </div>
+      <div className='flex flex-wrap gap-x-4 text-xs text-muted-foreground'>
+        <span>
+          <span className='text-muted-foreground/80'>R</span>{' '}
+          <span>{formatMoney(realizedPnl ?? 0, { hideValues })}</span>
+        </span>
+        <span>
+          <span className='text-muted-foreground/80'>U</span>{' '}
+          <span>{formatMoney(unrealizedPnl ?? 0, { hideValues })}</span>
+        </span>
+      </div>
+    </div>
   );
 }
 
