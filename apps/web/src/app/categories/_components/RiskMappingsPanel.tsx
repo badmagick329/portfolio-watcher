@@ -14,7 +14,7 @@ import {
 import type {
   RiskMappingsPanelActions,
   RiskMappingsPanelModel,
-} from '@/lib/client/categories/useInstrumentCategoriesController';
+} from '@/lib/client/categories/useRiskMappingsController';
 
 type RiskMappingsPanelProps = {
   actions: RiskMappingsPanelActions;
@@ -234,7 +234,7 @@ function RiskMappingsPanel({ actions, model }: RiskMappingsPanelProps) {
             })}
             {visibleInstruments.length === 0 ? (
               <TableRow>
-                <TableCell className='text-muted-foreground' colSpan={8}>
+                <TableCell className='text-muted-foreground' colSpan={7}>
                   No portfolio instruments need risk mapping attention.
                 </TableCell>
               </TableRow>

@@ -7,11 +7,11 @@ import {
   getHistoricalOrdersForWeb,
   getLatestCurrentPositionSnapshot,
   getLatestInstrumentRiskMetric,
+  listCategorizedInstruments,
   listInstrumentProviderResolutionCandidates,
   listInstrumentProviderResolutionStatuses,
   listInstrumentProviderSymbols,
   listInstrumentRiskMetricSyncStatuses,
-  listCategorizedInstruments,
   resolveInstrumentProviderMappings,
   setInstrumentCategories,
   unsetInstrumentCategories,
@@ -24,7 +24,119 @@ import type {
   WebHistoricalOrder,
 } from '@portfolio/domain';
 
-export async function getInstrumentCategoriesAction() {
+async function getCategoryManagementAction() {
+  const [categoriesResult, ordersResult, capabilitiesResult] =
+    await Promise.all([
+      listCategorizedInstruments(),
+      getHistoricalOrdersForWeb(),
+      getAppCapabilities(),
+    ]);
+
+  if (categoriesResult.isErr()) {
+    throw new Error(categoriesResult.error.message);
+  }
+
+  if (ordersResult.isErr()) {
+    throw new Error(ordersResult.error.message);
+  }
+
+  if (capabilitiesResult.isErr()) {
+    throw new Error(capabilitiesResult.error.message);
+  }
+
+  const quantitiesByIsin = getCurrentQuantitiesByIsin(ordersResult.value.items);
+
+  return {
+    capabilities: capabilitiesResult.value,
+    instruments: categoriesResult.value.map((instrument) => {
+      const currentQuantity = quantitiesByIsin.get(instrument.isin) ?? 0;
+
+      return {
+        ...instrument,
+        currentQuantity,
+        currentlyHeld: currentQuantity > 0,
+      };
+    }),
+  };
+}
+
+async function getAllocationAction() {
+  const [
+    categoriesResult,
+    ordersResult,
+    capabilitiesResult,
+    providerSymbolsResult,
+  ] = await Promise.all([
+    listCategorizedInstruments(),
+    getHistoricalOrdersForWeb(),
+    getAppCapabilities(),
+    listInstrumentProviderSymbols('fmp'),
+  ]);
+
+  if (categoriesResult.isErr()) {
+    throw new Error(categoriesResult.error.message);
+  }
+
+  if (ordersResult.isErr()) {
+    throw new Error(ordersResult.error.message);
+  }
+
+  if (capabilitiesResult.isErr()) {
+    throw new Error(capabilitiesResult.error.message);
+  }
+
+  if (providerSymbolsResult.isErr()) {
+    throw new Error(providerSymbolsResult.error.message);
+  }
+
+  const quantitiesByIsin = getCurrentQuantitiesByIsin(ordersResult.value.items);
+  const providerSymbolsByIsin = new Map(
+    providerSymbolsResult.value.map((item) => [item.isin, item]),
+  );
+
+  const instruments = await Promise.all(
+    categoriesResult.value.map(async (instrument) => {
+      const currentQuantity = quantitiesByIsin.get(instrument.isin) ?? 0;
+      const snapshotResult = await getLatestCurrentPositionSnapshot(
+        instrument.isin,
+      );
+      const riskMetricResult = await getLatestInstrumentRiskMetric(
+        instrument.isin,
+        'fmp',
+      );
+
+      if (snapshotResult.isErr()) {
+        throw new Error(snapshotResult.error.message);
+      }
+
+      if (riskMetricResult.isErr()) {
+        throw new Error(riskMetricResult.error.message);
+      }
+
+      return {
+        ...instrument,
+        currentPositionSnapshot: snapshotResult.value ?? null,
+        currentQuantity,
+        currentlyHeld: currentQuantity > 0,
+        riskMetric: riskMetricResult.value ?? null,
+      };
+    }),
+  );
+
+  return {
+    capabilities: capabilitiesResult.value,
+    historicalOrders: ordersResult.value.items,
+    instruments,
+    riskMappingSummary: {
+      unresolvedCurrentHoldingsCount: instruments.filter(
+        (instrument) =>
+          instrument.currentlyHeld && !providerSymbolsByIsin.has(instrument.isin),
+      ).length,
+    },
+  };
+}
+
+async function getRiskMappingsAction() {
   const [
     categoriesResult,
     ordersResult,
@@ -54,15 +166,19 @@ export async function getInstrumentCategoriesAction() {
   if (capabilitiesResult.isErr()) {
     throw new Error(capabilitiesResult.error.message);
   }
+
   if (providerSymbolsResult.isErr()) {
     throw new Error(providerSymbolsResult.error.message);
   }
+
   if (resolutionStatusesResult.isErr()) {
     throw new Error(resolutionStatusesResult.error.message);
   }
+
   if (resolutionCandidatesResult.isErr()) {
     throw new Error(resolutionCandidatesResult.error.message);
   }
+
   if (riskMetricSyncStatusesResult.isErr()) {
     throw new Error(riskMetricSyncStatusesResult.error.message);
   }
@@ -84,70 +200,48 @@ export async function getInstrumentCategoriesAction() {
     ]),
   );
 
-  const instruments = await Promise.all(
-    categoriesResult.value.map(async (instrument) => {
-      const currentQuantity = quantitiesByIsin.get(instrument.isin) ?? 0;
-      const snapshotResult = await getLatestCurrentPositionSnapshot(instrument.isin);
-      const riskMetricResult = await getLatestInstrumentRiskMetric(
-        instrument.isin,
-        'fmp',
-      );
+  const instruments = categoriesResult.value.map((instrument) => {
+    const currentQuantity = quantitiesByIsin.get(instrument.isin) ?? 0;
+    const providerSymbol = providerSymbolsByIsin.get(instrument.isin) ?? null;
+    const resolutionStatus =
+      resolutionStatusByIsin.get(instrument.isin) ?? null;
+    const candidates = resolutionCandidatesByIsin.get(instrument.isin) ?? [];
+    const riskMetricSyncStatus = providerSymbol
+      ? (latestRiskMetricSyncStatusByKey.get(
+          `${instrument.isin}:${providerSymbol.providerSymbol}`,
+        ) ?? null)
+      : null;
 
-      if (snapshotResult.isErr()) {
-        throw new Error(snapshotResult.error.message);
-      }
-
-      if (riskMetricResult.isErr()) {
-        throw new Error(riskMetricResult.error.message);
-      }
-
-      const currentPositionSnapshot = snapshotResult.value ?? null;
-      const riskMetric = riskMetricResult.value ?? null;
-      const providerSymbol = providerSymbolsByIsin.get(instrument.isin) ?? null;
-      const resolutionStatus =
-        resolutionStatusByIsin.get(instrument.isin) ?? null;
-      const candidates = resolutionCandidatesByIsin.get(instrument.isin) ?? [];
-      const riskMetricSyncStatus = providerSymbol
-        ? (latestRiskMetricSyncStatusByKey.get(
-            `${instrument.isin}:${providerSymbol.providerSymbol}`,
-          ) ?? null)
-        : null;
-
-      return {
-        ...instrument,
-        currentQuantity,
-        currentlyHeld: currentQuantity > 0,
-        currentPositionSnapshot,
-        riskMetric,
-        riskMapping: {
-          candidates,
+    return {
+      ...instrument,
+      currentQuantity,
+      currentlyHeld: currentQuantity > 0,
+      riskMapping: {
+        candidates,
+        mapping: providerSymbol,
+        resolutionStatus,
+        riskMetricSyncStatus,
+        status: getRiskMappingStatus({
           mapping: providerSymbol,
           resolutionStatus,
           riskMetricSyncStatus,
-          status: getRiskMappingStatus({
-            mapping: providerSymbol,
-            resolutionStatus,
-            riskMetricSyncStatus,
-          }),
-        },
-      };
-    }),
-  );
-  const unresolvedCurrentHoldingsCount = instruments.filter(
-    (instrument) => instrument.currentlyHeld && !instrument.riskMapping.mapping,
-  ).length;
+        }),
+      },
+    };
+  });
 
   return {
     capabilities: capabilitiesResult.value,
     instruments,
-    historicalOrders: ordersResult.value.items,
     riskMappingSummary: {
-      unresolvedCurrentHoldingsCount,
+      unresolvedCurrentHoldingsCount: instruments.filter(
+        (instrument) => instrument.currentlyHeld && !instrument.riskMapping.mapping,
+      ).length,
     },
   };
 }
 
-export async function setInstrumentCategoriesAction(params: {
+async function setInstrumentCategoriesAction(params: {
   isins: string[];
   category: string;
 }) {
@@ -168,7 +262,7 @@ export async function setInstrumentCategoriesAction(params: {
   return result.value;
 }
 
-export async function unsetInstrumentCategoriesAction(params: { isins: string[] }) {
+async function unsetInstrumentCategoriesAction(params: { isins: string[] }) {
   if (params.isins.length === 0) {
     throw new Error('Select at least one instrument.');
   }
@@ -182,7 +276,7 @@ export async function unsetInstrumentCategoriesAction(params: { isins: string[] 
   return result.value;
 }
 
-export async function refreshInstrumentProviderMappingsAction(params?: {
+async function refreshInstrumentProviderMappingsAction(params?: {
   force?: boolean;
   isins?: string[];
 }) {
@@ -199,7 +293,7 @@ export async function refreshInstrumentProviderMappingsAction(params?: {
   return result.value;
 }
 
-export async function confirmInstrumentProviderResolutionAction(params: {
+async function confirmInstrumentProviderResolutionAction(params: {
   isin: string;
   providerSymbol: string;
 }) {
@@ -224,7 +318,7 @@ export async function confirmInstrumentProviderResolutionAction(params: {
   return result.value;
 }
 
-export async function clearInstrumentProviderResolutionAction(params: {
+async function clearInstrumentProviderResolutionAction(params: {
   isin: string;
 }) {
   if (params.isin.trim().length === 0) {
@@ -266,10 +360,7 @@ const getCurrentQuantitiesByIsin = (orders: WebHistoricalOrder[]) => {
 
 const getFilledQuantity = (order: WebHistoricalOrder) => {
   if (order.fills.length > 0) {
-    return order.fills.reduce(
-      (sum, fill) => sum + Math.abs(fill.quantity),
-      0,
-    );
+    return order.fills.reduce((sum, fill) => sum + Math.abs(fill.quantity), 0);
   }
 
   const quantity = order.filledQuantity ?? order.quantity;
@@ -311,4 +402,15 @@ const getRiskMappingStatus = ({
   }
 
   return mapping ? ('resolved' as const) : ('unresolved' as const);
+};
+
+export {
+  clearInstrumentProviderResolutionAction,
+  confirmInstrumentProviderResolutionAction,
+  getAllocationAction,
+  getCategoryManagementAction,
+  getRiskMappingsAction,
+  refreshInstrumentProviderMappingsAction,
+  setInstrumentCategoriesAction,
+  unsetInstrumentCategoriesAction,
 };

@@ -2,14 +2,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const setInstrumentCategoriesActionMock = vi.fn();
 const unsetInstrumentCategoriesActionMock = vi.fn();
+const clearInstrumentProviderResolutionActionMock = vi.fn();
+const confirmInstrumentProviderResolutionActionMock = vi.fn();
+const refreshInstrumentProviderMappingsActionMock = vi.fn();
 
 vi.mock('@/actions/instrument-categories-action', () => ({
+  clearInstrumentProviderResolutionAction:
+    clearInstrumentProviderResolutionActionMock,
+  confirmInstrumentProviderResolutionAction:
+    confirmInstrumentProviderResolutionActionMock,
+  refreshInstrumentProviderMappingsAction:
+    refreshInstrumentProviderMappingsActionMock,
   setInstrumentCategoriesAction: setInstrumentCategoriesActionMock,
   unsetInstrumentCategoriesAction: unsetInstrumentCategoriesActionMock,
 }));
 
 describe('instrument category mutation options', () => {
   beforeEach(() => {
+    clearInstrumentProviderResolutionActionMock.mockReset();
+    confirmInstrumentProviderResolutionActionMock.mockReset();
+    refreshInstrumentProviderMappingsActionMock.mockReset();
     setInstrumentCategoriesActionMock.mockReset();
     unsetInstrumentCategoriesActionMock.mockReset();
   });

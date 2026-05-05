@@ -14,7 +14,7 @@ import { formatCategoryName } from '@/lib/client/categories/display-category';
 import type {
   CategoryManagementActions,
   CategoryManagementModel,
-} from '@/lib/client/categories/useInstrumentCategoriesController';
+} from '@/lib/client/categories/useCategoryManagementController';
 
 type CategoryManagementPanelProps = {
   actions: CategoryManagementActions;

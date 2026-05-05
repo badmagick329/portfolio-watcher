@@ -1,53 +1,38 @@
 import { parseQueryDate } from '../orders/orders-view-url-state';
 import { DEFAULT_ALPHA_ASSUMPTIONS } from './category-allocation-types';
 
-type CategoriesViewMode = 'manage' | 'allocation' | 'risk-mappings';
-
-type CategoriesViewUrlState = {
+type AllocationViewUrlState = {
   alphaMarketReturn: number;
   alphaRiskFreeAnnual: number;
-  mode: CategoriesViewMode;
   filledFrom?: string;
   filledTo?: string;
   hideValues: boolean;
 };
 
-const DEFAULT_CATEGORIES_VIEW_URL_STATE: CategoriesViewUrlState = {
+const DEFAULT_ALLOCATION_VIEW_URL_STATE: AllocationViewUrlState = {
   alphaMarketReturn: DEFAULT_ALPHA_ASSUMPTIONS.marketReturn,
   alphaRiskFreeAnnual: DEFAULT_ALPHA_ASSUMPTIONS.riskFreeAnnual,
-  mode: 'manage',
   hideValues: false,
 };
 
-const isCategoriesViewMode = (
-  value: string | null,
-): value is CategoriesViewMode =>
-  value === 'manage' ||
-  value === 'allocation' ||
-  value === 'risk-mappings';
-
-const getCategoriesViewUrlState = (
+const getAllocationViewUrlState = (
   searchParams: URLSearchParams | { get(name: string): string | null },
-): CategoriesViewUrlState => {
-  const mode = searchParams.get('mode');
+): AllocationViewUrlState => {
   const filledFrom = searchParams.get('filledFrom');
   const filledTo = searchParams.get('filledTo');
   const alphaMarketReturn = parseDecimal(
     searchParams.get('alphaMarketReturn'),
-    DEFAULT_CATEGORIES_VIEW_URL_STATE.alphaMarketReturn,
+    DEFAULT_ALLOCATION_VIEW_URL_STATE.alphaMarketReturn,
   );
   const alphaRiskFreeAnnual = parseDecimal(
     searchParams.get('alphaRiskFreeAnnual'),
-    DEFAULT_CATEGORIES_VIEW_URL_STATE.alphaRiskFreeAnnual,
+    DEFAULT_ALLOCATION_VIEW_URL_STATE.alphaRiskFreeAnnual,
     { minExclusive: -1 },
   );
 
   return {
     alphaMarketReturn,
     alphaRiskFreeAnnual,
-    mode: isCategoriesViewMode(mode)
-      ? mode
-      : DEFAULT_CATEGORIES_VIEW_URL_STATE.mode,
     filledFrom: parseQueryDate(filledFrom)
       ? (filledFrom ?? undefined)
       : undefined,
@@ -56,13 +41,11 @@ const getCategoriesViewUrlState = (
   };
 };
 
-const getSearchParamsWithCategoriesViewUrlState = (
+const getSearchParamsWithAllocationViewUrlState = (
   searchParams: URLSearchParams | { toString(): string },
-  state: CategoriesViewUrlState,
+  state: AllocationViewUrlState,
 ) => {
   const nextSearchParams = new URLSearchParams(searchParams.toString());
-
-  nextSearchParams.set('mode', state.mode);
 
   if (state.filledFrom) {
     nextSearchParams.set('filledFrom', state.filledFrom);
@@ -83,13 +66,13 @@ const getSearchParamsWithCategoriesViewUrlState = (
   }
 
   setDecimalSearchParam({
-    defaultValue: DEFAULT_CATEGORIES_VIEW_URL_STATE.alphaMarketReturn,
+    defaultValue: DEFAULT_ALLOCATION_VIEW_URL_STATE.alphaMarketReturn,
     name: 'alphaMarketReturn',
     searchParams: nextSearchParams,
     value: state.alphaMarketReturn,
   });
   setDecimalSearchParam({
-    defaultValue: DEFAULT_CATEGORIES_VIEW_URL_STATE.alphaRiskFreeAnnual,
+    defaultValue: DEFAULT_ALLOCATION_VIEW_URL_STATE.alphaRiskFreeAnnual,
     name: 'alphaRiskFreeAnnual',
     searchParams: nextSearchParams,
     value: state.alphaRiskFreeAnnual,
@@ -98,17 +81,17 @@ const getSearchParamsWithCategoriesViewUrlState = (
   return nextSearchParams;
 };
 
-const getSearchParamsWithUpdatedCategoriesViewUrlState = (
+const getSearchParamsWithUpdatedAllocationViewUrlState = (
   searchParams:
     | URLSearchParams
     | {
         get(name: string): string | null;
         toString(): string;
       },
-  partialState: Partial<CategoriesViewUrlState>,
+  partialState: Partial<AllocationViewUrlState>,
 ) =>
-  getSearchParamsWithCategoriesViewUrlState(searchParams, {
-    ...getCategoriesViewUrlState(searchParams),
+  getSearchParamsWithAllocationViewUrlState(searchParams, {
+    ...getAllocationViewUrlState(searchParams),
     ...partialState,
   });
 
@@ -154,9 +137,9 @@ const setDecimalSearchParam = ({
 };
 
 export {
-  DEFAULT_CATEGORIES_VIEW_URL_STATE,
-  getCategoriesViewUrlState,
-  getSearchParamsWithCategoriesViewUrlState,
-  getSearchParamsWithUpdatedCategoriesViewUrlState,
+  DEFAULT_ALLOCATION_VIEW_URL_STATE,
+  getAllocationViewUrlState,
+  getSearchParamsWithAllocationViewUrlState,
+  getSearchParamsWithUpdatedAllocationViewUrlState,
 };
-export type { CategoriesViewMode, CategoriesViewUrlState };
+export type { AllocationViewUrlState };

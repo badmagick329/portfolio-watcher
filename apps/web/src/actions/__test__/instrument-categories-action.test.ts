@@ -53,7 +53,7 @@ describe('instrument category actions', () => {
     unsetInstrumentCategoriesMock.mockReset();
   });
 
-  it('returns categorized instruments with current holding state', async () => {
+  it('returns category management data with current holding state', async () => {
     const rows = [
       {
         ticker: 'AAPL',
@@ -194,11 +194,11 @@ describe('instrument category actions', () => {
       }),
     );
 
-    const { getInstrumentCategoriesAction } = await import(
+    const { getCategoryManagementAction } = await import(
       '@/actions/instrument-categories-action'
     );
 
-    await expect(getInstrumentCategoriesAction()).resolves.toEqual({
+    await expect(getCategoryManagementAction()).resolves.toEqual({
       capabilities: {
         hasBrokerCredentials: true,
         canSyncOrders: true,
@@ -216,6 +216,109 @@ describe('instrument category actions', () => {
         lastPortfolioSyncAt: null,
         lastRiskMetricsSyncAt: null,
       },
+      instruments: [
+        {
+          ...rows[0],
+          currentQuantity: 2,
+          currentlyHeld: true,
+        },
+        {
+          ...rows[1],
+          currentQuantity: 0,
+          currentlyHeld: false,
+        },
+      ],
+    });
+  });
+
+  it('returns allocation data with current snapshots and risk metrics', async () => {
+    const rows = [
+      {
+        ticker: 'AAPL',
+        name: 'Apple Inc.',
+        isin: 'US0378331005',
+        currency: 'USD',
+        category: 'growth',
+      },
+    ];
+    listCategorizedInstrumentsMock.mockResolvedValue({
+      isErr: () => false,
+      value: rows,
+    });
+    getHistoricalOrdersForWebMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        items: [
+          {
+            side: 'BUY',
+            quantity: 2,
+            filledQuantity: 2,
+            instrument: { isin: 'US0378331005' },
+            fills: [],
+          },
+        ],
+      },
+    });
+    getAppCapabilitiesMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        hasBrokerCredentials: true,
+        canSyncOrders: true,
+        canSyncPortfolioState: true,
+        canPlaceOrders: true,
+        hasFmpApiKey: true,
+        canSyncRiskMetrics: true,
+        brokerAccessMode: 'trading_enabled',
+        hasHistoricalOrders: true,
+        hasCurrentHoldings: true,
+        hasCategories: true,
+        hasStoredRiskMetrics: true,
+        hasSuccessfulSubmittedOrderAttempt: true,
+        lastOrdersSyncAt: null,
+        lastPortfolioSyncAt: null,
+        lastRiskMetricsSyncAt: null,
+      },
+    });
+    listInstrumentProviderSymbolsMock.mockResolvedValue({
+      isErr: () => false,
+      value: [
+        {
+          isin: 'US0378331005',
+          provider: 'fmp',
+          providerSymbol: 'AAPL',
+          updatedAt: '2026-04-17T10:00:00.000Z',
+        },
+      ],
+    });
+    getLatestCurrentPositionSnapshotMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        isin: 'US0378331005',
+        quantity: 2,
+        currentValue: 200,
+        totalCost: 150,
+        unrealizedProfitLoss: 50,
+      },
+    });
+    getLatestInstrumentRiskMetricMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        isin: 'US0378331005',
+        provider: 'fmp',
+        providerSymbol: 'AAPL',
+        beta: 1.2,
+        sourceType: 'profile',
+        asOf: '2026-04-17T10:00:00.000Z',
+        fetchedAt: '2026-04-17T10:00:00.000Z',
+      },
+    });
+
+    const { getAllocationAction } = await import(
+      '@/actions/instrument-categories-action'
+    );
+
+    await expect(getAllocationAction()).resolves.toEqual({
+      capabilities: expect.any(Object),
       historicalOrders: [
         {
           side: 'BUY',
@@ -224,26 +327,10 @@ describe('instrument category actions', () => {
           instrument: { isin: 'US0378331005' },
           fills: [],
         },
-        {
-          side: 'BUY',
-          quantity: 1,
-          filledQuantity: 1,
-          instrument: { isin: 'US5949181045' },
-          fills: [],
-        },
-        {
-          side: 'SELL',
-          quantity: 1,
-          filledQuantity: 1,
-          instrument: { isin: 'US5949181045' },
-          fills: [],
-        },
       ],
       instruments: [
         {
           ...rows[0],
-          currentQuantity: 2,
-          currentlyHeld: true,
           currentPositionSnapshot: {
             isin: 'US0378331005',
             quantity: 2,
@@ -251,6 +338,8 @@ describe('instrument category actions', () => {
             totalCost: 150,
             unrealizedProfitLoss: 50,
           },
+          currentQuantity: 2,
+          currentlyHeld: true,
           riskMetric: {
             isin: 'US0378331005',
             provider: 'fmp',
@@ -260,6 +349,113 @@ describe('instrument category actions', () => {
             asOf: '2026-04-17T10:00:00.000Z',
             fetchedAt: '2026-04-17T10:00:00.000Z',
           },
+        },
+      ],
+      riskMappingSummary: {
+        unresolvedCurrentHoldingsCount: 0,
+      },
+    });
+  });
+
+  it('returns risk mappings data with candidates and status', async () => {
+    const rows = [
+      {
+        ticker: 'AAPL',
+        name: 'Apple Inc.',
+        isin: 'US0378331005',
+        currency: 'USD',
+        category: 'growth',
+      },
+    ];
+    listCategorizedInstrumentsMock.mockResolvedValue({
+      isErr: () => false,
+      value: rows,
+    });
+    getHistoricalOrdersForWebMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        items: [
+          {
+            side: 'BUY',
+            quantity: 2,
+            filledQuantity: 2,
+            instrument: { isin: 'US0378331005' },
+            fills: [],
+          },
+        ],
+      },
+    });
+    getAppCapabilitiesMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        hasBrokerCredentials: true,
+        canSyncOrders: true,
+        canSyncPortfolioState: true,
+        canPlaceOrders: true,
+        hasFmpApiKey: true,
+        canSyncRiskMetrics: true,
+        brokerAccessMode: 'trading_enabled',
+        hasHistoricalOrders: true,
+        hasCurrentHoldings: true,
+        hasCategories: true,
+        hasStoredRiskMetrics: true,
+        hasSuccessfulSubmittedOrderAttempt: true,
+        lastOrdersSyncAt: null,
+        lastPortfolioSyncAt: null,
+        lastRiskMetricsSyncAt: null,
+      },
+    });
+    listInstrumentProviderSymbolsMock.mockResolvedValue({
+      isErr: () => false,
+      value: [
+        {
+          isin: 'US0378331005',
+          provider: 'fmp',
+          providerSymbol: 'AAPL',
+          updatedAt: '2026-04-17T10:00:00.000Z',
+        },
+      ],
+    });
+    listInstrumentProviderResolutionStatusesMock.mockResolvedValue({
+      isErr: () => false,
+      value: [
+        {
+          isin: 'US0378331005',
+          provider: 'fmp',
+          status: 'resolved',
+          resolvedSymbol: 'AAPL',
+          resolutionMethod: 'manual',
+          confidence: 'high',
+          message: null,
+          evidence: null,
+          fetchedAt: '2026-04-17T10:00:00.000Z',
+          noCandidates: false,
+          lastErrorCode: null,
+          lastErrorMessage: null,
+          updatedAt: '2026-04-17T10:00:00.000Z',
+        },
+      ],
+    });
+    listInstrumentProviderResolutionCandidatesMock.mockResolvedValue({
+      isErr: () => false,
+      value: [],
+    });
+    listInstrumentRiskMetricSyncStatusesMock.mockResolvedValue({
+      isErr: () => false,
+      value: [],
+    });
+
+    const { getRiskMappingsAction } = await import(
+      '@/actions/instrument-categories-action'
+    );
+
+    await expect(getRiskMappingsAction()).resolves.toEqual({
+      capabilities: expect.any(Object),
+      instruments: [
+        {
+          ...rows[0],
+          currentQuantity: 2,
+          currentlyHeld: true,
           riskMapping: {
             candidates: [],
             mapping: {
@@ -285,20 +481,6 @@ describe('instrument category actions', () => {
             },
             riskMetricSyncStatus: null,
             status: 'resolved',
-          },
-        },
-        {
-          ...rows[1],
-          currentQuantity: 0,
-          currentlyHeld: false,
-          currentPositionSnapshot: null,
-          riskMetric: null,
-          riskMapping: {
-            candidates: [],
-            mapping: null,
-            resolutionStatus: null,
-            riskMetricSyncStatus: null,
-            status: 'unresolved',
           },
         },
       ],
@@ -362,11 +544,11 @@ describe('instrument category actions', () => {
       value: undefined,
     });
 
-    const { getInstrumentCategoriesAction } = await import(
+    const { getCategoryManagementAction } = await import(
       '@/actions/instrument-categories-action'
     );
 
-    await expect(getInstrumentCategoriesAction()).rejects.toThrow('db failed');
+    await expect(getCategoryManagementAction()).rejects.toThrow('db failed');
   });
 
   it('sets categories and returns result', async () => {

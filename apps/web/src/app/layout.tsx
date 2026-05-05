@@ -51,6 +51,15 @@ export default function RootLayout({
               <Link className='font-medium hover:underline' href='/categories'>
                 Categories
               </Link>
+              <Link className='font-medium hover:underline' href='/allocation'>
+                Allocation
+              </Link>
+              <Link
+                className='font-medium hover:underline'
+                href='/risk-mappings'
+              >
+                Risk mappings
+              </Link>
             </div>
           </nav>
           <QueryProvider>{children}</QueryProvider>

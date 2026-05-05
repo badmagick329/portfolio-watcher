@@ -10,7 +10,7 @@ import {
   unsetInstrumentCategoriesAction,
 } from '@/actions/instrument-categories-action';
 
-import { instrumentCategoriesQueryKey } from './useInstrumentCategoriesQuery';
+import { instrumentCategoriesQueryRootKey } from './category-query-keys';
 
 const getSetInstrumentCategoriesMutationOptions = ({
   invalidateInstrumentCategories,
@@ -33,7 +33,9 @@ const getUnsetInstrumentCategoriesMutationOptions = ({
 function useInstrumentCategoryMutations() {
   const queryClient = useQueryClient();
   const invalidateInstrumentCategories = () =>
-    queryClient.invalidateQueries({ queryKey: instrumentCategoriesQueryKey });
+    queryClient.invalidateQueries({
+      queryKey: instrumentCategoriesQueryRootKey,
+    });
 
   return {
     clearRiskMapping: useMutation({

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import type {
   CategoryAllocationPanelActions,
   CategoryAllocationPanelModel,
-} from '@/lib/client/categories/useInstrumentCategoriesController';
+} from '@/lib/client/categories/useAllocationController';
 import { CategoryAllocationCharts } from './CategoryAllocationCharts';
 import { CategoryAllocationSummary } from './CategoryAllocationSummary';
 import { CategoryAllocationTable } from './CategoryAllocationTable';
