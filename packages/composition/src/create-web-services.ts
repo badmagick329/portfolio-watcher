@@ -7,6 +7,7 @@ import {
 import {
   createClearInstrumentProviderResolution,
   createConfirmInstrumentProviderResolution,
+  createGetCurrentHoldingMovers,
   createGetDistinctInstruments,
   createGetAppCapabilities,
   createGetLatestAccountSummarySnapshot,
@@ -40,6 +41,7 @@ export const createWebServices = () => {
     confirmInstrumentProviderResolution:
       createConfirmInstrumentProviderResolution(dataManager),
     getAppCapabilities: createGetAppCapabilities({ dataManager }),
+    getCurrentHoldingMovers: createGetCurrentHoldingMovers(dataManager),
     getDistinctInstruments: createGetDistinctInstruments(dataManager),
     getHistoricalOrdersForWeb: createGetHistoricalOrdersForWeb(dataManager),
     getLatestAccountSummarySnapshot:

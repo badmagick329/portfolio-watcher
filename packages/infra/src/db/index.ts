@@ -3,6 +3,9 @@ import type {
   AppError,
   BrokerDataManager,
   CategorizedInstrument,
+  CurrentHoldingMoverPrice,
+  CurrentHoldingMoversInput,
+  CurrentHoldingMoversResult,
   HistoricalOrdersItems,
   InstrumentCategoryFilter,
   InstrumentCategoryInstrument,
@@ -622,6 +625,7 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
           isin: snapshot.isin,
           providerSymbol: snapshot.providerSymbol,
           quantity: snapshot.quantity,
+          averagePricePaid: snapshot.averagePricePaid ?? null,
           currentPrice: snapshot.currentPrice,
           instrumentCurrency: snapshot.instrumentCurrency,
           walletCurrency: snapshot.walletCurrency,
@@ -710,6 +714,7 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
           isin: currentPositionSnapshots.isin,
           providerSymbol: currentPositionSnapshots.providerSymbol,
           quantity: currentPositionSnapshots.quantity,
+          averagePricePaid: currentPositionSnapshots.averagePricePaid,
           currentPrice: currentPositionSnapshots.currentPrice,
           instrumentCurrency: currentPositionSnapshots.instrumentCurrency,
           walletCurrency: currentPositionSnapshots.walletCurrency,
@@ -733,6 +738,7 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
       return row
         ? ({
             ...row,
+            averagePricePaid: row.averagePricePaid ?? null,
             fxImpact: row.fxImpact ?? null,
           } satisfies import('@portfolio/domain').CurrentPositionSnapshot)
         : undefined;
@@ -745,6 +751,7 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
           isin: currentPositionSnapshots.isin,
           providerSymbol: currentPositionSnapshots.providerSymbol,
           quantity: currentPositionSnapshots.quantity,
+          averagePricePaid: currentPositionSnapshots.averagePricePaid,
           currentPrice: currentPositionSnapshots.currentPrice,
           instrumentCurrency: currentPositionSnapshots.instrumentCurrency,
           walletCurrency: currentPositionSnapshots.walletCurrency,
@@ -766,6 +773,7 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
       return row
         ? ({
             ...row,
+            averagePricePaid: row.averagePricePaid ?? null,
             fxImpact: row.fxImpact ?? null,
           } satisfies import('@portfolio/domain').CurrentPositionSnapshot)
         : undefined;
@@ -986,6 +994,390 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
           } satisfies InstrumentPriceSnapshot)
         : undefined;
     }, 'get latest instrument price by isin');
+
+  const getCurrentHoldingMovers = (
+    input: CurrentHoldingMoversInput = {},
+  ): ResultAsync<CurrentHoldingMoversResult, AppError> =>
+    wrapDb(() => {
+      const latestAsOf = db
+        .select({ asOf: accountSummarySnapshots.asOf })
+        .from(accountSummarySnapshots)
+        .orderBy(
+          desc(accountSummarySnapshots.asOf),
+          desc(accountSummarySnapshots.fetchedAt),
+        )
+        .get()?.asOf;
+
+      const requestedFilledFrom = input.filledFrom ?? null;
+      const requestedFilledTo = input.filledTo ?? null;
+
+      if (!latestAsOf) {
+        return {
+          dateRange: {
+            startBoundary: null,
+            endBoundary: null,
+            requestedFilledFrom,
+            requestedFilledTo,
+          },
+          excludedCount: 0,
+          items: [],
+        };
+      }
+
+      const holdings = db
+        .select({
+          isin: currentPositionSnapshots.isin,
+          providerSymbol: currentPositionSnapshots.providerSymbol,
+          quantity: currentPositionSnapshots.quantity,
+          averagePricePaid: currentPositionSnapshots.averagePricePaid,
+          currentPrice: currentPositionSnapshots.currentPrice,
+          instrumentCurrency: currentPositionSnapshots.instrumentCurrency,
+          walletCurrency: currentPositionSnapshots.walletCurrency,
+          currentValue: currentPositionSnapshots.currentValue,
+          totalCost: currentPositionSnapshots.totalCost,
+          unrealizedProfitLoss: currentPositionSnapshots.unrealizedProfitLoss,
+          fxImpact: currentPositionSnapshots.fxImpact,
+          asOf: currentPositionSnapshots.asOf,
+          fetchedAt: currentPositionSnapshots.fetchedAt,
+          ticker: instrumentListings.ticker,
+          name: instruments.name,
+          currency: instruments.currency,
+          category: instrumentCategories.category,
+        })
+        .from(currentPositionSnapshots)
+        .innerJoin(instruments, eq(currentPositionSnapshots.isin, instruments.isin))
+        .leftJoin(
+          instrumentListings,
+          eq(currentPositionSnapshots.providerSymbol, instrumentListings.ticker),
+        )
+        .leftJoin(
+          instrumentCategories,
+          eq(currentPositionSnapshots.isin, instrumentCategories.isin),
+        )
+        .where(
+          and(
+            eq(currentPositionSnapshots.asOf, latestAsOf),
+            sql`${currentPositionSnapshots.quantity} > 0`,
+          ),
+        )
+        .orderBy(currentPositionSnapshots.providerSymbol)
+        .all();
+
+      if (holdings.length === 0) {
+        return {
+          dateRange: {
+            startBoundary: null,
+            endBoundary: null,
+            requestedFilledFrom,
+            requestedFilledTo,
+          },
+          excludedCount: 0,
+          items: [],
+        };
+      }
+
+      const holdingIsins = holdings.map((holding) => holding.isin);
+      const latestPositionAsOf =
+        db
+          .select({ asOf: currentPositionSnapshots.asOf })
+          .from(currentPositionSnapshots)
+          .where(inArray(currentPositionSnapshots.isin, holdingIsins))
+          .orderBy(
+            desc(currentPositionSnapshots.asOf),
+            desc(currentPositionSnapshots.fetchedAt),
+          )
+          .get()?.asOf ?? null;
+
+      const endBoundary = input.filledTo
+        ? endOfQueryDate(input.filledTo)
+        : latestPositionAsOf;
+      const startBoundary = input.filledFrom
+        ? startOfQueryDate(input.filledFrom)
+        : endBoundary
+          ? subtractDaysIso(endBoundary, 7)
+          : null;
+
+      if (!startBoundary || !endBoundary) {
+        return {
+          dateRange: {
+            startBoundary,
+            endBoundary,
+            requestedFilledFrom,
+            requestedFilledTo,
+          },
+          excludedCount: holdings.length,
+          items: [],
+        };
+      }
+
+      const items: CurrentHoldingMoversResult['items'] = [];
+      let excludedCount = 0;
+
+      holdings.forEach((holding) => {
+        const positionSnapshots = getCurrentPositionSnapshotsInRange(
+          holding.isin,
+          startBoundary,
+          endBoundary,
+        );
+        const startPosition = positionSnapshots[0];
+        const endPosition = positionSnapshots.at(-1);
+        const walletImpact = calculateMoverWalletImpact({
+          endBoundary,
+          fills: getHistoricalFillsForIsinThrough(holding.isin, endBoundary),
+          snapshots: positionSnapshots,
+          startBoundary,
+        });
+
+        if (
+          !startPosition ||
+          !endPosition ||
+          startPosition.asOf === endPosition.asOf ||
+          startPosition.currentPrice <= 0 ||
+          walletImpact === null
+        ) {
+          excludedCount++;
+          return;
+        }
+
+        const priceChange = endPosition.currentPrice - startPosition.currentPrice;
+        const returnPercent = priceChange / startPosition.currentPrice;
+
+        items.push({
+          instrument: {
+            ticker: holding.ticker ?? holding.providerSymbol,
+            name: holding.name,
+            isin: holding.isin,
+            currency: holding.currency,
+            category: holding.category ?? null,
+          } satisfies CategorizedInstrument,
+          position: {
+            isin: holding.isin,
+            providerSymbol: holding.providerSymbol,
+            quantity: holding.quantity,
+            averagePricePaid: holding.averagePricePaid ?? null,
+            currentPrice: holding.currentPrice,
+            instrumentCurrency: holding.instrumentCurrency,
+            walletCurrency: holding.walletCurrency,
+            currentValue: holding.currentValue,
+            totalCost: holding.totalCost,
+            unrealizedProfitLoss: holding.unrealizedProfitLoss,
+            fxImpact: holding.fxImpact ?? null,
+            asOf: holding.asOf,
+            fetchedAt: holding.fetchedAt,
+          },
+          startPrice: toMoverPrice(startPosition),
+          endPrice: toMoverPrice(endPosition),
+          priceChange,
+          returnPercent,
+          walletImpact,
+        });
+      });
+
+      return {
+        dateRange: {
+          startBoundary,
+          endBoundary,
+          requestedFilledFrom,
+          requestedFilledTo,
+        },
+        excludedCount,
+        items,
+      };
+    }, 'get current holding movers');
+
+  const getCurrentPositionSnapshotsInRange = (
+    isin: string,
+    startBoundary: string,
+    endBoundary: string,
+  ): import('@portfolio/domain').CurrentPositionSnapshot[] => {
+    const rows = db
+      .select({
+        isin: currentPositionSnapshots.isin,
+        providerSymbol: currentPositionSnapshots.providerSymbol,
+        quantity: currentPositionSnapshots.quantity,
+        averagePricePaid: currentPositionSnapshots.averagePricePaid,
+        currentPrice: currentPositionSnapshots.currentPrice,
+        instrumentCurrency: currentPositionSnapshots.instrumentCurrency,
+        walletCurrency: currentPositionSnapshots.walletCurrency,
+        currentValue: currentPositionSnapshots.currentValue,
+        totalCost: currentPositionSnapshots.totalCost,
+        unrealizedProfitLoss: currentPositionSnapshots.unrealizedProfitLoss,
+        fxImpact: currentPositionSnapshots.fxImpact,
+        asOf: currentPositionSnapshots.asOf,
+        fetchedAt: currentPositionSnapshots.fetchedAt,
+      })
+      .from(currentPositionSnapshots)
+      .where(
+        and(
+          eq(currentPositionSnapshots.isin, isin),
+          sql`${currentPositionSnapshots.asOf} >= ${startBoundary}`,
+          sql`${currentPositionSnapshots.asOf} <= ${endBoundary}`,
+        ),
+      )
+      .orderBy(
+        currentPositionSnapshots.asOf,
+        desc(currentPositionSnapshots.fetchedAt),
+      )
+      .all();
+
+    const latestFetchedByAsOf = new Map<string, (typeof rows)[number]>();
+
+    rows.forEach((row) => {
+      if (!latestFetchedByAsOf.has(row.asOf)) {
+        latestFetchedByAsOf.set(row.asOf, row);
+      }
+    });
+
+    return [...latestFetchedByAsOf.values()].map(toCurrentPosition);
+  };
+
+  const getHistoricalFillsForIsinThrough = (
+    isin: string,
+    endBoundary: string,
+  ) =>
+    db
+      .select({
+        side: orders.side,
+        quantity: fills.quantity,
+        price: fills.price,
+        filledAt: fills.filledAt,
+        walletFxRate: fills.walletFxRate,
+      })
+      .from(orders)
+      .innerJoin(instrumentListings, eq(orders.ticker, instrumentListings.ticker))
+      .innerJoin(fills, eq(fills.orderId, orders.id))
+      .where(
+        and(
+          eq(instrumentListings.isin, isin),
+          sql`${fills.filledAt} <= ${endBoundary}`,
+        ),
+      )
+      .orderBy(fills.filledAt)
+      .all();
+
+  const calculateMoverWalletImpact = ({
+    endBoundary,
+    fills: historicalFills,
+    snapshots,
+    startBoundary,
+  }: {
+    endBoundary: string;
+    fills: {
+      side: string;
+      quantity: number;
+      price: number;
+      filledAt: string;
+      walletFxRate: number;
+    }[];
+    snapshots: import('@portfolio/domain').CurrentPositionSnapshot[];
+    startBoundary: string;
+  }) => {
+    const openingQuantity = historicalFills
+      .filter((fill) => fill.filledAt < startBoundary)
+      .reduce(
+        (total, fill) => total + signedFillQuantity(fill.side, fill.quantity),
+        0,
+      );
+
+    const events = [
+      ...snapshots.map((snapshot) => ({
+        at: snapshot.asOf,
+        kind: 'snapshot' as const,
+        walletUnitPrice:
+          snapshot.quantity > 0 ? snapshot.currentValue / snapshot.quantity : null,
+      })),
+      ...historicalFills
+        .filter(
+          (fill) =>
+            fill.filledAt >= startBoundary && fill.filledAt <= endBoundary,
+        )
+        .map((fill) => ({
+          at: fill.filledAt,
+          kind: 'fill' as const,
+          signedQuantity: signedFillQuantity(fill.side, fill.quantity),
+          walletUnitPrice:
+            fill.walletFxRate > 0 ? fill.price / fill.walletFxRate : null,
+        })),
+    ].sort((left, right) => {
+      const dateOrder = left.at.localeCompare(right.at);
+      if (dateOrder !== 0) {
+        return dateOrder;
+      }
+
+      return left.kind === right.kind ? 0 : left.kind === 'fill' ? -1 : 1;
+    });
+
+    let heldQuantity = openingQuantity;
+    let previousWalletUnitPrice: number | null = null;
+    let walletImpact = 0;
+    let usablePricePoints = 0;
+    let hadPositiveMeasuredInterval = false;
+
+    for (const event of events) {
+      if (event.walletUnitPrice === null || event.walletUnitPrice <= 0) {
+        return null;
+      }
+
+      if (previousWalletUnitPrice !== null && heldQuantity > 0) {
+        walletImpact +=
+          heldQuantity * (event.walletUnitPrice - previousWalletUnitPrice);
+        hadPositiveMeasuredInterval = true;
+      }
+
+      previousWalletUnitPrice = event.walletUnitPrice;
+      usablePricePoints++;
+
+      if (event.kind === 'fill') {
+        heldQuantity = roundPositionQuantity(
+          heldQuantity + event.signedQuantity,
+        );
+      }
+    }
+
+    if (usablePricePoints < 2 || !hadPositiveMeasuredInterval) {
+      return null;
+    }
+
+    return walletImpact;
+  };
+
+  const signedFillQuantity = (side: string, quantity: number) =>
+    side === 'SELL' ? -Math.abs(quantity) : Math.abs(quantity);
+
+  const roundPositionQuantity = (quantity: number) =>
+    Math.abs(quantity) < 1e-9 ? 0 : Number(quantity.toFixed(12));
+
+  const toCurrentPosition = (row: {
+    isin: string;
+    providerSymbol: string;
+    quantity: number;
+    averagePricePaid: number | null;
+    currentPrice: number;
+    instrumentCurrency: string;
+    walletCurrency: string;
+    currentValue: number;
+    totalCost: number;
+    unrealizedProfitLoss: number;
+    fxImpact: number | null;
+    asOf: string;
+    fetchedAt: string;
+  }): import('@portfolio/domain').CurrentPositionSnapshot => ({
+    ...row,
+    averagePricePaid: row.averagePricePaid ?? null,
+    fxImpact: row.fxImpact ?? null,
+  });
+
+  const toMoverPrice = (
+    snapshot: import('@portfolio/domain').CurrentPositionSnapshot,
+  ): CurrentHoldingMoverPrice => ({
+    provider: 't212',
+    providerSymbol: snapshot.providerSymbol,
+    currency: snapshot.instrumentCurrency,
+    price: snapshot.currentPrice,
+    priceType: 'position_current',
+    asOf: snapshot.asOf,
+    fetchedAt: snapshot.fetchedAt,
+  });
 
   const setInstrumentProviderSymbol = ({
     isin,
@@ -1439,6 +1831,7 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
     findT212InstrumentCatalogMatches,
     getLatestAccountSummarySnapshot,
     getLatestInstrumentPriceByIsin,
+    getCurrentHoldingMovers,
     setInstrumentProviderSymbol,
     unsetInstrumentProviderSymbol,
     listInstrumentProviderSymbols,
@@ -1457,6 +1850,16 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
 };
 
   const normalize = (value: string) => value.trim().toLowerCase();
+
+  const startOfQueryDate = (value: string) => `${value}T00:00:00.000Z`;
+
+  const endOfQueryDate = (value: string) => `${value}T23:59:59.999Z`;
+
+  const subtractDaysIso = (value: string, days: number) => {
+    const date = new Date(value);
+    date.setUTCDate(date.getUTCDate() - days);
+    return date.toISOString();
+  };
 
   const parseJson = (value: string | null) => {
     if (!value) {

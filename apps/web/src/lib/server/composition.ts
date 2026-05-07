@@ -13,6 +13,11 @@ const getWebServices = () => {
 };
 
 export const getAppCapabilities = () => getWebServices().getAppCapabilities();
+export const getCurrentHoldingMovers = (
+  ...args: Parameters<
+    ReturnType<typeof createWebServices>['getCurrentHoldingMovers']
+  >
+) => getWebServices().getCurrentHoldingMovers(...args);
 export const clearInstrumentProviderResolution = (
   ...args: Parameters<
     ReturnType<typeof createWebServices>['clearInstrumentProviderResolution']

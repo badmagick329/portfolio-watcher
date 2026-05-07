@@ -234,6 +234,7 @@ type CurrentPositionSnapshot = {
   isin: string;
   providerSymbol: string;
   quantity: number;
+  averagePricePaid?: number | null;
   currentPrice: number;
   instrumentCurrency: string;
   walletCurrency: string;
@@ -407,6 +408,37 @@ type InstrumentPriceSnapshot = {
   fetchedAt: string;
 };
 
+type CurrentHoldingMoverPrice = Pick<
+  InstrumentPriceSnapshot,
+  'provider' | 'providerSymbol' | 'currency' | 'price' | 'priceType' | 'asOf' | 'fetchedAt'
+>;
+
+type CurrentHoldingMover = {
+  instrument: CategorizedInstrument;
+  position: CurrentPositionSnapshot;
+  startPrice: CurrentHoldingMoverPrice;
+  endPrice: CurrentHoldingMoverPrice;
+  priceChange: number;
+  returnPercent: number;
+  walletImpact: number;
+};
+
+type CurrentHoldingMoversInput = {
+  filledFrom?: string;
+  filledTo?: string;
+};
+
+type CurrentHoldingMoversResult = {
+  dateRange: {
+    startBoundary: string | null;
+    endBoundary: string | null;
+    requestedFilledFrom: string | null;
+    requestedFilledTo: string | null;
+  };
+  excludedCount: number;
+  items: CurrentHoldingMover[];
+};
+
 type CurrentPositionPriceSyncResult = {
   attempted: number;
   persisted: number;
@@ -463,6 +495,10 @@ export type {
   InstrumentPriceProvider,
   InstrumentPriceSnapshot,
   InstrumentPriceType,
+  CurrentHoldingMover,
+  CurrentHoldingMoverPrice,
+  CurrentHoldingMoversInput,
+  CurrentHoldingMoversResult,
   CurrentPositionPriceSyncResult,
   PortfolioStateSyncResult,
   HistoricalOrdersParams,

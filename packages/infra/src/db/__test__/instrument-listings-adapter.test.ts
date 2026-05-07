@@ -543,6 +543,512 @@ describe('instrument listing db adapter', () => {
       lastRiskMetricsSyncAt: '2026-04-20T10:05:00.000Z',
     });
   });
+
+  test('builds current holding movers from fills and T212 snapshots', async () => {
+    const { dataManager } = await createTestDataManager();
+
+    await unwrap(
+      dataManager.saveObservedInstrumentListing({
+        ticker: 'AAA_EQ',
+        name: 'AAA Fund',
+        isin: 'AAA',
+        currency: 'GBP',
+      }),
+    );
+    await unwrap(
+      dataManager.saveObservedInstrumentListing({
+        ticker: 'BBB_EQ',
+        name: 'BBB Fund',
+        isin: 'BBB',
+        currency: 'USD',
+      }),
+    );
+    await unwrap(
+      dataManager.saveObservedInstrumentListing({
+        ticker: 'OLD_EQ',
+        name: 'Old Fund',
+        isin: 'OLD',
+        currency: 'GBP',
+      }),
+    );
+    await unwrap(
+      dataManager.saveObservedInstrumentListing({
+        ticker: 'MISS_EQ',
+        name: 'Missing Fund',
+        isin: 'MISS',
+        currency: 'GBP',
+      }),
+    );
+    await unwrap(
+      dataManager.saveObservedInstrumentListing({
+        ticker: 'ADD_EQ',
+        name: 'Added Fund',
+        isin: 'ADD',
+        currency: 'GBP',
+      }),
+    );
+    await unwrap(
+      dataManager.saveObservedInstrumentListing({
+        ticker: 'SELL_EQ',
+        name: 'Sold Down Fund',
+        isin: 'SELL',
+        currency: 'GBP',
+      }),
+    );
+    await unwrap(dataManager.setInstrumentCategory('AAA', 'growth'));
+    await unwrap(
+      dataManager.saveHistoricalOrders([
+        historicalOrder({
+          id: 100,
+          ticker: 'AAA_EQ',
+          fillId: 1000,
+          fillQuantity: 2,
+          fillPrice: 10,
+          fillWalletNetValue: 20,
+          isin: 'AAA',
+          name: 'AAA Fund',
+          createdAt: '2026-04-01T10:00:00.000Z',
+          filledAt: '2026-04-01T10:01:00.000Z',
+        }),
+        historicalOrder({
+          id: 101,
+          ticker: 'BBB_EQ',
+          fillId: 1001,
+          fillQuantity: 3,
+          fillPrice: 30,
+          fillWalletFxRate: 4 / 3,
+          fillWalletNetValue: 67.5,
+          isin: 'BBB',
+          name: 'BBB Fund',
+          currency: 'USD',
+          createdAt: '2026-04-01T10:00:00.000Z',
+          filledAt: '2026-04-01T10:01:00.000Z',
+        }),
+        historicalOrder({
+          id: 102,
+          ticker: 'ADD_EQ',
+          fillId: 1002,
+          fillQuantity: 2,
+          fillPrice: 10,
+          fillWalletNetValue: 20,
+          isin: 'ADD',
+          name: 'Added Fund',
+          createdAt: '2026-04-05T10:00:00.000Z',
+          filledAt: '2026-04-05T10:01:00.000Z',
+        }),
+        historicalOrder({
+          id: 103,
+          ticker: 'SELL_EQ',
+          fillId: 1003,
+          fillQuantity: 3,
+          fillPrice: 10,
+          fillWalletNetValue: 30,
+          isin: 'SELL',
+          name: 'Sold Down Fund',
+          createdAt: '2026-04-01T10:00:00.000Z',
+          filledAt: '2026-04-01T10:01:00.000Z',
+        }),
+        historicalOrder({
+          id: 104,
+          ticker: 'SELL_EQ',
+          fillId: 1004,
+          fillQuantity: 1,
+          fillPrice: 12,
+          fillWalletNetValue: 12,
+          isin: 'SELL',
+          name: 'Sold Down Fund',
+          side: 'SELL',
+          createdAt: '2026-04-06T10:00:00.000Z',
+          filledAt: '2026-04-06T10:01:00.000Z',
+        }),
+      ]),
+    );
+    await unwrap(
+      dataManager.saveAccountSummarySnapshot({
+        currency: 'GBP',
+        currentValue: 30,
+        totalCost: 25,
+        realizedProfitLoss: 0,
+        unrealizedProfitLoss: 5,
+        totalValue: 30,
+        asOf: '2026-04-01T10:00:00.000Z',
+        fetchedAt: '2026-04-01T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'OLD',
+        providerSymbol: 'OLD_EQ',
+        quantity: 1,
+        currentPrice: 30,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 30,
+        totalCost: 25,
+        unrealizedProfitLoss: 5,
+        fxImpact: null,
+        asOf: '2026-04-01T10:00:00.000Z',
+        fetchedAt: '2026-04-01T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveAccountSummarySnapshot({
+        currency: 'GBP',
+        currentValue: 225,
+        totalCost: 200,
+        realizedProfitLoss: 0,
+        unrealizedProfitLoss: 25,
+        totalValue: 225,
+        asOf: '2026-04-10T10:00:00.000Z',
+        fetchedAt: '2026-04-10T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'AAA',
+        providerSymbol: 'AAA_EQ',
+        quantity: 2,
+        currentPrice: 15,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 30,
+        totalCost: 20,
+        unrealizedProfitLoss: 10,
+        fxImpact: null,
+        asOf: '2026-04-10T10:00:00.000Z',
+        fetchedAt: '2026-04-10T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'BBB',
+        providerSymbol: 'BBB_EQ',
+        quantity: 3,
+        currentPrice: 20,
+        instrumentCurrency: 'USD',
+        walletCurrency: 'GBP',
+        currentValue: 45,
+        totalCost: 50,
+        unrealizedProfitLoss: -5,
+        fxImpact: null,
+        asOf: '2026-04-10T10:00:00.000Z',
+        fetchedAt: '2026-04-10T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'MISS',
+        providerSymbol: 'MISS_EQ',
+        quantity: 1,
+        currentPrice: 5,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 5,
+        totalCost: 5,
+        unrealizedProfitLoss: 0,
+        fxImpact: null,
+        asOf: '2026-04-10T10:00:00.000Z',
+        fetchedAt: '2026-04-10T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'ADD',
+        providerSymbol: 'ADD_EQ',
+        quantity: 2,
+        currentPrice: 15,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 30,
+        totalCost: 20,
+        unrealizedProfitLoss: 10,
+        fxImpact: null,
+        asOf: '2026-04-10T10:00:00.000Z',
+        fetchedAt: '2026-04-10T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'SELL',
+        providerSymbol: 'SELL_EQ',
+        quantity: 2,
+        currentPrice: 15,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 30,
+        totalCost: 20,
+        unrealizedProfitLoss: 10,
+        fxImpact: null,
+        asOf: '2026-04-10T10:00:00.000Z',
+        fetchedAt: '2026-04-10T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'AAA',
+        providerSymbol: 'AAA_EQ',
+        quantity: 2,
+        averagePricePaid: 10,
+        currentPrice: 10,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 20,
+        totalCost: 20,
+        unrealizedProfitLoss: 0,
+        fxImpact: null,
+        asOf: '2026-04-04T10:00:00.000Z',
+        fetchedAt: '2026-04-04T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'AAA',
+        providerSymbol: 'AAA_EQ',
+        quantity: 2,
+        averagePricePaid: 10,
+        currentPrice: 15,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 30,
+        totalCost: 20,
+        unrealizedProfitLoss: 10,
+        fxImpact: null,
+        asOf: '2026-04-09T10:00:00.000Z',
+        fetchedAt: '2026-04-09T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'BBB',
+        providerSymbol: 'BBB_EQ',
+        quantity: 3,
+        averagePricePaid: 28,
+        currentPrice: 30,
+        instrumentCurrency: 'USD',
+        walletCurrency: 'GBP',
+        currentValue: 67.5,
+        totalCost: 63,
+        unrealizedProfitLoss: 5,
+        fxImpact: null,
+        asOf: '2026-04-03T10:00:00.000Z',
+        fetchedAt: '2026-04-03T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'BBB',
+        providerSymbol: 'BBB_EQ',
+        quantity: 3,
+        averagePricePaid: 28,
+        currentPrice: 20,
+        instrumentCurrency: 'USD',
+        walletCurrency: 'GBP',
+        currentValue: 45,
+        totalCost: 63,
+        unrealizedProfitLoss: -17.5,
+        fxImpact: null,
+        asOf: '2026-04-09T10:00:00.000Z',
+        fetchedAt: '2026-04-09T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'ADD',
+        providerSymbol: 'ADD_EQ',
+        quantity: 2,
+        currentPrice: 10,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 20,
+        totalCost: 20,
+        unrealizedProfitLoss: 0,
+        fxImpact: null,
+        asOf: '2026-04-05T10:02:00.000Z',
+        fetchedAt: '2026-04-05T10:02:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'ADD',
+        providerSymbol: 'ADD_EQ',
+        quantity: 2,
+        currentPrice: 15,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 30,
+        totalCost: 20,
+        unrealizedProfitLoss: 10,
+        fxImpact: null,
+        asOf: '2026-04-09T10:00:00.000Z',
+        fetchedAt: '2026-04-09T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'SELL',
+        providerSymbol: 'SELL_EQ',
+        quantity: 3,
+        currentPrice: 10,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 30,
+        totalCost: 30,
+        unrealizedProfitLoss: 0,
+        fxImpact: null,
+        asOf: '2026-04-04T10:00:00.000Z',
+        fetchedAt: '2026-04-04T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveCurrentPositionSnapshot({
+        isin: 'SELL',
+        providerSymbol: 'SELL_EQ',
+        quantity: 2,
+        currentPrice: 15,
+        instrumentCurrency: 'GBP',
+        walletCurrency: 'GBP',
+        currentValue: 30,
+        totalCost: 20,
+        unrealizedProfitLoss: 10,
+        fxImpact: null,
+        asOf: '2026-04-09T10:00:00.000Z',
+        fetchedAt: '2026-04-09T10:00:00.000Z',
+      }),
+    );
+
+    await unwrap(
+      dataManager.saveInstrumentPriceSnapshot({
+        isin: 'AAA',
+        provider: 'eodhd',
+        providerSymbol: 'AAA',
+        currency: 'GBP',
+        price: 1,
+        priceType: 'eod',
+        asOf: '2026-04-03',
+        fetchedAt: '2026-04-03T09:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveInstrumentPriceSnapshot({
+        isin: 'AAA',
+        provider: 't212',
+        providerSymbol: 'AAA_EQ',
+        currency: 'GBP',
+        price: 10,
+        priceType: 'position_current',
+        asOf: '2026-04-04T10:00:00.000Z',
+        fetchedAt: '2026-04-04T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveInstrumentPriceSnapshot({
+        isin: 'AAA',
+        provider: 't212',
+        providerSymbol: 'AAA_EQ',
+        currency: 'GBP',
+        price: 12,
+        priceType: 'position_current',
+        asOf: '2026-04-09T10:00:00.000Z',
+        fetchedAt: '2026-04-09T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveInstrumentPriceSnapshot({
+        isin: 'AAA',
+        provider: 'manual',
+        providerSymbol: 'AAA_EQ',
+        currency: 'GBP',
+        price: 15,
+        priceType: 'manual',
+        asOf: '2026-04-09T10:00:00.000Z',
+        fetchedAt: '2026-04-09T11:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveInstrumentPriceSnapshot({
+        isin: 'BBB',
+        provider: 't212',
+        providerSymbol: 'BBB_EQ',
+        currency: 'USD',
+        price: 30,
+        priceType: 'position_current',
+        asOf: '2026-04-03T10:00:00.000Z',
+        fetchedAt: '2026-04-03T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveInstrumentPriceSnapshot({
+        isin: 'BBB',
+        provider: 't212',
+        providerSymbol: 'BBB_EQ',
+        currency: 'USD',
+        price: 20,
+        priceType: 'position_current',
+        asOf: '2026-04-09T10:00:00.000Z',
+        fetchedAt: '2026-04-09T10:00:00.000Z',
+      }),
+    );
+    await unwrap(
+      dataManager.saveInstrumentPriceSnapshot({
+        isin: 'MISS',
+        provider: 't212',
+        providerSymbol: 'MISS_EQ',
+        currency: 'GBP',
+        price: 0,
+        priceType: 'position_current',
+        asOf: '2026-04-03T10:00:00.000Z',
+        fetchedAt: '2026-04-03T10:00:00.000Z',
+      }),
+    );
+
+    const result = await unwrap(
+      dataManager.getCurrentHoldingMovers({
+        filledFrom: '2026-04-03',
+        filledTo: '2026-04-09',
+      }),
+    );
+
+    expect(result.excludedCount).toBe(1);
+    expect(result.items.map((item) => item.instrument.isin).sort()).toEqual([
+      'AAA',
+      'ADD',
+      'BBB',
+      'SELL',
+    ]);
+    expect(result.items.find((item) => item.instrument.isin === 'OLD')).toBeUndefined();
+    expect(result.items.find((item) => item.instrument.isin === 'AAA')).toMatchObject({
+      instrument: {
+        ticker: 'AAA_EQ',
+        category: 'growth',
+      },
+      startPrice: {
+        price: 10,
+        asOf: '2026-04-04T10:00:00.000Z',
+      },
+      endPrice: {
+        price: 15,
+        provider: 't212',
+      },
+      priceChange: 5,
+      returnPercent: 0.5,
+      walletImpact: 10,
+    });
+    expect(result.items.find((item) => item.instrument.isin === 'BBB')).toMatchObject({
+      priceChange: -10,
+      returnPercent: -1 / 3,
+      walletImpact: -22.5,
+    });
+    expect(result.items.find((item) => item.instrument.isin === 'ADD')).toMatchObject({
+      priceChange: 5,
+      returnPercent: 0.5,
+      walletImpact: 10,
+    });
+    expect(result.items.find((item) => item.instrument.isin === 'SELL')).toMatchObject({
+      priceChange: 5,
+      returnPercent: 0.5,
+      walletImpact: 12,
+    });
+  });
 });
 
 describe('instrument listing migration', () => {
@@ -866,6 +1372,7 @@ function createPostMigrationSupportTables(sqlite: Database.Database) {
       isin text not null,
       provider_symbol text not null,
       quantity real not null,
+      average_price_paid real,
       current_price real not null,
       instrument_currency text not null,
       wallet_currency text not null,
@@ -920,6 +1427,18 @@ function createPostMigrationSupportTables(sqlite: Database.Database) {
       provider_symbol text not null,
       beta real not null,
       source_type text not null,
+      as_of text not null,
+      fetched_at text not null,
+      created_at text not null default CURRENT_TIMESTAMP
+    );
+    create table if not exists instrument_prices (
+      id integer primary key autoincrement,
+      isin text not null,
+      provider text not null,
+      provider_symbol text not null,
+      currency text not null,
+      price real not null,
+      price_type text not null,
       as_of text not null,
       fetched_at text not null,
       created_at text not null default CURRENT_TIMESTAMP
@@ -982,6 +1501,10 @@ function historicalOrder({
   fillPrice = 10,
   fillWalletNetValue = 10,
   fillWalletFxRate = 1,
+  side = 'BUY',
+  currency = 'GBP',
+  createdAt = '2026-04-20T10:00:00.000Z',
+  filledAt = '2026-04-20T10:01:00.000Z',
   isin = 'IE00B435CG94',
   name = 'Invesco Energy S&P US Select Sector (Acc)',
 }: {
@@ -992,6 +1515,10 @@ function historicalOrder({
   fillPrice?: number;
   fillWalletNetValue?: number;
   fillWalletFxRate?: number;
+  side?: 'BUY' | 'SELL';
+  currency?: string;
+  createdAt?: string;
+  filledAt?: string;
   isin?: string;
   name?: string;
 }): HistoricalOrdersItem {
@@ -1006,16 +1533,16 @@ function historicalOrder({
       value: fillWalletNetValue,
       filledValue: fillWalletNetValue,
       status: 'FILLED',
-      currency: 'GBP',
+      currency,
       extendedHours: false,
       initiatedFrom: 'WEB',
-      side: 'BUY',
-      createdAt: '2026-04-20T10:00:00.000Z',
+      side,
+      createdAt,
       instrument: {
         ticker,
         name,
         isin,
-        currency: 'GBP',
+        currency,
       },
     },
     fill: {
@@ -1024,7 +1551,7 @@ function historicalOrder({
       price: fillPrice,
       type: 'MARKET',
       tradingMethod: 'CLASSIC',
-      filledAt: '2026-04-20T10:01:00.000Z',
+      filledAt,
       walletImpact: {
         currency: 'GBP',
         netValue: fillWalletNetValue,

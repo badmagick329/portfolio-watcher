@@ -120,6 +120,13 @@
       "when": 1777532919820,
       "tag": "0016_funny_phantom_reporter",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1777998300000,
+      "tag": "0017_kindly_position_average",
+      "breakpoints": true
     }
   ]
 }

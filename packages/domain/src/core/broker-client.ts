@@ -14,6 +14,8 @@ import type {
   InstrumentRiskSearchCandidate,
   InstrumentCategoryFilter,
   InstrumentCategoryInstrument,
+  CurrentHoldingMoversInput,
+  CurrentHoldingMoversResult,
   InstrumentPriceSnapshot,
   ObservedInstrumentListing,
   SyncStepResult,
@@ -119,6 +121,9 @@ interface BrokerDataManager {
   getLatestInstrumentPriceByIsin(
     isin: string,
   ): ResultAsync<InstrumentPriceSnapshot | undefined, AppError>;
+  getCurrentHoldingMovers(
+    input?: CurrentHoldingMoversInput,
+  ): ResultAsync<CurrentHoldingMoversResult, AppError>;
   findInstrumentCategoryInstrumentMatches(
     input: string,
   ): ResultAsync<InstrumentCategoryInstrument[], AppError>;

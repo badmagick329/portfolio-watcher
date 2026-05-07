@@ -54,6 +54,9 @@ export default function RootLayout({
               <Link className='font-medium hover:underline' href='/allocation'>
                 Allocation
               </Link>
+              <Link className='font-medium hover:underline' href='/movers'>
+                Movers
+              </Link>
               <Link
                 className='font-medium hover:underline'
                 href='/risk-mappings'

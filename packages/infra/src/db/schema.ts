@@ -297,6 +297,7 @@ const currentPositionSnapshots = sqliteTable(
     isin: text('isin').notNull(),
     providerSymbol: text('provider_symbol').notNull(),
     quantity: real('quantity').notNull(),
+    averagePricePaid: real('average_price_paid'),
     currentPrice: real('current_price').notNull(),
     instrumentCurrency: text('instrument_currency').notNull(),
     walletCurrency: text('wallet_currency').notNull(),

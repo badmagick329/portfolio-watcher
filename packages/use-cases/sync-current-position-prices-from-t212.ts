@@ -248,6 +248,7 @@ const toCurrentPositionSnapshot = ({
     isin: position.instrument.isin,
     providerSymbol: position.instrument.ticker,
     quantity: position.quantity,
+    averagePricePaid: position.averagePricePaid ?? null,
     currentPrice: position.currentPrice,
     instrumentCurrency: position.instrument.currencyCode,
     walletCurrency: position.walletImpact.currency || walletCurrency,
