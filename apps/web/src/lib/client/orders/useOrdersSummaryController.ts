@@ -158,6 +158,7 @@ function useOrdersSummaryController({
       isSavingPrice: saveManualInstrumentPriceMutation.isPending,
       saveError,
       mode,
+      latestPositionSnapshot,
       selectedInstrumentCount: selectedInstruments.length,
     }),
     actions: {

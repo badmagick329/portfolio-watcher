@@ -85,6 +85,24 @@ function OrdersSummary({
   const unrealizedPnLPercentClassName = getSignedToneTextClassName(
     viewModel.positionMetrics.unrealizedPnLPercent,
   );
+  const averageCostLabel =
+    viewModel.positionMetrics.averageCostOriginal !== null &&
+    viewModel.totals.walletCurrency
+      ? `${formatInstrumentPrice(
+          viewModel.positionMetrics.averageCostOriginal.value,
+          viewModel.positionMetrics.averageCostOriginal.currency,
+          3,
+          { hideValues },
+        )} (${formatUnsignedCurrencyAmount(
+          viewModel.positionMetrics.averageCost,
+          viewModel.totals.walletCurrency,
+          { hideValues },
+        )})`
+      : formatUnsignedCurrencyAmount(
+          viewModel.positionMetrics.averageCost,
+          viewModel.totals.walletCurrency!,
+          { hideValues },
+        );
 
   return (
     <Card className='w-full min-[1300px]:max-w-none'>
@@ -290,11 +308,7 @@ function OrdersSummary({
                   </ItemTitle>
                 </ItemContent>
                 <ItemValue>
-                  {formatUnsignedCurrencyAmount(
-                    viewModel.positionMetrics.averageCost,
-                    viewModel.totals.walletCurrency!,
-                    { hideValues },
-                  )}
+                  {averageCostLabel}
                 </ItemValue>
               </Item>
               <Item>

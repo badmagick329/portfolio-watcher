@@ -1,4 +1,7 @@
-import type { EffectiveInstrumentPrice } from '../portfolio/instrument-price';
+import type {
+  CurrentPositionSnapshot,
+  EffectiveInstrumentPrice,
+} from '../portfolio/instrument-price';
 import type { OrdersSummary as OrdersSummaryState } from './orders-list-math';
 
 type OrdersSummaryViewModel = {
@@ -24,6 +27,10 @@ type OrdersSummaryViewModel = {
     currentPrice: EffectiveInstrumentPrice | null;
     currentValue: number | null;
     averageCost: number | null;
+    averageCostOriginal: {
+      value: number;
+      currency: string;
+    } | null;
     costBasis: number | null;
     realizedPnL: number | null;
     unrealizedPnL: number | null;
@@ -44,6 +51,7 @@ const buildOrdersSummaryViewModel = ({
   isSavingPrice,
   saveError,
   mode,
+  latestPositionSnapshot,
   selectedInstrumentCount,
 }: {
   summary: OrdersSummaryState;
@@ -52,6 +60,7 @@ const buildOrdersSummaryViewModel = ({
   isSavingPrice: boolean;
   saveError: string | null;
   mode: 'single' | 'multi';
+  latestPositionSnapshot: CurrentPositionSnapshot | null;
   selectedInstrumentCount: number;
 }): OrdersSummaryViewModel => ({
   mode,
@@ -79,6 +88,17 @@ const buildOrdersSummaryViewModel = ({
     currentPrice: mode === 'single' ? summary.currentPrice : null,
     currentValue: mode === 'single' ? summary.currentValue : null,
     averageCost: mode === 'single' ? summary.averageCost : null,
+    averageCostOriginal:
+      mode === 'single' &&
+      summary.summarySource === 't212_position' &&
+      latestPositionSnapshot?.averagePricePaid != null &&
+      latestPositionSnapshot.instrumentCurrency !==
+        latestPositionSnapshot.walletCurrency
+        ? {
+            value: latestPositionSnapshot.averagePricePaid,
+            currency: latestPositionSnapshot.instrumentCurrency,
+          }
+        : null,
     costBasis: mode === 'single' ? summary.costBasis : null,
     realizedPnL: mode === 'single' ? summary.realizedPnL : null,
     unrealizedPnL: mode === 'single' ? summary.unrealizedPnL : null,

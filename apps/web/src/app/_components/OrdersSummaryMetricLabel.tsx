@@ -9,7 +9,7 @@ import {
 
 const METRIC_HELP_TEXT = {
   averageCost:
-    'Shown in wallet currency. For USD stocks, this is GBP per share after FX.',
+    'Shown per share. When broker position data includes original instrument currency, that value is shown first with wallet currency in brackets.',
   costBasis: 'Total amount allocated to the shares you still hold.',
   realizedPnL:
     'Profit or loss already locked in from earlier sells for this instrument.',

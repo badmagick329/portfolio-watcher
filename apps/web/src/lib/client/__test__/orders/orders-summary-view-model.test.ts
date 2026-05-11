@@ -58,6 +58,7 @@ describe('buildOrdersSummaryViewModel', () => {
       isSavingPrice: false,
       saveError: null,
       mode: 'single',
+      latestPositionSnapshot: null,
       selectedInstrumentCount: 1,
     });
 
@@ -92,6 +93,7 @@ describe('buildOrdersSummaryViewModel', () => {
         },
         currentValue: 1000,
         averageCost: 95,
+        averageCostOriginal: null,
         costBasis: 950,
         realizedPnL: 1150,
         unrealizedPnL: 50,
@@ -114,6 +116,7 @@ describe('buildOrdersSummaryViewModel', () => {
       isSavingPrice: true,
       saveError: 'Failed to save price.',
       mode: 'multi',
+      latestPositionSnapshot: null,
       selectedInstrumentCount: 2,
     });
 
