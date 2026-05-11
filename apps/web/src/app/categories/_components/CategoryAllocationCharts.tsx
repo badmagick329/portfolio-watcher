@@ -1,5 +1,6 @@
 'use client';
 
+import { CATEGORY_CHART_THEME } from '@/lib/client/categories/category-chart-theme';
 import { formatCategoryName } from '@/lib/client/categories/display-category';
 import {
   formatMoney,
@@ -50,6 +51,14 @@ function CategoryAllocationCharts({
   rows,
   totalCurrentValue,
 }: CategoryAllocationChartsProps) {
+  const allocationChartRows = rows.map((row, index) => ({
+    ...row,
+    fill:
+      CATEGORY_CHART_THEME.allocationColors[
+        index % CATEGORY_CHART_THEME.allocationColors.length
+      ],
+  }));
+
   return (
     <div className='grid gap-8 xl:grid-cols-2'>
       <section className='flex min-h-96 flex-col gap-3'>
@@ -102,7 +111,7 @@ function CategoryAllocationCharts({
           <ResponsiveContainer height={320} width='100%'>
             <PieChart>
               <Pie
-                data={rows}
+                data={allocationChartRows}
                 dataKey='currentValue'
                 innerRadius={58}
                 label={renderAllocationLabel}
