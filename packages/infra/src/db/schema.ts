@@ -133,6 +133,14 @@ const syncState = sqliteTable('sync_state', {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+const appFeatureFlags = sqliteTable('app_feature_flags', {
+  key: text('key').primaryKey(),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull(),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
 const instrumentPrices = sqliteTable(
   'instrument_prices',
   {
@@ -421,6 +429,9 @@ type NewFillTaxes = typeof fillTaxes.$inferInsert;
 type SyncState = typeof syncState.$inferSelect;
 type NewSyncState = typeof syncState.$inferInsert;
 
+type AppFeatureFlag = typeof appFeatureFlags.$inferSelect;
+type NewAppFeatureFlag = typeof appFeatureFlags.$inferInsert;
+
 type InstrumentPrice = typeof instrumentPrices.$inferSelect;
 type NewInstrumentPrice = typeof instrumentPrices.$inferInsert;
 
@@ -473,6 +484,8 @@ export type {
   NewFillTaxes,
   SyncState,
   NewSyncState,
+  AppFeatureFlag,
+  NewAppFeatureFlag,
   InstrumentPrice,
   NewInstrumentPrice,
   InstrumentCategory,
@@ -504,6 +517,7 @@ export {
   fills,
   fillTaxes,
   syncState,
+  appFeatureFlags,
   instrumentPrices,
   instrumentCategories,
   instrumentProviderSymbols,

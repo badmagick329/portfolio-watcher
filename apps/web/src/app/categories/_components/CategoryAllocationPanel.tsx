@@ -21,7 +21,9 @@ function CategoryAllocationPanel({
   actions,
   model,
 }: CategoryAllocationPanelProps) {
-  const showBeta = model.capabilities.hasStoredRiskMetrics;
+  const riskMetricsEnabled = model.capabilities.riskMetricsFeatureEnabled;
+  const showBeta =
+    riskMetricsEnabled && model.capabilities.hasStoredRiskMetrics;
   const canShowAlphaCalculator = showBeta;
   const [showAlphaCalculator, setShowAlphaCalculator] = useState(false);
   const isHistorical = model.viewModel.mode === 'historical';
@@ -103,15 +105,16 @@ function CategoryAllocationPanel({
             />
           ) : null}
         </div>
-      ) : (
+      ) : riskMetricsEnabled ? (
         <p className='text-sm text-muted-foreground'>
           {model.capabilities.hasFmpApiKey
             ? 'Risk metrics enabled, but no beta data has been synced yet.'
             : 'Risk metrics disabled. Add FMP key and sync beta data to see beta and alpha.'}
         </p>
-      )}
+      ) : null}
 
       {model.viewModel.mode === 'current' &&
+      riskMetricsEnabled &&
       model.capabilities.hasFmpApiKey &&
       model.unresolvedCurrentHoldingsCount > 0 ? (
         <div className='flex flex-col gap-2 border border-border p-3 sm:flex-row sm:items-center sm:justify-between'>

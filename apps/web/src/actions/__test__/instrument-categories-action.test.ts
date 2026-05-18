@@ -110,6 +110,7 @@ describe('instrument category actions', () => {
         canSyncPortfolioState: true,
         canPlaceOrders: true,
         hasFmpApiKey: true,
+        riskMetricsFeatureEnabled: true,
         canSyncRiskMetrics: true,
         brokerAccessMode: 'trading_enabled',
         hasHistoricalOrders: true,
@@ -205,6 +206,7 @@ describe('instrument category actions', () => {
         canSyncPortfolioState: true,
         canPlaceOrders: true,
         hasFmpApiKey: true,
+        riskMetricsFeatureEnabled: true,
         canSyncRiskMetrics: true,
         brokerAccessMode: 'trading_enabled',
         hasHistoricalOrders: true,
@@ -267,6 +269,7 @@ describe('instrument category actions', () => {
         canSyncPortfolioState: true,
         canPlaceOrders: true,
         hasFmpApiKey: true,
+        riskMetricsFeatureEnabled: true,
         canSyncRiskMetrics: true,
         brokerAccessMode: 'trading_enabled',
         hasHistoricalOrders: true,
@@ -393,6 +396,7 @@ describe('instrument category actions', () => {
         canSyncPortfolioState: true,
         canPlaceOrders: true,
         hasFmpApiKey: true,
+        riskMetricsFeatureEnabled: true,
         canSyncRiskMetrics: true,
         brokerAccessMode: 'trading_enabled',
         hasHistoricalOrders: true,
@@ -490,6 +494,38 @@ describe('instrument category actions', () => {
     });
   });
 
+  it('rejects risk mappings access when risk metrics feature is disabled', async () => {
+    getAppCapabilitiesMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        hasBrokerCredentials: true,
+        canSyncOrders: true,
+        canSyncPortfolioState: true,
+        canPlaceOrders: true,
+        hasFmpApiKey: true,
+        riskMetricsFeatureEnabled: false,
+        canSyncRiskMetrics: false,
+        brokerAccessMode: 'trading_enabled',
+        hasHistoricalOrders: true,
+        hasCurrentHoldings: true,
+        hasCategories: true,
+        hasStoredRiskMetrics: true,
+        hasSuccessfulSubmittedOrderAttempt: true,
+        lastOrdersSyncAt: null,
+        lastPortfolioSyncAt: null,
+        lastRiskMetricsSyncAt: null,
+      },
+    });
+
+    const { getRiskMappingsAction } = await import(
+      '@/actions/instrument-categories-action'
+    );
+
+    await expect(getRiskMappingsAction()).rejects.toThrow(
+      'Risk metrics feature is disabled.',
+    );
+  });
+
   it('throws when listing fails', async () => {
     listCategorizedInstrumentsMock.mockResolvedValue({
       isErr: () => true,
@@ -507,6 +543,7 @@ describe('instrument category actions', () => {
         canSyncPortfolioState: false,
         canPlaceOrders: false,
         hasFmpApiKey: false,
+        riskMetricsFeatureEnabled: false,
         canSyncRiskMetrics: false,
         brokerAccessMode: 'missing',
         hasHistoricalOrders: false,
@@ -603,6 +640,27 @@ describe('instrument category actions', () => {
   });
 
   it('refreshes provider mapping suggestions', async () => {
+    getAppCapabilitiesMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        hasBrokerCredentials: true,
+        canSyncOrders: true,
+        canSyncPortfolioState: true,
+        canPlaceOrders: true,
+        hasFmpApiKey: true,
+        riskMetricsFeatureEnabled: true,
+        canSyncRiskMetrics: true,
+        brokerAccessMode: 'trading_enabled',
+        hasHistoricalOrders: true,
+        hasCurrentHoldings: true,
+        hasCategories: true,
+        hasStoredRiskMetrics: true,
+        hasSuccessfulSubmittedOrderAttempt: true,
+        lastOrdersSyncAt: null,
+        lastPortfolioSyncAt: null,
+        lastRiskMetricsSyncAt: null,
+      },
+    });
     resolveInstrumentProviderMappingsMock.mockResolvedValue({
       isErr: () => false,
       value: {
@@ -636,6 +694,27 @@ describe('instrument category actions', () => {
   });
 
   it('confirms and clears provider resolution', async () => {
+    getAppCapabilitiesMock.mockResolvedValue({
+      isErr: () => false,
+      value: {
+        hasBrokerCredentials: true,
+        canSyncOrders: true,
+        canSyncPortfolioState: true,
+        canPlaceOrders: true,
+        hasFmpApiKey: true,
+        riskMetricsFeatureEnabled: true,
+        canSyncRiskMetrics: true,
+        brokerAccessMode: 'trading_enabled',
+        hasHistoricalOrders: true,
+        hasCurrentHoldings: true,
+        hasCategories: true,
+        hasStoredRiskMetrics: true,
+        hasSuccessfulSubmittedOrderAttempt: true,
+        lastOrdersSyncAt: null,
+        lastPortfolioSyncAt: null,
+        lastRiskMetricsSyncAt: null,
+      },
+    });
     confirmInstrumentProviderResolutionMock.mockResolvedValue({
       isErr: () => false,
       value: {

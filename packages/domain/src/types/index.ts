@@ -138,6 +138,7 @@ type InstrumentRiskSearchCandidate = {
 };
 
 type BrokerAccessMode = 'missing' | 'read_only_or_unknown' | 'trading_enabled';
+type AppFeatureFlagKey = 'risk_metrics_enabled';
 
 type AppDataState = {
   hasHistoricalOrders: boolean;
@@ -156,6 +157,7 @@ type AppCapabilities = AppDataState & {
   canSyncPortfolioState: boolean;
   canPlaceOrders: boolean;
   hasFmpApiKey: boolean;
+  riskMetricsFeatureEnabled: boolean;
   canSyncRiskMetrics: boolean;
   brokerAccessMode: BrokerAccessMode;
 };
@@ -521,6 +523,7 @@ export type {
   InstrumentRiskProfile,
   InstrumentRiskSearchCandidate,
   BrokerAccessMode,
+  AppFeatureFlagKey,
   AppDataState,
   AppCapabilities,
   InstrumentRiskProvider,

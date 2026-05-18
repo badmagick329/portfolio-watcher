@@ -82,6 +82,10 @@ const getOrderPlacementDetail = (capabilities: AppCapabilitiesData) => {
 };
 
 const getRiskMetricsLabel = (capabilities: AppCapabilitiesData) => {
+  if (!capabilities.riskMetricsFeatureEnabled) {
+    return 'Disabled';
+  }
+
   if (capabilities.hasStoredRiskMetrics) {
     return capabilities.hasFmpApiKey ? 'Enabled' : 'Stored only';
   }
@@ -90,6 +94,10 @@ const getRiskMetricsLabel = (capabilities: AppCapabilitiesData) => {
 };
 
 const getRiskMetricsDetail = (capabilities: AppCapabilitiesData) => {
+  if (!capabilities.riskMetricsFeatureEnabled) {
+    return 'Risk metrics feature is turned off.';
+  }
+
   if (capabilities.hasStoredRiskMetrics && !capabilities.hasFmpApiKey) {
     return 'Stored beta data available. Add FMP key to refresh.';
   }

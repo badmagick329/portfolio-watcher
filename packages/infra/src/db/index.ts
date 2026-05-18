@@ -1,6 +1,7 @@
 import type {
   AppDataState,
   AppError,
+  AppFeatureFlagKey,
   BrokerDataManager,
   CategorizedInstrument,
   CurrentHoldingMoverPrice,
@@ -35,6 +36,7 @@ import {
 } from './mappers';
 import {
   accountSummarySnapshots,
+  appFeatureFlags,
   currentPositionSnapshots,
   fillTaxes,
   fills,
@@ -153,6 +155,9 @@ const createOrderSyncStateManager = (dbClient = getDefaultDbClient()) => {
 
 const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
   const db = dbClient;
+  const featureFlagDefaults: Record<AppFeatureFlagKey, boolean> = {
+    risk_metrics_enabled: false,
+  };
 
   const listObservedListingRows = () =>
     db
@@ -468,6 +473,17 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
         lastRiskMetricsSyncAt: latestRiskMetricsSyncRow?.fetchedAt ?? null,
       } satisfies AppDataState;
     }, 'get app data state');
+
+  const getFeatureFlag = (key: AppFeatureFlagKey) =>
+    wrapDb(() => {
+      const row = db
+        .select({ enabled: appFeatureFlags.enabled })
+        .from(appFeatureFlags)
+        .where(eq(appFeatureFlags.key, key))
+        .get();
+
+      return row?.enabled ?? featureFlagDefaults[key];
+    }, 'get feature flag');
 
   const findInstrumentCategoryInstrumentMatches = (input: string) =>
     wrapDb(() => {
@@ -1812,6 +1828,7 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
     getHistoricalOrdersForWeb,
     getDistinctInstruments,
     getAppDataState,
+    getFeatureFlag,
     findInstrumentCategoryInstrumentMatches,
     setInstrumentCategory,
     unsetInstrumentCategory,

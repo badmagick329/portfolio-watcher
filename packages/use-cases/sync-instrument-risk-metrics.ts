@@ -7,7 +7,8 @@ import type {
   InstrumentRiskMetricSnapshot,
   SyncInstrumentRiskMetricsResult,
 } from '@portfolio/domain';
-import { ResultAsync } from 'neverthrow';
+import { ResultAsync, errAsync } from 'neverthrow';
+import { validationError } from './instrument-category-helpers';
 
 const RISK_METRIC_FRESHNESS_MS = 30 * 24 * 60 * 60 * 1000;
 const MISSING_BETA_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
@@ -17,6 +18,7 @@ type Params = {
   dataManager: Pick<
     BrokerDataManager,
     | 'listCategorizedInstruments'
+    | 'getFeatureFlag'
     | 'getLatestCurrentPortfolioPositionSnapshotByIsin'
     | 'getInstrumentProviderSymbol'
     | 'getLatestInstrumentRiskMetricByIsin'
@@ -32,19 +34,25 @@ const createSyncInstrumentRiskMetrics = ({
   dataManager,
   now = () => new Date(),
 }: Params) => (): ResultAsync<SyncInstrumentRiskMetricsResult, AppError> =>
-  ResultAsync.fromPromise(
-    syncInstrumentRiskMetrics({ client, dataManager, now }),
-    (error): AppError =>
-      error instanceof AppErrorException
-        ? error.appError
-        : {
-            code: 'DATABASE',
-            message:
-              error instanceof Error
-                ? error.message
-                : `Failed to sync instrument risk metrics: ${String(error)}`,
-          },
-  );
+  dataManager.getFeatureFlag('risk_metrics_enabled').andThen((enabled) => {
+    if (!enabled) {
+      return errAsync(validationError('Risk metrics feature is disabled.'));
+    }
+
+    return ResultAsync.fromPromise(
+      syncInstrumentRiskMetrics({ client, dataManager, now }),
+      (error): AppError =>
+        error instanceof AppErrorException
+          ? error.appError
+          : {
+              code: 'DATABASE',
+              message:
+                error instanceof Error
+                  ? error.message
+                  : `Failed to sync instrument risk metrics: ${String(error)}`,
+            },
+    );
+  });
 
 class AppErrorException extends Error {
   constructor(public readonly appError: AppError) {

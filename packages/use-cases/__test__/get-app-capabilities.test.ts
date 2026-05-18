@@ -18,7 +18,8 @@ describe('getAppCapabilities', () => {
             lastPortfolioSyncAt: null,
             lastRiskMetricsSyncAt: null,
           } satisfies AppDataState),
-      } satisfies Pick<BrokerDataManager, 'getAppDataState'>,
+        getFeatureFlag: () => okAsync(false),
+      } satisfies Pick<BrokerDataManager, 'getAppDataState' | 'getFeatureFlag'>,
       config: {},
     });
 
@@ -32,6 +33,7 @@ describe('getAppCapabilities', () => {
         canSyncPortfolioState: false,
         canPlaceOrders: false,
         hasFmpApiKey: false,
+        riskMetricsFeatureEnabled: false,
         canSyncRiskMetrics: false,
         brokerAccessMode: 'missing',
       });
@@ -52,7 +54,8 @@ describe('getAppCapabilities', () => {
             lastPortfolioSyncAt: '2026-04-22T10:01:00.000Z',
             lastRiskMetricsSyncAt: '2026-04-22T10:02:00.000Z',
           } satisfies AppDataState),
-      } satisfies Pick<BrokerDataManager, 'getAppDataState'>,
+        getFeatureFlag: () => okAsync(false),
+      } satisfies Pick<BrokerDataManager, 'getAppDataState' | 'getFeatureFlag'>,
       config: {
         apiKey: 'key',
         apiSecret: 'secret',
@@ -70,6 +73,7 @@ describe('getAppCapabilities', () => {
         canSyncPortfolioState: true,
         canPlaceOrders: true,
         hasFmpApiKey: false,
+        riskMetricsFeatureEnabled: false,
         canSyncRiskMetrics: false,
         hasStoredRiskMetrics: true,
         brokerAccessMode: 'read_only_or_unknown',
@@ -91,7 +95,8 @@ describe('getAppCapabilities', () => {
             lastPortfolioSyncAt: null,
             lastRiskMetricsSyncAt: null,
           } satisfies AppDataState),
-      } satisfies Pick<BrokerDataManager, 'getAppDataState'>,
+        getFeatureFlag: () => okAsync(true),
+      } satisfies Pick<BrokerDataManager, 'getAppDataState' | 'getFeatureFlag'>,
       config: {
         apiKey: 'key',
         apiSecret: 'secret',
@@ -104,6 +109,7 @@ describe('getAppCapabilities', () => {
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
       expect(result.value.brokerAccessMode).toBe('trading_enabled');
+      expect(result.value.riskMetricsFeatureEnabled).toBe(true);
       expect(result.value.canSyncRiskMetrics).toBe(true);
     }
   });

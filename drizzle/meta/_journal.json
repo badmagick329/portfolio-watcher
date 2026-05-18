@@ -127,6 +127,13 @@
       "when": 1777998300000,
       "tag": "0017_kindly_position_average",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1779111720315,
+      "tag": "0019_vengeful_ben_urich",
+      "breakpoints": true
     }
   ]
 }

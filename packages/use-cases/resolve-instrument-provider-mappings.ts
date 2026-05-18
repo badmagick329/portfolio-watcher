@@ -28,6 +28,7 @@ type Params = {
   dataManager: Pick<
     BrokerDataManager,
     | 'getLatestCurrentPortfolioPositionSnapshotByIsin'
+    | 'getFeatureFlag'
     | 'listCategorizedInstruments'
     | 'listInstrumentProviderResolutionCandidates'
     | 'listInstrumentProviderResolutionStatuses'
@@ -52,28 +53,34 @@ const createResolveInstrumentProviderMappings = ({
       return errAsync(validationError('Only the fmp provider is supported.'));
     }
 
-    return ResultAsync.fromPromise(
-      runResolution({
-        client,
-        dataManager,
-        fetchedAt: now().toISOString(),
-        input: {
-          force: input.force ?? false,
-          isins: input.isins,
-          provider,
-        },
-      }),
-      (error): AppError =>
-        error instanceof AppErrorException
-          ? error.appError
-          : {
-              code: 'DATABASE',
-              message:
-                error instanceof Error
-                  ? error.message
-                  : `Failed to resolve instrument provider mappings: ${String(error)}`,
-            },
-    );
+    return dataManager.getFeatureFlag('risk_metrics_enabled').andThen((enabled) => {
+      if (!enabled) {
+        return errAsync(validationError('Risk metrics feature is disabled.'));
+      }
+
+      return ResultAsync.fromPromise(
+        runResolution({
+          client,
+          dataManager,
+          fetchedAt: now().toISOString(),
+          input: {
+            force: input.force ?? false,
+            isins: input.isins,
+            provider,
+          },
+        }),
+        (error): AppError =>
+          error instanceof AppErrorException
+            ? error.appError
+            : {
+                code: 'DATABASE',
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : `Failed to resolve instrument provider mappings: ${String(error)}`,
+              },
+      );
+    });
   };
 
   return resolveInstrumentProviderMappings;

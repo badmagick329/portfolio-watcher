@@ -1,7 +1,7 @@
 import type { AppCapabilities, AppDataState, AppError, BrokerDataManager } from '@portfolio/domain';
 
 type Params = {
-  dataManager: Pick<BrokerDataManager, 'getAppDataState'>;
+  dataManager: Pick<BrokerDataManager, 'getAppDataState' | 'getFeatureFlag'>;
   config?: {
     apiKey?: string;
     apiSecret?: string;
@@ -17,13 +17,18 @@ const createGetAppCapabilities = ({
     fmpApiKey: process.env.FMP_API_KEY,
   },
 }: Params) => () =>
-  dataManager.getAppDataState().map((dataState): AppCapabilities =>
-    toAppCapabilities(dataState, config),
+  dataManager.getAppDataState().andThen((dataState) =>
+    dataManager
+      .getFeatureFlag('risk_metrics_enabled')
+      .map((riskMetricsFeatureEnabled): AppCapabilities =>
+        toAppCapabilities(dataState, config, riskMetricsFeatureEnabled),
+      ),
   );
 
 const toAppCapabilities = (
   dataState: AppDataState,
   config: NonNullable<Params['config']>,
+  riskMetricsFeatureEnabled: boolean,
 ): AppCapabilities => {
   const hasBrokerCredentials =
     Boolean(config.apiKey?.trim()) && Boolean(config.apiSecret?.trim());
@@ -41,7 +46,8 @@ const toAppCapabilities = (
     canSyncPortfolioState: hasBrokerCredentials,
     canPlaceOrders: hasBrokerCredentials,
     hasFmpApiKey,
-    canSyncRiskMetrics: hasFmpApiKey,
+    riskMetricsFeatureEnabled,
+    canSyncRiskMetrics: hasFmpApiKey && riskMetricsFeatureEnabled,
     brokerAccessMode,
   };
 };

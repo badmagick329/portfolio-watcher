@@ -544,6 +544,23 @@ describe('instrument listing db adapter', () => {
     });
   });
 
+  test('returns false for missing app feature flag and true for stored flag', async () => {
+    const { sqlite, dataManager } = await createTestDataManager();
+
+    await expect(
+      unwrap(dataManager.getFeatureFlag('risk_metrics_enabled')),
+    ).resolves.toBe(false);
+
+    sqlite.exec(`
+      insert into app_feature_flags(key, enabled)
+      values ('risk_metrics_enabled', 1)
+    `);
+
+    await expect(
+      unwrap(dataManager.getFeatureFlag('risk_metrics_enabled')),
+    ).resolves.toBe(true);
+  });
+
   test('builds current holding movers from fills and T212 snapshots', async () => {
     const { dataManager } = await createTestDataManager();
 
@@ -1418,6 +1435,11 @@ function createPostMigrationSupportTables(sqlite: Database.Database) {
       rate_limit_remaining integer,
       rate_limit_reset_epoch integer,
       rate_limit_used integer,
+      updated_at text not null default CURRENT_TIMESTAMP
+    );
+    create table if not exists app_feature_flags (
+      key text primary key,
+      enabled integer not null,
       updated_at text not null default CURRENT_TIMESTAMP
     );
     create table if not exists instrument_risk_metrics (

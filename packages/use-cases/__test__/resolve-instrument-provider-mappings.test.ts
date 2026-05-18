@@ -21,6 +21,35 @@ const canadaEtf: CategorizedInstrument = {
 };
 
 describe('resolve instrument provider mappings', () => {
+  test('fails immediately when risk metrics feature is disabled', async () => {
+    const resolveMappings = createResolveInstrumentProviderMappings({
+      client: {
+        fetchInstrumentRiskProfile: vi.fn(),
+        searchInstrumentRiskCandidatesByIsin: vi.fn(),
+      },
+      dataManager: dataManager({
+        currentSnapshotsByIsin: {},
+        instruments: [canadaEtf],
+        replacedCandidates: [],
+        riskMetricsEnabled: false,
+        savedStatuses: [],
+        setMappings: [],
+        statuses: [],
+      }),
+      now: () => new Date(nowIso),
+    });
+
+    const result = await resolveMappings();
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toEqual({
+        code: 'VALIDATION',
+        message: 'Risk metrics feature is disabled.',
+      });
+    }
+  });
+
   test('auto-resolves exact single-candidate ISIN match without profile calls', async () => {
     const fetchInstrumentRiskProfile = vi.fn();
     const savedStatuses: Array<Omit<InstrumentProviderResolutionStatus, 'updatedAt'>> =
@@ -390,6 +419,7 @@ function dataManager({
   currentSnapshotsByIsin,
   instruments,
   replacedCandidates,
+  riskMetricsEnabled = true,
   savedStatuses,
   setMappings,
   statuses,
@@ -398,12 +428,14 @@ function dataManager({
   currentSnapshotsByIsin: Record<string, CurrentPositionSnapshot>;
   instruments: CategorizedInstrument[];
   replacedCandidates: InstrumentProviderResolutionCandidate[];
+  riskMetricsEnabled?: boolean;
   savedStatuses: Array<Omit<InstrumentProviderResolutionStatus, 'updatedAt'>>;
   setMappings: Array<{ isin: string; providerSymbol: string }>;
   statuses: InstrumentProviderResolutionStatus[];
 }): Pick<
   BrokerDataManager,
   | 'getLatestCurrentPortfolioPositionSnapshotByIsin'
+  | 'getFeatureFlag'
   | 'listCategorizedInstruments'
   | 'listInstrumentProviderResolutionCandidates'
   | 'listInstrumentProviderResolutionStatuses'
@@ -414,6 +446,7 @@ function dataManager({
   return {
     getLatestCurrentPortfolioPositionSnapshotByIsin: (isin) =>
       okAsync(currentSnapshotsByIsin[isin]),
+    getFeatureFlag: () => okAsync(riskMetricsEnabled),
     listCategorizedInstruments: () => okAsync(instruments),
     listInstrumentProviderResolutionCandidates: () => okAsync(candidates),
     listInstrumentProviderResolutionStatuses: () => okAsync(statuses),

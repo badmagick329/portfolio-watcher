@@ -28,6 +28,28 @@ const vodafone: CategorizedInstrument = {
 };
 
 describe('sync instrument risk metrics', () => {
+  test('fails immediately when risk metrics feature is disabled', async () => {
+    const sync = createSyncInstrumentRiskMetrics({
+      client: riskClient({ betaBySymbol: { AAPL: 1.2 } }),
+      dataManager: dataManager({
+        instruments: [apple],
+        mappings: { US0378331005: 'AAPL' },
+        saved: [],
+        riskMetricsEnabled: false,
+      }),
+    });
+
+    const result = await sync();
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toEqual({
+        code: 'VALIDATION',
+        message: 'Risk metrics feature is disabled.',
+      });
+    }
+  });
+
   test('persists beta for mapped current holdings', async () => {
     const saved: InstrumentRiskMetricSnapshot[] = [];
     const sync = createSyncInstrumentRiskMetrics({
@@ -266,6 +288,7 @@ function dataManager({
   existingMetrics = {},
   existingStatuses = {},
   currentValues = {},
+  riskMetricsEnabled = true,
 }: {
   instruments: CategorizedInstrument[];
   mappings: Record<string, string>;
@@ -274,9 +297,11 @@ function dataManager({
   existingMetrics?: Record<string, InstrumentRiskMetricSnapshot>;
   existingStatuses?: Record<string, InstrumentRiskMetricSyncStatus>;
   currentValues?: Record<string, number>;
+  riskMetricsEnabled?: boolean;
 }): Pick<
   BrokerDataManager,
   | 'listCategorizedInstruments'
+  | 'getFeatureFlag'
   | 'getLatestCurrentPortfolioPositionSnapshotByIsin'
   | 'getInstrumentProviderSymbol'
   | 'getLatestInstrumentRiskMetricByIsin'
@@ -285,6 +310,7 @@ function dataManager({
   | 'saveInstrumentRiskMetricSyncStatus'
 > {
   return {
+    getFeatureFlag: () => okAsync(riskMetricsEnabled),
     listCategorizedInstruments: () => okAsync(instruments),
     getLatestCurrentPortfolioPositionSnapshotByIsin: (isin) =>
       okAsync(positionSnapshot(isin, currentValues[isin] ?? 100)),

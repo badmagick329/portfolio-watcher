@@ -16,6 +16,7 @@ import {
   setInstrumentCategories,
   unsetInstrumentCategories,
 } from '@/lib/server/composition';
+import type { AppCapabilities } from '@portfolio/domain';
 import type {
   InstrumentProviderResolutionCandidate,
   InstrumentProviderResolutionStatus,
@@ -61,16 +62,10 @@ async function getCategoryManagementAction() {
 }
 
 async function getAllocationAction() {
-  const [
-    categoriesResult,
-    ordersResult,
-    capabilitiesResult,
-    providerSymbolsResult,
-  ] = await Promise.all([
+  const [categoriesResult, ordersResult, capabilitiesResult] = await Promise.all([
     listCategorizedInstruments(),
     getHistoricalOrdersForWeb(),
     getAppCapabilities(),
-    listInstrumentProviderSymbols('fmp'),
   ]);
 
   if (categoriesResult.isErr()) {
@@ -84,6 +79,43 @@ async function getAllocationAction() {
   if (capabilitiesResult.isErr()) {
     throw new Error(capabilitiesResult.error.message);
   }
+
+  const capabilities = capabilitiesResult.value;
+
+  if (!capabilities.riskMetricsFeatureEnabled) {
+    const quantitiesByIsin = getCurrentQuantitiesByIsin(ordersResult.value.items);
+    const instruments = await Promise.all(
+      categoriesResult.value.map(async (instrument) => {
+        const currentQuantity = quantitiesByIsin.get(instrument.isin) ?? 0;
+        const snapshotResult = await getLatestCurrentPositionSnapshot(
+          instrument.isin,
+        );
+
+        if (snapshotResult.isErr()) {
+          throw new Error(snapshotResult.error.message);
+        }
+
+        return {
+          ...instrument,
+          currentPositionSnapshot: snapshotResult.value ?? null,
+          currentQuantity,
+          currentlyHeld: currentQuantity > 0,
+          riskMetric: null,
+        };
+      }),
+    );
+
+    return {
+      capabilities,
+      historicalOrders: ordersResult.value.items,
+      instruments,
+      riskMappingSummary: {
+        unresolvedCurrentHoldingsCount: 0,
+      },
+    };
+  }
+
+  const providerSymbolsResult = await listInstrumentProviderSymbols('fmp');
 
   if (providerSymbolsResult.isErr()) {
     throw new Error(providerSymbolsResult.error.message);
@@ -124,7 +156,7 @@ async function getAllocationAction() {
   );
 
   return {
-    capabilities: capabilitiesResult.value,
+    capabilities,
     historicalOrders: ordersResult.value.items,
     instruments,
     riskMappingSummary: {
@@ -137,10 +169,10 @@ async function getAllocationAction() {
 }
 
 async function getRiskMappingsAction() {
+  const capabilities = await requireRiskMetricsFeatureEnabled();
   const [
     categoriesResult,
     ordersResult,
-    capabilitiesResult,
     providerSymbolsResult,
     resolutionStatusesResult,
     resolutionCandidatesResult,
@@ -148,7 +180,6 @@ async function getRiskMappingsAction() {
   ] = await Promise.all([
     listCategorizedInstruments(),
     getHistoricalOrdersForWeb(),
-    getAppCapabilities(),
     listInstrumentProviderSymbols('fmp'),
     listInstrumentProviderResolutionStatuses('fmp'),
     listInstrumentProviderResolutionCandidates('fmp'),
@@ -161,10 +192,6 @@ async function getRiskMappingsAction() {
 
   if (ordersResult.isErr()) {
     throw new Error(ordersResult.error.message);
-  }
-
-  if (capabilitiesResult.isErr()) {
-    throw new Error(capabilitiesResult.error.message);
   }
 
   if (providerSymbolsResult.isErr()) {
@@ -231,7 +258,7 @@ async function getRiskMappingsAction() {
   });
 
   return {
-    capabilities: capabilitiesResult.value,
+    capabilities,
     instruments,
     riskMappingSummary: {
       unresolvedCurrentHoldingsCount: instruments.filter(
@@ -280,6 +307,8 @@ async function refreshInstrumentProviderMappingsAction(params?: {
   force?: boolean;
   isins?: string[];
 }) {
+  await requireRiskMetricsFeatureEnabled();
+
   const result = await resolveInstrumentProviderMappings({
     force: params?.force,
     isins: params?.isins,
@@ -297,6 +326,8 @@ async function confirmInstrumentProviderResolutionAction(params: {
   isin: string;
   providerSymbol: string;
 }) {
+  await requireRiskMetricsFeatureEnabled();
+
   if (params.isin.trim().length === 0) {
     throw new Error('ISIN is required.');
   }
@@ -321,6 +352,8 @@ async function confirmInstrumentProviderResolutionAction(params: {
 async function clearInstrumentProviderResolutionAction(params: {
   isin: string;
 }) {
+  await requireRiskMetricsFeatureEnabled();
+
   if (params.isin.trim().length === 0) {
     throw new Error('ISIN is required.');
   }
@@ -371,6 +404,20 @@ const roundQuantity = (quantity: number) => {
   const rounded = Math.round(quantity * 1e10) / 1e10;
   return Math.abs(rounded) < 1e-10 ? 0 : rounded;
 };
+
+async function requireRiskMetricsFeatureEnabled(): Promise<AppCapabilities> {
+  const capabilitiesResult = await getAppCapabilities();
+
+  if (capabilitiesResult.isErr()) {
+    throw new Error(capabilitiesResult.error.message);
+  }
+
+  if (!capabilitiesResult.value.riskMetricsFeatureEnabled) {
+    throw new Error('Risk metrics feature is disabled.');
+  }
+
+  return capabilitiesResult.value;
+}
 
 const groupByIsin = (items: InstrumentProviderResolutionCandidate[]) => {
   const grouped = new Map<string, InstrumentProviderResolutionCandidate[]>();

@@ -8,6 +8,7 @@ const EMPTY_APP_CAPABILITIES: AppCapabilitiesData = {
   canSyncPortfolioState: false,
   canPlaceOrders: false,
   hasFmpApiKey: false,
+  riskMetricsFeatureEnabled: false,
   canSyncRiskMetrics: false,
   brokerAccessMode: 'missing',
   hasHistoricalOrders: false,
