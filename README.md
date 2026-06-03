@@ -1,15 +1,26 @@
 # Portfolio Watcher
 
-Small personal portfolio tracker for:
+Local-first Trading 212 portfolio tracker with:
 
-- syncing Trading 212 orders and current holdings
-- viewing orders and category allocations in the web UI
-- assigning categories to instruments
-- optionally syncing beta/risk metrics from FMP
+- order sync
+- current portfolio snapshots
+- category management
+- allocation views
+- movers over a selected period
+- optional live order placement from the CLI
+
+## Web app
+
+Current pages:
+
+- `/` Orders
+- `/categories` Categories
+- `/allocation` Allocation
+- `/movers` Movers
 
 ## Minimal setup
 
-If you just want the app running locally, do this:
+For a useful local setup, use:
 
 1. Install dependencies
 
@@ -17,21 +28,19 @@ If you just want the app running locally, do this:
 pnpm install
 ```
 
-2. Create a `.env` file in the repo root
-
-You can copy `.env.sample` and keep only the DB path if you want the most minimal setup.
+2. Create `.env` in the repo root
 
 ```env
 SQLITE_DB=./sqlite/portfolio-watcher.db
+API_KEY=your_trading212_api_key
+API_SECRET=your_trading212_api_secret
 ```
 
-3. Run database migrations
+3. Run migrations
 
 ```bash
 pnpm db:migrate
 ```
-
-The SQLite parent folder is created automatically.
 
 4. Start the web app
 
@@ -39,74 +48,27 @@ The SQLite parent folder is created automatically.
 pnpm dev:web
 ```
 
-That is enough to open the app locally.  
-But in practice, you will usually also want Trading 212 API credentials, otherwise the app has no portfolio/order data to show.
+That gives you the web app plus Trading 212-backed portfolio data.
 
 ## First-time flow
 
-1. `pnpm install`
-2. create `.env`
-3. add:
+After the app is running:
 
-```env
-SQLITE_DB=./sqlite/portfolio-watcher.db
-API_KEY=your_trading212_api_key
-API_SECRET=your_trading212_api_secret
-```
-
-4. `pnpm db:migrate`
-5. `pnpm dev:web`
-6. open the local web app
-
-Add `FMP_API_KEY` later only if you want beta/risk metrics.
-
-## Using the app
-
-After starting the web app:
-
-1. open the Orders page
-2. use the `Sync` button to run:
+1. Open the Orders page
+2. Use `Sync` to run:
    - `Sync orders`
    - `Sync instruments`
-3. wait for your data to appear
-4. use the Categories page to assign categories and view allocation
+3. Leave the Orders page open briefly
 
-Notes:
+Important:
 
-- syncing beta data is still CLI-only
-
-## Environment variables
-
-Put these in `.env` at the repo root.
-
-Required:
-
-```env
-SQLITE_DB=./sqlite/portfolio-watcher.db
-```
-
-Usually needed:
-
-```env
-API_KEY=your_trading212_api_key
-API_SECRET=your_trading212_api_secret
-```
-
-Optional:
-
-```env
-FMP_API_KEY=your_fmp_api_key
-```
-
-Notes:
-
-- `API_KEY` + `API_SECRET` are what make the app useful for most people. They enable Trading 212 order sync and portfolio sync.
-- live order placement depends on what your Trading 212 key is allowed to do; if it is read-only, the app should fail gracefully.
-- `FMP_API_KEY` is only needed for syncing beta/risk metrics.
+- the Orders page also runs portfolio-state sync in the background
+- that background sync is what populates current holdings, valuation, allocation, and movers
+- if you only sync orders and catalog data, the app still may not have current portfolio state yet
 
 ## Main commands
 
-Start the web app in dev mode:
+Run the web app:
 
 ```bash
 pnpm dev:web
@@ -119,44 +81,40 @@ pnpm build:web
 pnpm start:web
 ```
 
-Run all tests:
+Run tests:
 
 ```bash
 pnpm test
 ```
 
-Typecheck:
+Database helpers:
 
 ```bash
-pnpm typecheck
+pnpm db:migrate
+pnpm db:generate
+pnpm db:push
+pnpm db:studio
 ```
 
-## Categories
+## CLI
 
-Manage categories in the Categories page.
+At the moment, live market and live limit orders are only available through the CLI.
+The rest of the commands can be ignored as there are web equivalents for them.
 
-## Risk metrics / beta
-
-This is optional.
-
-To use beta features, add:
-
-```env
-FMP_API_KEY=your_fmp_api_key
-```
-
-Beta appears in the Categories allocation view after risk metrics have been synced.
-
-At the moment, beta sync and manual symbol mapping are CLI-only.
-
-## CLI (optional)
-
-Most users can ignore this section.
-
-Trading 212 sync:
+Main sync:
 
 ```bash
 pnpm main sync
+```
+
+This runs:
+
+- historical order sync
+- current portfolio-state sync
+
+Instrument catalog sync:
+
+```bash
 pnpm main sync-instruments
 ```
 
@@ -181,3 +139,18 @@ Risk metric sync:
 ```bash
 pnpm main sync-risk-metrics
 ```
+
+Live order placement:
+
+```bash
+pnpm main place-live-order --instrument AMD --side buy --value 100 --confirm
+pnpm main place-live-limit-order --instrument AMD --side buy --quantity 1 --limit-price 100 --confirm
+```
+
+## Deprecated: risk metrics
+
+There is partial support in the codebase for FMP-backed risk metrics, beta, alpha, and risk mappings.
+
+That feature set can still be manually enabled, but it is currently deprecated because upstream API coverage is incomplete and can leave gaps in symbol and risk data.
+
+If you revisit that work later, it uses `FMP_API_KEY`.
