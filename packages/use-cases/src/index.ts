@@ -1,5 +1,6 @@
 export { createClearInstrumentProviderResolution } from '../clear-instrument-provider-resolution';
 export { createConfirmInstrumentProviderResolution } from '../confirm-instrument-provider-resolution';
+export { createExportCurrentPortfolio } from '../export-current-portfolio';
 export { createFetchAccountCash } from '../fetch-account-cash';
 export { createFetchAccountSummary } from '../fetch-account-summary';
 export { createGetAppCapabilities } from '../get-app-capabilities';

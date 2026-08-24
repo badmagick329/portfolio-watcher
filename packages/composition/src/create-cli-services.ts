@@ -8,10 +8,11 @@ import {
   createTrading212ClientWithCache,
 } from '@portfolio/infra';
 import {
+  createExportCurrentPortfolio,
   createFetchAccountCash,
   createFetchAccountSummary,
-  createListInstrumentProviderSymbols,
   createListCategorizedInstruments,
+  createListInstrumentProviderSymbols,
   createPlaceLiveLimitOrder,
   createPlaceLiveMarketOrder,
   createResolveInstrumentForOrder,
@@ -31,6 +32,14 @@ export const createCliServices = () => {
   const dataManager = createBrokerDataManager();
   const liveClient = createTrading212Client();
   const fmpClient = createFmpClient();
+  const syncInstrumentCatalog = createSyncT212InstrumentCatalog({
+    client: liveClient,
+    dataManager,
+  });
+  const syncPortfolioState = createSyncCurrentPositionPricesFromT212({
+    client: liveClient,
+    dataManager,
+  });
 
   return createDiskCache({
     cacheFilePath: './data/cache.json',
@@ -41,6 +50,11 @@ export const createCliServices = () => {
     .map((client) => ({
       fetchAccountCash: createFetchAccountCash(client),
       fetchAccountSummary: createFetchAccountSummary(client),
+      exportCurrentPortfolio: createExportCurrentPortfolio({
+        syncInstrumentCatalog,
+        syncPortfolioState,
+        dataManager,
+      }),
       listInstrumentProviderSymbols:
         createListInstrumentProviderSymbols(dataManager),
       listCategorizedInstruments: createListCategorizedInstruments(dataManager),
@@ -70,10 +84,7 @@ export const createCliServices = () => {
         client,
         dataManager,
       }),
-      syncT212InstrumentCatalog: createSyncT212InstrumentCatalog({
-        client: liveClient,
-        dataManager,
-      }),
+      syncT212InstrumentCatalog: syncInstrumentCatalog,
       syncHistoricalOrders: createSyncHistoricalOrders({
         client,
         dataManager,

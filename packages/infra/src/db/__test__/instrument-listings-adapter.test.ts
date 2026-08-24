@@ -187,7 +187,9 @@ describe('instrument listing db adapter', () => {
       ]),
     );
 
-    await expect(unwrap(dataManager.getDistinctInstruments())).resolves.toEqual([]);
+    await expect(unwrap(dataManager.getDistinctInstruments())).resolves.toEqual(
+      [],
+    );
     await expect(
       unwrap(dataManager.findInstrumentCategoryInstrumentMatches('RANDO')),
     ).resolves.toEqual([]);
@@ -224,14 +226,16 @@ describe('instrument listing db adapter', () => {
       }),
     );
 
-    await expect(unwrap(dataManager.getDistinctInstruments())).resolves.toEqual([
-      {
-        ticker: 'VUAGl_EQ',
-        name: 'Vanguard S&P 500',
-        isin: 'IE00BFMXXD54',
-        currency: 'GBP',
-      },
-    ]);
+    await expect(unwrap(dataManager.getDistinctInstruments())).resolves.toEqual(
+      [
+        {
+          ticker: 'VUAGl_EQ',
+          name: 'Vanguard S&P 500',
+          isin: 'IE00BFMXXD54',
+          currency: 'GBP',
+        },
+      ],
+    );
   });
 
   test('latest coherent portfolio snapshot ignores stale sold positions', async () => {
@@ -333,11 +337,117 @@ describe('instrument listing db adapter', () => {
       ),
     ).resolves.toBeUndefined();
     await expect(
-      unwrap(dataManager.getLatestCurrentPositionSnapshotByIsin('IE00BK5BR626')),
+      unwrap(
+        dataManager.getLatestCurrentPositionSnapshotByIsin('IE00BK5BR626'),
+      ),
     ).resolves.toMatchObject({
       isin: 'IE00BK5BR626',
       currentValue: 200,
       asOf: '2026-04-20T10:00:00.000Z',
+    });
+  });
+
+  test('exports only current holdings with canonical identity metadata', async () => {
+    const { dataManager } = await createTestDataManager();
+
+    await unwrap(
+      dataManager.saveObservedInstrumentListing({
+        ticker: 'VUAGl_EQ',
+        name: 'Vanguard S&P 500 UCITS ETF',
+        isin: 'IE00BFMXXD54',
+        currency: 'GBP',
+      }),
+    );
+    await unwrap(
+      dataManager.saveT212InstrumentCatalogItems([
+        {
+          ticker: 'VUAGl_EQ',
+          isin: 'IE00BFMXXD54',
+          name: 'Vanguard S&P 500 UCITS ETF',
+          shortName: 'Vanguard S&P 500',
+          instrumentType: 'ETF',
+          currencyCode: 'GBP',
+          extendedHours: false,
+          maxOpenQuantity: null,
+          addedOn: null,
+          fetchedAt: '2026-04-21T09:59:00.000Z',
+        },
+      ]),
+    );
+    await unwrap(dataManager.setInstrumentCategory('IE00BFMXXD54', 'core'));
+
+    for (const asOf of [
+      '2026-04-20T10:00:00.000Z',
+      '2026-04-21T10:00:00.000Z',
+    ]) {
+      await unwrap(
+        dataManager.saveAccountSummarySnapshot({
+          currency: 'GBP',
+          currentValue: asOf.startsWith('2026-04-21') ? 210 : 200,
+          totalCost: 150,
+          realizedProfitLoss: 5,
+          unrealizedProfitLoss: asOf.startsWith('2026-04-21') ? 60 : 50,
+          totalValue: asOf.startsWith('2026-04-21') ? 230 : 220,
+          asOf,
+          fetchedAt: asOf,
+        }),
+      );
+      await unwrap(
+        dataManager.saveCurrentPositionSnapshot({
+          isin: 'IE00BFMXXD54',
+          providerSymbol: 'VUAGl_EQ',
+          quantity: 2,
+          averagePricePaid: 75,
+          currentPrice: asOf.startsWith('2026-04-21') ? 105 : 100,
+          instrumentCurrency: 'GBP',
+          walletCurrency: 'GBP',
+          currentValue: asOf.startsWith('2026-04-21') ? 210 : 200,
+          totalCost: 150,
+          unrealizedProfitLoss: asOf.startsWith('2026-04-21') ? 60 : 50,
+          fxImpact: null,
+          asOf,
+          fetchedAt: asOf,
+        }),
+      );
+    }
+
+    await expect(
+      unwrap(dataManager.getLatestCurrentPortfolioSnapshot()),
+    ).resolves.toEqual({
+      accountSummary: {
+        currency: 'GBP',
+        currentValue: 210,
+        totalCost: 150,
+        realizedProfitLoss: 5,
+        unrealizedProfitLoss: 60,
+        totalValue: 230,
+        asOf: '2026-04-21T10:00:00.000Z',
+        fetchedAt: '2026-04-21T10:00:00.000Z',
+      },
+      holdings: [
+        {
+          ticker: 'VUAGl_EQ',
+          name: 'Vanguard S&P 500 UCITS ETF',
+          isin: 'IE00BFMXXD54',
+          instrumentType: 'ETF',
+          category: 'core',
+          position: {
+            isin: 'IE00BFMXXD54',
+            providerSymbol: 'VUAGl_EQ',
+            quantity: 2,
+            averagePricePaid: 75,
+            currentPrice: 105,
+            instrumentCurrency: 'GBP',
+            walletCurrency: 'GBP',
+            currentValue: 210,
+            totalCost: 150,
+            unrealizedProfitLoss: 60,
+            fxImpact: null,
+            asOf: '2026-04-21T10:00:00.000Z',
+            fetchedAt: '2026-04-21T10:00:00.000Z',
+          },
+        },
+      ],
     });
   });
 
@@ -408,15 +518,11 @@ describe('instrument listing db adapter', () => {
     );
 
     const remainingSummaryAsOfs = sqlite
-      .prepare(
-        'select as_of from account_summary_snapshots order by as_of',
-      )
+      .prepare('select as_of from account_summary_snapshots order by as_of')
       .all()
       .map((row: { as_of: string }) => row.as_of);
     const remainingPositionAsOfs = sqlite
-      .prepare(
-        'select as_of from current_position_snapshots order by as_of',
-      )
+      .prepare('select as_of from current_position_snapshots order by as_of')
       .all()
       .map((row: { as_of: string }) => row.as_of);
 
@@ -436,9 +542,7 @@ describe('instrument listing db adapter', () => {
         }),
       ]),
     );
-    await unwrap(
-      dataManager.setInstrumentCategory('IE00B435CG94', 'energy'),
-    );
+    await unwrap(dataManager.setInstrumentCategory('IE00B435CG94', 'energy'));
     await unwrap(
       dataManager.saveCurrentPositionSnapshot({
         isin: 'IE00B435CG94',
@@ -1032,8 +1136,12 @@ describe('instrument listing db adapter', () => {
       'BBB',
       'SELL',
     ]);
-    expect(result.items.find((item) => item.instrument.isin === 'OLD')).toBeUndefined();
-    expect(result.items.find((item) => item.instrument.isin === 'AAA')).toMatchObject({
+    expect(
+      result.items.find((item) => item.instrument.isin === 'OLD'),
+    ).toBeUndefined();
+    expect(
+      result.items.find((item) => item.instrument.isin === 'AAA'),
+    ).toMatchObject({
       instrument: {
         ticker: 'AAA_EQ',
         category: 'growth',
@@ -1050,17 +1158,23 @@ describe('instrument listing db adapter', () => {
       returnPercent: 0.5,
       walletImpact: 10,
     });
-    expect(result.items.find((item) => item.instrument.isin === 'BBB')).toMatchObject({
+    expect(
+      result.items.find((item) => item.instrument.isin === 'BBB'),
+    ).toMatchObject({
       priceChange: -10,
       returnPercent: -1 / 3,
       walletImpact: -22.5,
     });
-    expect(result.items.find((item) => item.instrument.isin === 'ADD')).toMatchObject({
+    expect(
+      result.items.find((item) => item.instrument.isin === 'ADD'),
+    ).toMatchObject({
       priceChange: 5,
       returnPercent: 0.5,
       walletImpact: 10,
     });
-    expect(result.items.find((item) => item.instrument.isin === 'SELL')).toMatchObject({
+    expect(
+      result.items.find((item) => item.instrument.isin === 'SELL'),
+    ).toMatchObject({
       priceChange: 5,
       returnPercent: 0.5,
       walletImpact: 12,
@@ -1177,7 +1291,10 @@ describe('instrument listing migration', () => {
       );
     `);
 
-    runMigration(sqlite, 'drizzle/0014_clean_portfolio_instrument_universe.sql');
+    runMigration(
+      sqlite,
+      'drizzle/0014_clean_portfolio_instrument_universe.sql',
+    );
 
     const fkRows = sqlite.prepare('PRAGMA foreign_key_check').all();
     const listings = sqlite
@@ -1193,7 +1310,10 @@ describe('instrument listing migration', () => {
       { ticker: 'XLEPl_EQ', isin: 'IE00B435CG94' },
     ]);
     expect(instruments).toEqual([
-      { isin: 'IE00B435CG94', name: 'Invesco Energy S&P US Select Sector (Acc)' },
+      {
+        isin: 'IE00B435CG94',
+        name: 'Invesco Energy S&P US Select Sector (Acc)',
+      },
       { isin: 'IE00BFMXXD54', name: 'Vanguard S&P 500' },
     ]);
   });

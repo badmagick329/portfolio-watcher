@@ -147,6 +147,32 @@ pnpm main place-live-order --instrument AMD --side buy --value 100 --confirm
 pnpm main place-live-limit-order --instrument AMD --side buy --quantity 1 --limit-price 100 --confirm
 ```
 
+## Current portfolio export
+
+Create a fresh JSON snapshot of the current portfolio for analysis by an agent:
+
+```bash
+pnpm export:portfolio
+```
+
+This command uses Doppler, refreshes the Trading 212 instrument catalog and
+current portfolio state, then writes `./exports/portfolio.json`. The export
+fails without writing stale data if either live refresh fails.
+
+Each holding includes its human-readable name, ISIN, instrument type, Trading
+212 ticker, quantity, average unit cost, current price, value, cost, unrealized
+profit or loss, currencies, and portfolio weight. Name and ISIN are the primary
+identity fields; the Trading 212 ticker is included only for traceability.
+
+To choose another output location while still using Doppler:
+
+```bash
+doppler run -- node --env-file=.env --import tsx ./apps/cli/src/main.ts export-portfolio --output ./path/to/portfolio.json
+```
+
+Portfolio exports contain sensitive financial information. The default
+`exports/` directory is excluded from Git.
+
 ## Deprecated: risk metrics
 
 There is partial support in the codebase for FMP-backed risk metrics, beta, alpha, and risk mappings.

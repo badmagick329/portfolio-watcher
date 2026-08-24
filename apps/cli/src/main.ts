@@ -11,6 +11,11 @@ import {
   parsePlaceLimitOrderArgs,
   parsePlaceOrderArgs,
 } from './place-order-cli';
+import {
+  PORTFOLIO_EXPORT_USAGE,
+  parsePortfolioExportArgs,
+  writePortfolioExport,
+} from './portfolio-export-cli';
 import { RISK_SYMBOLS_USAGE, parseRiskSymbolsArgs } from './risk-symbols-cli';
 
 const main = async () => {
@@ -28,6 +33,43 @@ const main = async () => {
         await ops.syncInstrumentPrices().match(
           (summary) => console.log('instrument_prices', summary),
           (e: AppError) => console.error(e),
+        );
+
+        return;
+      }
+
+      if (command === 'export-portfolio') {
+        const parsed = parsePortfolioExportArgs(args);
+
+        if (!parsed.ok) {
+          console.error(parsed.error.message);
+          console.log(PORTFOLIO_EXPORT_USAGE);
+          process.exitCode = 1;
+          return;
+        }
+
+        await ops.exportCurrentPortfolio().match(
+          async (portfolio) => {
+            try {
+              const outputPath = await writePortfolioExport(
+                parsed.value.outputPath,
+                portfolio,
+              );
+              console.log('Portfolio exported.');
+              console.log('asOf:', portfolio.asOf);
+              console.log('holdings:', portfolio.holdings.length);
+              console.log('output:', outputPath);
+            } catch (error) {
+              console.error(
+                `Failed to write portfolio export: ${error instanceof Error ? error.message : String(error)}`,
+              );
+              process.exitCode = 1;
+            }
+          },
+          (e: AppError) => {
+            console.error(e.message);
+            process.exitCode = 1;
+          },
         );
 
         return;
@@ -161,10 +203,12 @@ const main = async () => {
           return;
         }
 
-        await ops.listInstrumentProviderSymbols(parsed.value.value.provider).match(
-          (items) => console.log(formatInstrumentProviderSymbols(items)),
-          (e: AppError) => console.error(e.message),
-        );
+        await ops
+          .listInstrumentProviderSymbols(parsed.value.value.provider)
+          .match(
+            (items) => console.log(formatInstrumentProviderSymbols(items)),
+            (e: AppError) => console.error(e.message),
+          );
 
         return;
       }
@@ -207,7 +251,8 @@ const main = async () => {
         }
 
         await ops.listCategorizedInstruments(parsed.value.value).match(
-          (instruments) => console.log(formatCategorizedInstruments(instruments)),
+          (instruments) =>
+            console.log(formatCategorizedInstruments(instruments)),
           (e: AppError) => console.error(e.message),
         );
 

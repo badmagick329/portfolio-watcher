@@ -259,6 +259,50 @@ type AccountSummarySnapshot = {
   fetchedAt: string;
 };
 
+type CurrentPortfolioHoldingSnapshot = {
+  ticker: string;
+  name: string;
+  isin: string;
+  instrumentType: string | null;
+  category: string | null;
+  position: CurrentPositionSnapshot;
+};
+
+type CurrentPortfolioSnapshot = {
+  accountSummary: AccountSummarySnapshot;
+  holdings: CurrentPortfolioHoldingSnapshot[];
+};
+
+type PortfolioExportHolding = {
+  name: string;
+  instrumentType: string | null;
+  isin: string;
+  trading212Ticker: string;
+  category: string | null;
+  quantity: number;
+  averageUnitCost: number | null;
+  currentUnitPrice: number;
+  priceCurrency: string;
+  totalCost: number;
+  currentValue: number;
+  unrealizedProfitLoss: number;
+  valueCurrency: string;
+  portfolioWeightPercent: number;
+};
+
+type PortfolioExport = {
+  asOf: string;
+  accountCurrency: string;
+  summary: {
+    holdingsValue: number;
+    holdingsCost: number;
+    realizedProfitLoss: number;
+    unrealizedProfitLoss: number;
+    totalAccountValue: number;
+  };
+  holdings: PortfolioExportHolding[];
+};
+
 type BrokerEnvironment = 'live' | 'demo';
 
 type T212InstrumentMetadataItem = {
@@ -412,7 +456,13 @@ type InstrumentPriceSnapshot = {
 
 type CurrentHoldingMoverPrice = Pick<
   InstrumentPriceSnapshot,
-  'provider' | 'providerSymbol' | 'currency' | 'price' | 'priceType' | 'asOf' | 'fetchedAt'
+  | 'provider'
+  | 'providerSymbol'
+  | 'currency'
+  | 'price'
+  | 'priceType'
+  | 'asOf'
+  | 'fetchedAt'
 >;
 
 type CurrentHoldingMover = {
@@ -466,7 +516,11 @@ type AppError =
   | { code: 'API'; message: string }
   | { code: 'VALIDATION'; message: string }
   | { code: 'NETWORK'; message: string }
-  | { code: 'RATE_LIMIT'; message: string; rateLimitResponse: RateLimitResponse }
+  | {
+      code: 'RATE_LIMIT';
+      message: string;
+      rateLimitResponse: RateLimitResponse;
+    }
   | { code: 'FORBIDDEN'; message: string }
   | { code: 'DATABASE'; message: string };
 
@@ -479,6 +533,10 @@ type SyncStepResult =
 export type {
   AppError,
   AccountSummarySnapshot,
+  CurrentPortfolioHoldingSnapshot,
+  CurrentPortfolioSnapshot,
+  PortfolioExport,
+  PortfolioExportHolding,
   BrokerEnvironment,
   T212InstrumentMetadataItem,
   T212InstrumentCatalogItem,

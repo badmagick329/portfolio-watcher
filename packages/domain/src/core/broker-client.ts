@@ -1,28 +1,37 @@
 import type { Result, ResultAsync } from 'neverthrow';
 import type {
-  AppError,
   AppDataState,
+  AppError,
   AppFeatureFlagKey,
-  HistoricalOrdersParams,
   CategorizedInstrument,
+  CurrentHoldingMoversInput,
+  CurrentHoldingMoversResult,
+  CurrentPortfolioSnapshot,
+  HistoricalOrdersParams,
+  InstrumentCategoryFilter,
+  InstrumentCategoryInstrument,
+  InstrumentPriceSnapshot,
+  InstrumentProviderResolutionCandidate,
+  InstrumentProviderResolutionStatus,
   InstrumentProviderSymbol,
   InstrumentRiskMetricSnapshot,
   InstrumentRiskMetricSyncStatus,
-  InstrumentProviderResolutionCandidate,
-  InstrumentProviderResolutionStatus,
   InstrumentRiskProfile,
   InstrumentRiskProvider,
   InstrumentRiskSearchCandidate,
-  InstrumentCategoryFilter,
-  InstrumentCategoryInstrument,
-  CurrentHoldingMoversInput,
-  CurrentHoldingMoversResult,
-  InstrumentPriceSnapshot,
   ObservedInstrumentListing,
   SyncStepResult,
   WebHistoricalOrderInstrument,
   WebHistoricalOrdersFilters,
   WebHistoricalOrdersResult,
+} from '../types';
+import type {
+  AccountSummarySnapshot,
+  CurrentPositionSnapshot,
+  OrderExecutionAttempt,
+  T212InstrumentCatalogItem,
+  T212LimitOrderRequest,
+  T212MarketOrderRequest,
 } from '../types';
 import type {
   AccountCash,
@@ -34,14 +43,6 @@ import type {
   MarketOrderResponse,
   Positions,
 } from '../types/schemas/api-responses';
-import type {
-  AccountSummarySnapshot,
-  OrderExecutionAttempt,
-  CurrentPositionSnapshot,
-  T212InstrumentCatalogItem,
-  T212LimitOrderRequest,
-  T212MarketOrderRequest,
-} from '../types';
 
 type HistoricalOrdersInput = HistoricalOrdersParams | { nextPagePath: string };
 
@@ -82,7 +83,10 @@ interface BrokerDataManager {
   getHistoricalOrdersForWeb(
     filters?: WebHistoricalOrdersFilters,
   ): ResultAsync<WebHistoricalOrdersResult, AppError>;
-  getDistinctInstruments(): ResultAsync<WebHistoricalOrderInstrument[], AppError>;
+  getDistinctInstruments(): ResultAsync<
+    WebHistoricalOrderInstrument[],
+    AppError
+  >;
   getAppDataState(): ResultAsync<AppDataState, AppError>;
   getFeatureFlag(key: AppFeatureFlagKey): ResultAsync<boolean, AppError>;
   saveInstrumentPriceSnapshot(
@@ -95,6 +99,10 @@ interface BrokerDataManager {
     listing: ObservedInstrumentListing,
   ): ResultAsync<void, AppError>;
   getLatestPortfolioSnapshotAsOf(): ResultAsync<string | undefined, AppError>;
+  getLatestCurrentPortfolioSnapshot(): ResultAsync<
+    CurrentPortfolioSnapshot | undefined,
+    AppError
+  >;
   getLatestCurrentPortfolioPositionSnapshotByIsin(
     isin: string,
   ): ResultAsync<CurrentPositionSnapshot | undefined, AppError>;
@@ -143,7 +151,10 @@ interface BrokerDataManager {
     filters?: InstrumentCategoryFilter,
   ): ResultAsync<CategorizedInstrument[], AppError>;
   setInstrumentProviderSymbol(
-    params: Pick<InstrumentProviderSymbol, 'isin' | 'provider' | 'providerSymbol'>,
+    params: Pick<
+      InstrumentProviderSymbol,
+      'isin' | 'provider' | 'providerSymbol'
+    >,
   ): ResultAsync<void, AppError>;
   unsetInstrumentProviderSymbol(
     isin: string,

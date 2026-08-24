@@ -7,6 +7,7 @@ import type {
   CurrentHoldingMoverPrice,
   CurrentHoldingMoversInput,
   CurrentHoldingMoversResult,
+  CurrentPortfolioSnapshot,
   HistoricalOrdersItems,
   InstrumentCategoryFilter,
   InstrumentCategoryInstrument,
@@ -216,7 +217,8 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
       .map(([isin, listings]): WebHistoricalOrderInstrument => {
         const preferredTicker = latestProviderSymbolByIsin.get(isin);
         const preferredListing =
-          listings.find((row) => row.ticker === preferredTicker) ?? listings[0]!;
+          listings.find((row) => row.ticker === preferredTicker) ??
+          listings[0]!;
 
         return {
           ticker: preferredListing.ticker,
@@ -710,6 +712,97 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
       return row?.asOf;
     }, 'get latest portfolio snapshot as of');
 
+  const getLatestCurrentPortfolioSnapshot = () =>
+    wrapDb(() => {
+      const accountSummary = db
+        .select({
+          currency: accountSummarySnapshots.currency,
+          currentValue: accountSummarySnapshots.currentValue,
+          totalCost: accountSummarySnapshots.totalCost,
+          realizedProfitLoss: accountSummarySnapshots.realizedProfitLoss,
+          unrealizedProfitLoss: accountSummarySnapshots.unrealizedProfitLoss,
+          totalValue: accountSummarySnapshots.totalValue,
+          asOf: accountSummarySnapshots.asOf,
+          fetchedAt: accountSummarySnapshots.fetchedAt,
+        })
+        .from(accountSummarySnapshots)
+        .orderBy(
+          desc(accountSummarySnapshots.asOf),
+          desc(accountSummarySnapshots.fetchedAt),
+        )
+        .get();
+
+      if (!accountSummary) {
+        return undefined;
+      }
+
+      const holdings = db
+        .select({
+          ticker: currentPositionSnapshots.providerSymbol,
+          name: instruments.name,
+          isin: currentPositionSnapshots.isin,
+          instrumentType: t212InstrumentCatalog.instrumentType,
+          category: instrumentCategories.category,
+          quantity: currentPositionSnapshots.quantity,
+          averagePricePaid: currentPositionSnapshots.averagePricePaid,
+          currentPrice: currentPositionSnapshots.currentPrice,
+          instrumentCurrency: currentPositionSnapshots.instrumentCurrency,
+          walletCurrency: currentPositionSnapshots.walletCurrency,
+          currentValue: currentPositionSnapshots.currentValue,
+          totalCost: currentPositionSnapshots.totalCost,
+          unrealizedProfitLoss: currentPositionSnapshots.unrealizedProfitLoss,
+          fxImpact: currentPositionSnapshots.fxImpact,
+          asOf: currentPositionSnapshots.asOf,
+          fetchedAt: currentPositionSnapshots.fetchedAt,
+        })
+        .from(currentPositionSnapshots)
+        .innerJoin(
+          instruments,
+          eq(currentPositionSnapshots.isin, instruments.isin),
+        )
+        .leftJoin(
+          t212InstrumentCatalog,
+          eq(
+            currentPositionSnapshots.providerSymbol,
+            t212InstrumentCatalog.ticker,
+          ),
+        )
+        .leftJoin(
+          instrumentCategories,
+          eq(currentPositionSnapshots.isin, instrumentCategories.isin),
+        )
+        .where(eq(currentPositionSnapshots.asOf, accountSummary.asOf))
+        .orderBy(instruments.name, currentPositionSnapshots.providerSymbol)
+        .all()
+        .map((row) => ({
+          ticker: row.ticker,
+          name: row.name,
+          isin: row.isin,
+          instrumentType: row.instrumentType ?? null,
+          category: row.category ?? null,
+          position: {
+            isin: row.isin,
+            providerSymbol: row.ticker,
+            quantity: row.quantity,
+            averagePricePaid: row.averagePricePaid ?? null,
+            currentPrice: row.currentPrice,
+            instrumentCurrency: row.instrumentCurrency,
+            walletCurrency: row.walletCurrency,
+            currentValue: row.currentValue,
+            totalCost: row.totalCost,
+            unrealizedProfitLoss: row.unrealizedProfitLoss,
+            fxImpact: row.fxImpact ?? null,
+            asOf: row.asOf,
+            fetchedAt: row.fetchedAt,
+          },
+        }));
+
+      return {
+        accountSummary,
+        holdings,
+      } satisfies CurrentPortfolioSnapshot;
+    }, 'get latest current portfolio snapshot');
+
   const getLatestCurrentPortfolioPositionSnapshotByIsin = (isin: string) =>
     wrapDb(() => {
       const latestAsOf = db
@@ -1061,10 +1154,16 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
           category: instrumentCategories.category,
         })
         .from(currentPositionSnapshots)
-        .innerJoin(instruments, eq(currentPositionSnapshots.isin, instruments.isin))
+        .innerJoin(
+          instruments,
+          eq(currentPositionSnapshots.isin, instruments.isin),
+        )
         .leftJoin(
           instrumentListings,
-          eq(currentPositionSnapshots.providerSymbol, instrumentListings.ticker),
+          eq(
+            currentPositionSnapshots.providerSymbol,
+            instrumentListings.ticker,
+          ),
         )
         .leftJoin(
           instrumentCategories,
@@ -1155,7 +1254,8 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
           return;
         }
 
-        const priceChange = endPosition.currentPrice - startPosition.currentPrice;
+        const priceChange =
+          endPosition.currentPrice - startPosition.currentPrice;
         const returnPercent = priceChange / startPosition.currentPrice;
 
         items.push({
@@ -1260,7 +1360,10 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
         walletFxRate: fills.walletFxRate,
       })
       .from(orders)
-      .innerJoin(instrumentListings, eq(orders.ticker, instrumentListings.ticker))
+      .innerJoin(
+        instrumentListings,
+        eq(orders.ticker, instrumentListings.ticker),
+      )
       .innerJoin(fills, eq(fills.orderId, orders.id))
       .where(
         and(
@@ -1300,7 +1403,9 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
         at: snapshot.asOf,
         kind: 'snapshot' as const,
         walletUnitPrice:
-          snapshot.quantity > 0 ? snapshot.currentValue / snapshot.quantity : null,
+          snapshot.quantity > 0
+            ? snapshot.currentValue / snapshot.quantity
+            : null,
       })),
       ...historicalFills
         .filter(
@@ -1497,27 +1602,27 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
           provider: status.provider,
           status: status.status,
           resolvedSymbol: status.resolvedSymbol,
-            resolutionMethod: status.resolutionMethod,
-            confidence: status.confidence,
-            message: status.message,
-            evidence: stringifyResolutionStatusEvidence(status),
-          })
-          .onConflictDoUpdate({
-            target: [
-              instrumentProviderResolutionStatus.provider,
+          resolutionMethod: status.resolutionMethod,
+          confidence: status.confidence,
+          message: status.message,
+          evidence: stringifyResolutionStatusEvidence(status),
+        })
+        .onConflictDoUpdate({
+          target: [
+            instrumentProviderResolutionStatus.provider,
             instrumentProviderResolutionStatus.isin,
           ],
           set: {
             status: status.status,
             resolvedSymbol: status.resolvedSymbol,
-              resolutionMethod: status.resolutionMethod,
-              confidence: status.confidence,
-              message: status.message,
-              evidence: stringifyResolutionStatusEvidence(status),
-              updatedAt: sql`CURRENT_TIMESTAMP`,
-            },
-          })
-          .run();
+            resolutionMethod: status.resolutionMethod,
+            confidence: status.confidence,
+            message: status.message,
+            evidence: stringifyResolutionStatusEvidence(status),
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+          },
+        })
+        .run();
     }, 'save instrument provider resolution status');
 
   const getInstrumentProviderResolutionStatus = (
@@ -1531,8 +1636,7 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
           provider: instrumentProviderResolutionStatus.provider,
           status: instrumentProviderResolutionStatus.status,
           resolvedSymbol: instrumentProviderResolutionStatus.resolvedSymbol,
-          resolutionMethod:
-            instrumentProviderResolutionStatus.resolutionMethod,
+          resolutionMethod: instrumentProviderResolutionStatus.resolutionMethod,
           confidence: instrumentProviderResolutionStatus.confidence,
           message: instrumentProviderResolutionStatus.message,
           evidence: instrumentProviderResolutionStatus.evidence,
@@ -1547,9 +1651,7 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
         )
         .get();
 
-      return row
-        ? toResolutionStatus(row)
-        : undefined;
+      return row ? toResolutionStatus(row) : undefined;
     }, 'get instrument provider resolution status');
 
   const listInstrumentProviderResolutionStatuses = (
@@ -1562,8 +1664,7 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
           provider: instrumentProviderResolutionStatus.provider,
           status: instrumentProviderResolutionStatus.status,
           resolvedSymbol: instrumentProviderResolutionStatus.resolvedSymbol,
-          resolutionMethod:
-            instrumentProviderResolutionStatus.resolutionMethod,
+          resolutionMethod: instrumentProviderResolutionStatus.resolutionMethod,
           confidence: instrumentProviderResolutionStatus.confidence,
           message: instrumentProviderResolutionStatus.message,
           evidence: instrumentProviderResolutionStatus.evidence,
@@ -1632,7 +1733,8 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
         .select({
           isin: instrumentProviderResolutionCandidates.isin,
           provider: instrumentProviderResolutionCandidates.provider,
-          candidateSymbol: instrumentProviderResolutionCandidates.candidateSymbol,
+          candidateSymbol:
+            instrumentProviderResolutionCandidates.candidateSymbol,
           candidateName: instrumentProviderResolutionCandidates.candidateName,
           candidateIsin: instrumentProviderResolutionCandidates.candidateIsin,
           marketCap: instrumentProviderResolutionCandidates.marketCap,
@@ -1650,7 +1752,9 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
 
       const rows = provider
         ? query
-            .where(eq(instrumentProviderResolutionCandidates.provider, provider))
+            .where(
+              eq(instrumentProviderResolutionCandidates.provider, provider),
+            )
             .all()
         : query.all();
 
@@ -1809,7 +1913,9 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
         );
 
       const rows = provider
-        ? query.where(eq(instrumentRiskMetricSyncStatus.provider, provider)).all()
+        ? query
+            .where(eq(instrumentRiskMetricSyncStatus.provider, provider))
+            .all()
         : query.all();
 
       return rows.map(
@@ -1839,6 +1945,7 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
     saveCurrentPositionSnapshot,
     saveObservedInstrumentListing,
     getLatestPortfolioSnapshotAsOf,
+    getLatestCurrentPortfolioSnapshot,
     getLatestCurrentPortfolioPositionSnapshotByIsin,
     getLatestCurrentPositionSnapshotByIsin,
     saveAccountSummarySnapshot,
@@ -1866,102 +1973,102 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
   } satisfies BrokerDataManager;
 };
 
-  const normalize = (value: string) => value.trim().toLowerCase();
+const normalize = (value: string) => value.trim().toLowerCase();
 
-  const startOfQueryDate = (value: string) => `${value}T00:00:00.000Z`;
+const startOfQueryDate = (value: string) => `${value}T00:00:00.000Z`;
 
-  const endOfQueryDate = (value: string) => `${value}T23:59:59.999Z`;
+const endOfQueryDate = (value: string) => `${value}T23:59:59.999Z`;
 
-  const subtractDaysIso = (value: string, days: number) => {
-    const date = new Date(value);
-    date.setUTCDate(date.getUTCDate() - days);
-    return date.toISOString();
-  };
+const subtractDaysIso = (value: string, days: number) => {
+  const date = new Date(value);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString();
+};
 
-  const parseJson = (value: string | null) => {
-    if (!value) {
-      return null;
-    }
+const parseJson = (value: string | null) => {
+  if (!value) {
+    return null;
+  }
 
-    try {
-      return JSON.parse(value);
-    } catch {
-      return null;
-    }
-  };
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
 
-  const stringifyResolutionStatusEvidence = (
-    status: Omit<InstrumentProviderResolutionStatus, 'updatedAt'>,
-  ) =>
-    JSON.stringify({
-      evidence: parseJson(status.evidence),
-      fetchedAt: status.fetchedAt,
-      noCandidates: status.noCandidates,
-      lastErrorCode: status.lastErrorCode,
-      lastErrorMessage: status.lastErrorMessage,
-    });
+const stringifyResolutionStatusEvidence = (
+  status: Omit<InstrumentProviderResolutionStatus, 'updatedAt'>,
+) =>
+  JSON.stringify({
+    evidence: parseJson(status.evidence),
+    fetchedAt: status.fetchedAt,
+    noCandidates: status.noCandidates,
+    lastErrorCode: status.lastErrorCode,
+    lastErrorMessage: status.lastErrorMessage,
+  });
 
-  const toResolutionStatus = (row: {
-    isin: string;
-    provider: string;
-    status: string;
-    resolvedSymbol: string | null;
-    resolutionMethod: string | null;
-    confidence: string | null;
-    message: string | null;
-    evidence: string | null;
-    updatedAt: string;
-  }): InstrumentProviderResolutionStatus => {
-    const parsed = parseJson(row.evidence);
-    const nestedEvidence =
+const toResolutionStatus = (row: {
+  isin: string;
+  provider: string;
+  status: string;
+  resolvedSymbol: string | null;
+  resolutionMethod: string | null;
+  confidence: string | null;
+  message: string | null;
+  evidence: string | null;
+  updatedAt: string;
+}): InstrumentProviderResolutionStatus => {
+  const parsed = parseJson(row.evidence);
+  const nestedEvidence =
+    parsed &&
+    typeof parsed === 'object' &&
+    'evidence' in parsed &&
+    parsed.evidence !== undefined
+      ? JSON.stringify(parsed.evidence)
+      : row.evidence;
+
+  return {
+    ...row,
+    provider: row.provider as InstrumentRiskProvider,
+    status: row.status as InstrumentProviderResolutionStatus['status'],
+    resolvedSymbol: row.resolvedSymbol ?? null,
+    resolutionMethod:
+      row.resolutionMethod as InstrumentProviderResolutionStatus['resolutionMethod'],
+    confidence:
+      row.confidence as InstrumentProviderResolutionStatus['confidence'],
+    message: row.message ?? null,
+    evidence: nestedEvidence ?? null,
+    fetchedAt:
       parsed &&
       typeof parsed === 'object' &&
-      'evidence' in parsed &&
-      parsed.evidence !== undefined
-        ? JSON.stringify(parsed.evidence)
-        : row.evidence;
-
-    return {
-      ...row,
-      provider: row.provider as InstrumentRiskProvider,
-      status: row.status as InstrumentProviderResolutionStatus['status'],
-      resolvedSymbol: row.resolvedSymbol ?? null,
-      resolutionMethod:
-        row.resolutionMethod as InstrumentProviderResolutionStatus['resolutionMethod'],
-      confidence:
-        row.confidence as InstrumentProviderResolutionStatus['confidence'],
-      message: row.message ?? null,
-      evidence: nestedEvidence ?? null,
-      fetchedAt:
-        parsed &&
-        typeof parsed === 'object' &&
-        'fetchedAt' in parsed &&
-        typeof parsed.fetchedAt === 'string'
-          ? parsed.fetchedAt
-          : null,
-      noCandidates:
-        parsed &&
-        typeof parsed === 'object' &&
-        'noCandidates' in parsed &&
-        typeof parsed.noCandidates === 'boolean'
-          ? parsed.noCandidates
-          : false,
-      lastErrorCode:
-        parsed &&
-        typeof parsed === 'object' &&
-        'lastErrorCode' in parsed &&
-        typeof parsed.lastErrorCode === 'string'
-          ? parsed.lastErrorCode
-          : null,
-      lastErrorMessage:
-        parsed &&
-        typeof parsed === 'object' &&
-        'lastErrorMessage' in parsed &&
-        typeof parsed.lastErrorMessage === 'string'
-          ? parsed.lastErrorMessage
-          : null,
-    };
+      'fetchedAt' in parsed &&
+      typeof parsed.fetchedAt === 'string'
+        ? parsed.fetchedAt
+        : null,
+    noCandidates:
+      parsed &&
+      typeof parsed === 'object' &&
+      'noCandidates' in parsed &&
+      typeof parsed.noCandidates === 'boolean'
+        ? parsed.noCandidates
+        : false,
+    lastErrorCode:
+      parsed &&
+      typeof parsed === 'object' &&
+      'lastErrorCode' in parsed &&
+      typeof parsed.lastErrorCode === 'string'
+        ? parsed.lastErrorCode
+        : null,
+    lastErrorMessage:
+      parsed &&
+      typeof parsed === 'object' &&
+      'lastErrorMessage' in parsed &&
+      typeof parsed.lastErrorMessage === 'string'
+        ? parsed.lastErrorMessage
+        : null,
   };
+};
 
 export {
   getDefaultDbClient as db,
