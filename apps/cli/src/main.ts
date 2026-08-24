@@ -48,6 +48,7 @@ const main = async () => {
           return;
         }
 
+        console.log('Refreshing instrument catalog and current portfolio...');
         await ops.exportCurrentPortfolio().match(
           async (portfolio) => {
             try {

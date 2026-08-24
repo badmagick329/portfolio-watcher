@@ -954,23 +954,11 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
     items: import('@portfolio/domain').T212InstrumentCatalogItem[],
   ) =>
     wrapDb(() => {
-      items.forEach((item) => {
-        db.insert(t212InstrumentCatalog)
-          .values({
-            ticker: item.ticker,
-            isin: item.isin,
-            name: item.name,
-            shortName: item.shortName,
-            instrumentType: item.instrumentType,
-            currencyCode: item.currencyCode,
-            extendedHours: item.extendedHours,
-            maxOpenQuantity: item.maxOpenQuantity,
-            addedOn: item.addedOn,
-            fetchedAt: item.fetchedAt,
-          })
-          .onConflictDoUpdate({
-            target: t212InstrumentCatalog.ticker,
-            set: {
+      db.transaction((tx) => {
+        items.forEach((item) => {
+          tx.insert(t212InstrumentCatalog)
+            .values({
+              ticker: item.ticker,
               isin: item.isin,
               name: item.name,
               shortName: item.shortName,
@@ -980,10 +968,24 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
               maxOpenQuantity: item.maxOpenQuantity,
               addedOn: item.addedOn,
               fetchedAt: item.fetchedAt,
-              updatedAt: sql`CURRENT_TIMESTAMP`,
-            },
-          })
-          .run();
+            })
+            .onConflictDoUpdate({
+              target: t212InstrumentCatalog.ticker,
+              set: {
+                isin: item.isin,
+                name: item.name,
+                shortName: item.shortName,
+                instrumentType: item.instrumentType,
+                currencyCode: item.currencyCode,
+                extendedHours: item.extendedHours,
+                maxOpenQuantity: item.maxOpenQuantity,
+                addedOn: item.addedOn,
+                fetchedAt: item.fetchedAt,
+                updatedAt: sql`CURRENT_TIMESTAMP`,
+              },
+            })
+            .run();
+        });
       });
 
       return items.length;
