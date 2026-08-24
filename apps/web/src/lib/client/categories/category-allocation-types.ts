@@ -38,6 +38,7 @@ type CategoryAllocationViewModel = {
   totalRealizedPnl: number | null;
   totalPnl: number | null;
   totalReturnPercent: number | null;
+  totalFullReturnPercent: number | null;
   portfolioBeta: number | null;
   betaCoveragePercent: number | null;
   alphaAssumptions: AlphaAssumptions;

@@ -155,6 +155,37 @@ describe('buildCategoryAllocationViewModel', () => {
     expect(result.rows[0]?.returnPercent).toBe(0.7);
   });
 
+  test('includes realized pnl from fully closed holdings in the portfolio total', () => {
+    const result = buildCategoryAllocationViewModel({
+      historicalOrders: [
+        historicalOrder({
+          isin: 'IE00BK5BQT80',
+          quantity: 2,
+          side: 'BUY',
+          walletNetValue: -1_000,
+        }),
+        historicalOrder({
+          filledAt: '2026-04-11T10:00:00.000Z',
+          isin: 'IE00BK5BQT80',
+          quantity: 2,
+          side: 'SELL',
+          walletNetValue: 1_500,
+        }),
+      ],
+      instruments: [
+        instrument({}),
+        instrument({
+          isin: 'IE00BK5BQT80',
+          currentPositionSnapshot: null,
+        }),
+      ],
+    });
+
+    expect(result.totalRealizedPnl).toBe(500);
+    expect(result.totalReturnPercent).toBe(0.25);
+    expect(result.totalFullReturnPercent).toBe(0.52);
+  });
+
   test('calculates weighted portfolio and category beta coverage', () => {
     const result = buildCategoryAllocationViewModel({
       instruments: [

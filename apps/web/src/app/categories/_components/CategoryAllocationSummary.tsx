@@ -29,7 +29,7 @@ function CategoryAllocationSummary({
   showAlpha,
   viewModel,
 }: CategoryAllocationSummaryProps) {
-  const baseMetricCount = isHistorical ? 3 : 4;
+  const baseMetricCount = isHistorical ? 3 : 5;
   const metricCount =
     baseMetricCount + (showBeta ? 2 : 0) + (showAlpha ? 1 : 0);
 
@@ -60,7 +60,7 @@ function CategoryAllocationSummary({
       />
       {!isHistorical ? (
         <PortfolioSummaryMetric
-          label='Realized P/L'
+          label='Realized P/L (all orders)'
           tone={getSignedTone(viewModel.totalRealizedPnl)}
           value={
             viewModel.totalRealizedPnl === null
@@ -70,7 +70,7 @@ function CategoryAllocationSummary({
         />
       ) : null}
       <PortfolioSummaryMetric
-        label='Return'
+        label={isHistorical ? 'Return' : 'Current holdings return'}
         tone={getSignedTone(viewModel.totalReturnPercent)}
         value={
           viewModel.totalReturnPercent === null
@@ -78,6 +78,17 @@ function CategoryAllocationSummary({
             : formatPercent(viewModel.totalReturnPercent)
         }
       />
+      {!isHistorical ? (
+        <PortfolioSummaryMetric
+          label='Full return'
+          tone={getSignedTone(viewModel.totalFullReturnPercent)}
+          value={
+            viewModel.totalFullReturnPercent === null
+              ? NA_LABEL
+              : formatPercent(viewModel.totalFullReturnPercent)
+          }
+        />
+      ) : null}
       {showBeta ? (
         <PortfolioSummaryMetric
           label='Portfolio beta'

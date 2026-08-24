@@ -1,11 +1,15 @@
 import type { WebHistoricalOrder } from '@portfolio/domain';
 import {
+  buildOrdersSummary,
+  buildOrdersSummaryFromCurrentPosition,
+  getSignedOrderAmount,
+} from '../orders/orders-list-math';
+import {
   formatShortDate,
   getAlpha,
   getPeriodRiskFreeReturn,
   roundMoney,
 } from './category-allocation-math';
-import { buildOrdersSummaryFromCurrentPosition } from '../orders/orders-list-math';
 import type {
   AlphaAssumptions,
   CategorizedInstrumentWithPosition,
@@ -105,8 +109,23 @@ function buildCurrentCategoryAllocationViewModel({
     (sum, row) => sum + row.unrealizedPnl,
     0,
   );
-  const totalRealizedPnl = Array.from(groups.values()).reduce(
+  const totalCurrentHoldingsRealizedPnl = Array.from(groups.values()).reduce(
     (sum, row) => sum + row.realizedPnl,
+    0,
+  );
+  const totalRealizedPnl = Array.from(historicalOrdersByIsin.entries()).reduce(
+    (sum, [isin, orders]) => {
+      const snapshot = instruments.find(
+        (instrument) => instrument.isin === isin,
+      )?.currentPositionSnapshot;
+      const realizedPnl =
+        snapshot && snapshot.quantity > 0
+          ? buildOrdersSummaryFromCurrentPosition(orders, null, snapshot)
+              .realizedPnL
+          : buildOrdersSummary(orders, null).realizedPnL;
+
+      return sum + (realizedPnl ?? 0);
+    },
     0,
   );
   const totalBetaValue = Array.from(groups.values()).reduce(
@@ -161,7 +180,18 @@ function buildCurrentCategoryAllocationViewModel({
   const portfolioBeta =
     totalBetaCoveredValue > 0 ? totalBetaValue / totalBetaCoveredValue : null;
   const totalReturnPercent =
-    totalCost > 0 ? (totalRealizedPnl + totalPnl) / totalCost : null;
+    totalCost > 0
+      ? (totalCurrentHoldingsRealizedPnl + totalPnl) / totalCost
+      : null;
+  const totalHistoricalBuyCost = historicalOrders.reduce((sum, order) => {
+    const amount = getSignedOrderAmount(order);
+
+    return order.side === 'BUY' && amount !== null ? sum - amount : sum;
+  }, 0);
+  const totalFullReturnPercent =
+    totalHistoricalBuyCost > 0
+      ? (totalRealizedPnl + totalPnl) / totalHistoricalBuyCost
+      : null;
 
   return {
     rows,
@@ -170,6 +200,7 @@ function buildCurrentCategoryAllocationViewModel({
     totalRealizedPnl: roundMoney(totalRealizedPnl),
     totalPnl: roundMoney(totalPnl),
     totalReturnPercent,
+    totalFullReturnPercent,
     portfolioBeta,
     betaCoveragePercent:
       totalCurrentValue > 0 ? totalBetaCoveredValue / totalCurrentValue : null,
@@ -197,7 +228,9 @@ function buildCurrentCategoryAllocationViewModel({
   };
 }
 
-const groupHistoricalOrdersByIsin = (historicalOrders: WebHistoricalOrder[]) => {
+const groupHistoricalOrdersByIsin = (
+  historicalOrders: WebHistoricalOrder[],
+) => {
   const ordersByIsin = new Map<string, WebHistoricalOrder[]>();
 
   historicalOrders.forEach((order) => {

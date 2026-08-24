@@ -235,6 +235,7 @@ function buildHistoricalCategoryAllocationViewModel({
     totalRealizedPnl: null,
     totalPnl: hasPnl ? roundMoney(totalPnl) : null,
     totalReturnPercent,
+    totalFullReturnPercent: null,
     portfolioBeta,
     betaCoveragePercent:
       totalCost > 0 ? totalBetaCoveredBuyCost / totalCost : null,
