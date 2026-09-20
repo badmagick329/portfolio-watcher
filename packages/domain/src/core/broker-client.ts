@@ -20,6 +20,7 @@ import type {
   InstrumentRiskProvider,
   InstrumentRiskSearchCandidate,
   ObservedInstrumentListing,
+  PortfolioHistoryInstrument,
   SyncStepResult,
   WebHistoricalOrderInstrument,
   WebHistoricalOrdersFilters,
@@ -83,6 +84,10 @@ interface BrokerDataManager {
   getHistoricalOrdersForWeb(
     filters?: WebHistoricalOrdersFilters,
   ): ResultAsync<WebHistoricalOrdersResult, AppError>;
+  getPortfolioHistoryInstruments(): ResultAsync<
+    PortfolioHistoryInstrument[],
+    AppError
+  >;
   getDistinctInstruments(): ResultAsync<
     WebHistoricalOrderInstrument[],
     AppError

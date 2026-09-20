@@ -290,6 +290,50 @@ type PortfolioExportHolding = {
   portfolioWeightPercent: number;
 };
 
+type PortfolioHistoryInstrument = {
+  name: string;
+  isin: string;
+  tickers: string[];
+  instrumentType: string | null;
+  category: string | null;
+};
+
+type PortfolioExportTransactionTax = {
+  name: string;
+  quantity: number;
+  currency: string;
+  chargedAt: string;
+};
+
+type PortfolioExportTransaction = {
+  orderId: number;
+  fillId: number;
+  filledAt: string;
+  quantity: number;
+  unitPrice: number;
+  priceCurrency: string;
+  walletValue: number;
+  walletCurrency: string;
+  walletFxRate: number;
+  taxes: PortfolioExportTransactionTax[];
+};
+
+type PortfolioExportHoldingHistory = {
+  name: string;
+  isin: string;
+  trading212Tickers: string[];
+  instrumentType: string | null;
+  category: string | null;
+  currentlyHeld: boolean;
+  currentQuantity: number;
+  firstPurchasedAt: string | null;
+  lastPurchasedAt: string | null;
+  firstSoldAt: string | null;
+  lastSoldAt: string | null;
+  purchases: PortfolioExportTransaction[];
+  sales: PortfolioExportTransaction[];
+};
+
 type PortfolioExport = {
   asOf: string;
   accountCurrency: string;
@@ -301,6 +345,7 @@ type PortfolioExport = {
     totalAccountValue: number;
   };
   holdings: PortfolioExportHolding[];
+  holdingHistory: PortfolioExportHoldingHistory[];
 };
 
 type BrokerEnvironment = 'live' | 'demo';
@@ -537,6 +582,10 @@ export type {
   CurrentPortfolioSnapshot,
   PortfolioExport,
   PortfolioExportHolding,
+  PortfolioExportHoldingHistory,
+  PortfolioExportTransaction,
+  PortfolioExportTransactionTax,
+  PortfolioHistoryInstrument,
   BrokerEnvironment,
   T212InstrumentMetadataItem,
   T212InstrumentCatalogItem,

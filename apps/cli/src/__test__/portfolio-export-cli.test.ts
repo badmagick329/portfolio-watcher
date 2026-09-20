@@ -37,6 +37,7 @@ describe('portfolio export CLI', () => {
         totalAccountValue: 0,
       },
       holdings: [],
+      holdingHistory: [],
     };
 
     const resolvedPath = await writePortfolioExport(outputPath, portfolio);

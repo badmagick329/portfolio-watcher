@@ -40,6 +40,11 @@ export const createCliServices = () => {
     client: liveClient,
     dataManager,
   });
+  const syncHistoricalOrdersForExport = createSyncHistoricalOrders({
+    client: liveClient,
+    dataManager,
+    syncStateManager,
+  });
 
   return createDiskCache({
     cacheFilePath: './data/cache.json',
@@ -52,6 +57,7 @@ export const createCliServices = () => {
       fetchAccountSummary: createFetchAccountSummary(client),
       exportCurrentPortfolio: createExportCurrentPortfolio({
         syncInstrumentCatalog,
+        syncHistoricalOrders: syncHistoricalOrdersForExport,
         syncPortfolioState,
         dataManager,
       }),

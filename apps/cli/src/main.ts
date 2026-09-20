@@ -48,7 +48,9 @@ const main = async () => {
           return;
         }
 
-        console.log('Refreshing instrument catalog and current portfolio...');
+        console.log(
+          'Refreshing instrument catalog, order history, and current portfolio...',
+        );
         await ops.exportCurrentPortfolio().match(
           async (portfolio) => {
             try {
@@ -59,6 +61,7 @@ const main = async () => {
               console.log('Portfolio exported.');
               console.log('asOf:', portfolio.asOf);
               console.log('holdings:', portfolio.holdings.length);
+              console.log('holding history:', portfolio.holdingHistory.length);
               console.log('output:', outputPath);
             } catch (error) {
               console.error(

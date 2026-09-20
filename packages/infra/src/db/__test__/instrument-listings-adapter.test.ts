@@ -351,6 +351,17 @@ describe('instrument listing db adapter', () => {
     const { dataManager } = await createTestDataManager();
 
     await unwrap(
+      dataManager.saveHistoricalOrders([
+        historicalOrder({
+          id: 100,
+          ticker: 'VUAG_OLD_EQ',
+          fillId: 1000,
+          isin: 'IE00BFMXXD54',
+          name: 'Vanguard S&P 500 UCITS ETF',
+        }),
+      ]),
+    );
+    await unwrap(
       dataManager.saveObservedInstrumentListing({
         ticker: 'VUAGl_EQ',
         name: 'Vanguard S&P 500 UCITS ETF',
@@ -449,6 +460,18 @@ describe('instrument listing db adapter', () => {
         },
       ],
     });
+
+    await expect(
+      unwrap(dataManager.getPortfolioHistoryInstruments()),
+    ).resolves.toEqual([
+      {
+        name: 'Vanguard S&P 500 UCITS ETF',
+        isin: 'IE00BFMXXD54',
+        tickers: ['VUAG_OLD_EQ', 'VUAGl_EQ'],
+        instrumentType: 'ETF',
+        category: 'core',
+      },
+    ]);
   });
 
   test('prunes portfolio-state snapshots older than 90 days cutoff', async () => {

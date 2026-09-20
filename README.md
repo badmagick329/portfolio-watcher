@@ -155,14 +155,23 @@ Create a fresh JSON snapshot of the current portfolio for analysis by an agent:
 pnpm export:portfolio
 ```
 
-This command uses Doppler, refreshes the Trading 212 instrument catalog and
-current portfolio state, then writes `./exports/portfolio.json`. The export
-fails without writing stale data if either live refresh fails.
+This command uses Doppler, refreshes the Trading 212 instrument catalog,
+complete historical order data, and current portfolio state, then writes
+`./exports/portfolio.json`. The export fails without writing stale or partial
+data if a live refresh fails or historical backfill is rate limited.
+If Trading 212 temporarily rate limits order history, the existing export is
+left untouched; rerun the command after the reported rate-limit window resets.
 
 Each holding includes its human-readable name, ISIN, instrument type, Trading
 212 ticker, quantity, average unit cost, current price, value, cost, unrealized
 profit or loss, currencies, and portfolio weight. Name and ISIN are the primary
 identity fields; the Trading 212 ticker is included only for traceability.
+
+The additive `holdingHistory` section covers both current and fully closed
+holdings. It includes every recorded purchase and sale fill, exact execution
+dates, quantities, prices, wallet values, FX rates, and taxes, plus convenient
+first/last purchase and sale dates. Current holdings are identified from the
+fresh position snapshot rather than inferred from transaction arithmetic.
 
 To choose another output location while still using Doppler:
 

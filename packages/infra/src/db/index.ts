@@ -21,6 +21,7 @@ import type {
   ObservedInstrumentListing,
   OrderSyncState,
   OrderSyncStateManager,
+  PortfolioHistoryInstrument,
   WebHistoricalOrderInstrument,
   WebHistoricalOrdersFilters,
 } from '@portfolio/domain';
@@ -407,6 +408,60 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
 
   const getDistinctInstruments = () =>
     wrapDb(() => listPreferredInstrumentRows(), 'get distinct instruments');
+
+  const getPortfolioHistoryInstruments = () =>
+    wrapDb(() => {
+      const rows = db
+        .selectDistinct({
+          ticker: instrumentListings.ticker,
+          isin: instruments.isin,
+          name: instruments.name,
+          instrumentType: t212InstrumentCatalog.instrumentType,
+          category: instrumentCategories.category,
+        })
+        .from(instrumentListings)
+        .innerJoin(instruments, eq(instrumentListings.isin, instruments.isin))
+        .leftJoin(
+          t212InstrumentCatalog,
+          eq(instrumentListings.ticker, t212InstrumentCatalog.ticker),
+        )
+        .leftJoin(
+          instrumentCategories,
+          eq(instruments.isin, instrumentCategories.isin),
+        )
+        .orderBy(instruments.name, instrumentListings.ticker)
+        .all();
+
+      const instrumentsByIsin = new Map<string, PortfolioHistoryInstrument>();
+
+      rows.forEach((row) => {
+        const existing = instrumentsByIsin.get(row.isin);
+
+        if (existing) {
+          if (!existing.tickers.includes(row.ticker)) {
+            existing.tickers.push(row.ticker);
+          }
+          existing.instrumentType ??= row.instrumentType ?? null;
+          existing.category ??= row.category ?? null;
+          return;
+        }
+
+        instrumentsByIsin.set(row.isin, {
+          name: row.name,
+          isin: row.isin,
+          tickers: [row.ticker],
+          instrumentType: row.instrumentType ?? null,
+          category: row.category ?? null,
+        });
+      });
+
+      return [...instrumentsByIsin.values()].map((instrument) => ({
+        ...instrument,
+        tickers: instrument.tickers.sort((left, right) =>
+          left.localeCompare(right),
+        ),
+      }));
+    }, 'get portfolio history instruments');
 
   const getAppDataState = () =>
     wrapDb(() => {
@@ -1935,6 +1990,7 @@ const createBrokerDataManager = (dbClient = getDefaultDbClient()) => {
     getHistoricalOrders,
     getHistoricalOrdersForWeb,
     getDistinctInstruments,
+    getPortfolioHistoryInstruments,
     getAppDataState,
     getFeatureFlag,
     findInstrumentCategoryInstrumentMatches,
