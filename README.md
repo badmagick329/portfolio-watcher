@@ -157,8 +157,9 @@ pnpm export:portfolio
 
 This command uses Doppler, refreshes the Trading 212 instrument catalog,
 complete historical order data, and current portfolio state, then writes
-`./exports/portfolio.json`. The export fails without writing stale or partial
-data if a live refresh fails or historical backfill is rate limited.
+`./exports/YYYY-MM-DD__portfolio.json`, using the local calendar date. Exports
+on the same day overwrite that day's file. The export fails without writing
+stale or partial data if a live refresh fails or historical backfill is rate limited.
 If Trading 212 temporarily rate limits order history, the existing export is
 left untouched; rerun the command after the reported rate-limit window resets.
 

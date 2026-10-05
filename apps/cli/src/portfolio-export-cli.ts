@@ -3,7 +3,15 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const PORTFOLIO_EXPORT_USAGE =
-  'Usage: pnpm main export-portfolio --output <path-to-json>';
+  'Usage: pnpm main export-portfolio [--output <path-to-json>]';
+
+const getDefaultPortfolioExportPath = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `./exports/${year}-${month}-${day}__portfolio.json`;
+};
 
 type PortfolioExportCommand = {
   outputPath: string;
@@ -45,14 +53,10 @@ const parsePortfolioExportArgs = (
     index += 1;
   }
 
-  if (!outputPath) {
-    return {
-      ok: false,
-      error: validationError('The --output flag is required.'),
-    };
-  }
-
-  return { ok: true, value: { outputPath } };
+  return {
+    ok: true,
+    value: { outputPath: outputPath ?? getDefaultPortfolioExportPath() },
+  };
 };
 
 const writePortfolioExport = async (
@@ -75,6 +79,7 @@ const validationError = (message: string): AppError => ({
 });
 
 export {
+  getDefaultPortfolioExportPath,
   parsePortfolioExportArgs,
   PORTFOLIO_EXPORT_USAGE,
   writePortfolioExport,

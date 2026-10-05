@@ -1,18 +1,28 @@
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
   parsePortfolioExportArgs,
   writePortfolioExport,
 } from '../portfolio-export-cli';
 
 describe('portfolio export CLI', () => {
-  test('requires one explicit output path', () => {
-    expect(parsePortfolioExportArgs([])).toMatchObject({
-      ok: false,
-      error: { message: 'The --output flag is required.' },
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('defaults to a dated filename using the local calendar date', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 0, 5, 0, 30));
+
+    expect(parsePortfolioExportArgs([])).toEqual({
+      ok: true,
+      value: { outputPath: './exports/2026-01-05__portfolio.json' },
     });
+  });
+
+  test('accepts one explicit output path', () => {
     expect(parsePortfolioExportArgs(['--output', 'portfolio.json'])).toEqual({
       ok: true,
       value: { outputPath: 'portfolio.json' },
