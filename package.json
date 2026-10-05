@@ -6,7 +6,8 @@
   "scripts": {
     "cli": "node --env-file=.env --import tsx ./apps/cli/src/main.ts",
     "main": "pnpm cli",
-    "export:portfolio": "doppler run -- node --env-file=.env --import tsx ./apps/cli/src/main.ts export-portfolio",
+    "export:portfolio": "doppler run -- node --env-file=.env --import tsx ./apps/cli/src/main.ts export-portfolio --activity-csv ./data/t212-activity.csv",
+    "import:portfolio-activity": "node --import tsx ./apps/cli/src/import-portfolio-activity.ts",
     "db:generate": "dotenvx run --env-file=.env -- node ./scripts/ensure-sqlite-dir.mjs && dotenvx run --env-file=.env -- drizzle-kit generate",
     "db:migrate": "dotenvx run --env-file=.env -- node ./scripts/ensure-sqlite-dir.mjs && dotenvx run --env-file=.env -- drizzle-kit migrate",
     "db:push": "dotenvx run --env-file=.env -- node ./scripts/ensure-sqlite-dir.mjs && dotenvx run --env-file=.env -- drizzle-kit push",

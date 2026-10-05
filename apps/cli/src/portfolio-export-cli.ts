@@ -1,9 +1,10 @@
 import type { AppError, PortfolioExport } from '@portfolio/domain';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { parsePortfolioActivityCsv } from './portfolio-activity-csv';
 
 const PORTFOLIO_EXPORT_USAGE =
-  'Usage: pnpm main export-portfolio [--output <path-to-json>]';
+  'Usage: pnpm main export-portfolio [--output <path-to-json>] [--activity-csv <path-to-t212-csv>]';
 
 const getDefaultPortfolioExportPath = () => {
   const today = new Date();
@@ -15,6 +16,7 @@ const getDefaultPortfolioExportPath = () => {
 
 type PortfolioExportCommand = {
   outputPath: string;
+  activityCsvPath?: string;
 };
 
 const parsePortfolioExportArgs = (
@@ -23,11 +25,12 @@ const parsePortfolioExportArgs = (
   | { ok: true; value: PortfolioExportCommand }
   | { ok: false; error: AppError } => {
   let outputPath: string | undefined;
+  let activityCsvPath: string | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
 
-    if (flag !== '--output') {
+    if (flag !== '--output' && flag !== '--activity-csv') {
       return {
         ok: false,
         error: validationError(`Unknown flag: ${flag ?? ''}.`),
@@ -38,26 +41,48 @@ const parsePortfolioExportArgs = (
     if (!value?.trim()) {
       return {
         ok: false,
-        error: validationError('The --output flag requires a path.'),
+        error: validationError(`The ${flag} flag requires a path.`),
       };
     }
 
-    if (outputPath) {
+    if (flag === '--output' && outputPath) {
       return {
         ok: false,
         error: validationError('The --output flag can only be provided once.'),
       };
     }
+    if (flag === '--activity-csv' && activityCsvPath) {
+      return {
+        ok: false,
+        error: validationError(
+          'The --activity-csv flag can only be provided once.',
+        ),
+      };
+    }
 
-    outputPath = value.trim();
+    if (flag === '--output') outputPath = value.trim();
+    else activityCsvPath = value.trim();
     index += 1;
   }
 
   return {
     ok: true,
-    value: { outputPath: outputPath ?? getDefaultPortfolioExportPath() },
+    value: {
+      outputPath: outputPath ?? getDefaultPortfolioExportPath(),
+      ...(activityCsvPath && { activityCsvPath }),
+    },
   };
 };
+
+const addPortfolioActivity = async (
+  portfolio: PortfolioExport,
+  activityCsvPath: string,
+): Promise<PortfolioExport> => ({
+  ...portfolio,
+  accountActivity: parsePortfolioActivityCsv(
+    await readFile(path.resolve(activityCsvPath), 'utf8'),
+  ),
+});
 
 const writePortfolioExport = async (
   outputPath: string,
@@ -79,6 +104,7 @@ const validationError = (message: string): AppError => ({
 });
 
 export {
+  addPortfolioActivity,
   getDefaultPortfolioExportPath,
   parsePortfolioExportArgs,
   PORTFOLIO_EXPORT_USAGE,

@@ -13,6 +13,7 @@ import {
 } from './place-order-cli';
 import {
   PORTFOLIO_EXPORT_USAGE,
+  addPortfolioActivity,
   parsePortfolioExportArgs,
   writePortfolioExport,
 } from './portfolio-export-cli';
@@ -54,14 +55,33 @@ const main = async () => {
         await ops.exportCurrentPortfolio().match(
           async (portfolio) => {
             try {
+              const completePortfolio = parsed.value.activityCsvPath
+                ? await addPortfolioActivity(
+                    portfolio,
+                    parsed.value.activityCsvPath,
+                  )
+                : portfolio;
               const outputPath = await writePortfolioExport(
                 parsed.value.outputPath,
-                portfolio,
+                completePortfolio,
               );
               console.log('Portfolio exported.');
-              console.log('asOf:', portfolio.asOf);
-              console.log('holdings:', portfolio.holdings.length);
-              console.log('holding history:', portfolio.holdingHistory.length);
+              console.log('asOf:', completePortfolio.asOf);
+              console.log('holdings:', completePortfolio.holdings.length);
+              console.log(
+                'holding history:',
+                completePortfolio.holdingHistory.length,
+              );
+              if (completePortfolio.accountActivity) {
+                console.log(
+                  'cash movements:',
+                  completePortfolio.accountActivity.cashMovements.length,
+                );
+                console.log(
+                  'trade charges:',
+                  completePortfolio.accountActivity.tradeCharges.length,
+                );
+              }
               console.log('output:', outputPath);
             } catch (error) {
               console.error(

@@ -334,6 +334,35 @@ type PortfolioExportHoldingHistory = {
   sales: PortfolioExportTransaction[];
 };
 
+type PortfolioExportAccountActivity = {
+  periodStart: string;
+  periodEnd: string;
+  sourceRowCount: number;
+  cashMovements: Array<{
+    sourceRow: number;
+    id: string | null;
+    action: string;
+    occurredAt: string;
+    amount: number;
+    currency: string;
+    isin: string | null;
+    ticker: string | null;
+    withholdingTax: number | null;
+    withholdingTaxCurrency: string | null;
+  }>;
+  tradeCharges: Array<{
+    sourceRow: number;
+    orderId: string | null;
+    action: string;
+    occurredAt: string;
+    charges: Array<{
+      type: string;
+      amount: number;
+      currency: string;
+    }>;
+  }>;
+};
+
 type PortfolioExport = {
   asOf: string;
   accountCurrency: string;
@@ -346,6 +375,7 @@ type PortfolioExport = {
   };
   holdings: PortfolioExportHolding[];
   holdingHistory: PortfolioExportHoldingHistory[];
+  accountActivity?: PortfolioExportAccountActivity;
 };
 
 type BrokerEnvironment = 'live' | 'demo';
@@ -581,6 +611,7 @@ export type {
   CurrentPortfolioHoldingSnapshot,
   CurrentPortfolioSnapshot,
   PortfolioExport,
+  PortfolioExportAccountActivity,
   PortfolioExportHolding,
   PortfolioExportHoldingHistory,
   PortfolioExportTransaction,

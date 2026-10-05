@@ -20,12 +20,30 @@ describe('portfolio export CLI', () => {
       ok: true,
       value: { outputPath: './exports/2026-01-05__portfolio.json' },
     });
+    expect(parsePortfolioExportArgs(['--activity-csv', 'activity.csv'])).toEqual({
+      ok: true,
+      value: {
+        outputPath: './exports/2026-01-05__portfolio.json',
+        activityCsvPath: 'activity.csv',
+      },
+    });
   });
 
   test('accepts one explicit output path', () => {
     expect(parsePortfolioExportArgs(['--output', 'portfolio.json'])).toEqual({
       ok: true,
       value: { outputPath: 'portfolio.json' },
+    });
+    expect(
+      parsePortfolioExportArgs([
+        '--activity-csv',
+        'activity.csv',
+        '--output',
+        'portfolio.json',
+      ]),
+    ).toEqual({
+      ok: true,
+      value: { outputPath: 'portfolio.json', activityCsvPath: 'activity.csv' },
     });
     expect(parsePortfolioExportArgs(['--format', 'csv'])).toMatchObject({
       ok: false,
