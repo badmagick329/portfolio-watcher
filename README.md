@@ -149,6 +149,9 @@ pnpm main place-live-limit-order --instrument AMD --side buy --quantity 1 --limi
 # One buy per $2 level: $20 each from 150 to 140, $40 each from 138 to 130.
 # Run with --help for every flag and an example request to give an agent.
 pnpm main place-live-limit-ladder --instrument AMD --side buy --step 2 --tier 150-140:20 --tier 138-130:40 --confirm
+# One sell per $5 level, stepping up: $10 each at 170, 175 and 180, $20 each from 185 to 200.
+# The amount is cash per level for sells too. A sell level below the market price fills immediately.
+pnpm main place-live-limit-ladder --instrument AMD --side sell --step 5 --tier 170-180:10 --tier 185-200:20 --confirm
 ```
 
 ## Current portfolio export

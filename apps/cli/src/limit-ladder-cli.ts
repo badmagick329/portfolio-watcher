@@ -32,11 +32,25 @@ const LIMIT_LADDER_EXAMPLE_ARGS = [
   '138-130:40',
 ];
 
+/** Shown in --help; a test keeps it a valid, 7-order ascending ladder. */
+const LIMIT_LADDER_SELL_EXAMPLE_ARGS = [
+  '--instrument',
+  'AMD',
+  '--side',
+  'sell',
+  '--step',
+  '5',
+  '--tier',
+  '170-180:10',
+  '--tier',
+  '185-200:20',
+];
+
 const isLimitLadderHelpRequest = (args: string[]) =>
   args.length === 0 ||
   args.some((arg) => arg === '--help' || arg === '-h' || arg === 'help');
 
-const LIMIT_LADDER_HELP = `place-live-limit-ladder: place one limit order per price level, each spending a set cash amount.
+const LIMIT_LADDER_HELP = `place-live-limit-ladder: place one limit order per price level, each worth a set cash amount.
 
 Usage:
   place-live-limit-ladder --instrument <ticker> --side <buy|sell> --step <price>
@@ -47,8 +61,9 @@ Flags:
   --side <buy|sell>             Side for every order in the ladder.
   --step <price>                Price gap between levels, in the instrument's currency.
   --tier <from>-<to>:<amount>   One order every --step from <from> to <to>, both included, each
-                                spending up to <amount>. Repeat for more tiers; tiers must not
+                                worth up to <amount>. Repeat for more tiers; tiers must not
                                 share a price. Run from high to low for buys, low to high for sells.
+                                A sell level below the market price fills immediately.
   --time-validity <day|gtc>     day (default) expires unfilled orders at session end;
                                 gtc keeps them open until filled or cancelled.
   --confirm                     Send the orders live. Without it this is a dry run: nothing
@@ -59,12 +74,16 @@ Shares per order are <amount> / price, rounded down to ${QUANTITY_DECIMALS} deci
 its amount. Trading 212 allows ${MAX_PENDING_ORDERS_PER_TICKER} pending orders per ticker; gtc orders
 from earlier runs count toward it.
 
-Example:
+Examples:
   place-live-limit-ladder ${LIMIT_LADDER_EXAMPLE_ARGS.join(' ')}
   11 buys: $20 each at 150, 148, ... 140, then $40 each at 138, 136, ... 130.
 
+  place-live-limit-ladder ${LIMIT_LADDER_SELL_EXAMPLE_ARGS.join(' ')}
+  7 sells: $10 each at 170, 175, 180, then $20 each at 185, 190, ... 200.
+
 Asking an agent:
-  "AMD buy ladder, step $2: 150-140 at $20, 138-130 at $40."`;
+  "AMD buy ladder, step $2: 150-140 at $20, 138-130 at $40."
+  "AMD sell ladder, step $5: 170-180 at $10, 185-200 at $20."`;
 
 type LadderTier = { from: number; to: number; amount: number };
 
@@ -238,7 +257,7 @@ const planLimitLadder = (
         return {
           ok: false,
           error: validationError(
-            `Amount ${tier.amount} buys 0 shares at ${limitPrice}.`,
+            `Amount ${tier.amount} rounds to 0 shares at ${limitPrice}.`,
           ),
         };
       }
@@ -399,6 +418,7 @@ export {
   isLimitLadderHelpRequest,
   LIMIT_LADDER_EXAMPLE_ARGS,
   LIMIT_LADDER_HELP,
+  LIMIT_LADDER_SELL_EXAMPLE_ARGS,
   LIMIT_LADDER_USAGE,
   parseLimitLadderArgs,
   planLimitLadder,

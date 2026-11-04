@@ -9,6 +9,7 @@ import {
   isLimitLadderHelpRequest,
   LIMIT_LADDER_EXAMPLE_ARGS,
   LIMIT_LADDER_HELP,
+  LIMIT_LADDER_SELL_EXAMPLE_ARGS,
   parseLimitLadderArgs,
   planLimitLadder,
   runLimitLadder,
@@ -114,6 +115,19 @@ describe('help', () => {
     expect(LIMIT_LADDER_HELP).toContain(LIMIT_LADDER_EXAMPLE_ARGS.join(' '));
     expect(plan(parse(LIMIT_LADDER_EXAMPLE_ARGS))).toHaveLength(11);
   });
+
+  test('sell example is a valid 7-order ladder with ascending prices', () => {
+    expect(LIMIT_LADDER_HELP).toContain(
+      LIMIT_LADDER_SELL_EXAMPLE_ARGS.join(' '),
+    );
+
+    const input = parse(LIMIT_LADDER_SELL_EXAMPLE_ARGS);
+    const prices = plan(input).map((order) => order.limitPrice);
+
+    expect(input.side).toBe('sell');
+    expect(prices).toHaveLength(7);
+    expect(prices.slice(1).every((price, i) => price > prices[i]!)).toBe(true);
+  });
 });
 
 describe('parseLimitLadderArgs', () => {
@@ -194,6 +208,28 @@ describe('planLimitLadder', () => {
     expect(orders.map((order) => order.limitPrice)).toEqual([10, 12.5, 15]);
   });
 
+  test('plans a two-tier sell ladder upward with each tier amount', () => {
+    const orders = plan({
+      step: 5,
+      tiers: [
+        { from: 500, to: 510, amount: 10 },
+        { from: 515, to: 530, amount: 20 },
+      ],
+    });
+
+    expect(
+      orders.map(({ limitPrice, amount }) => [limitPrice, amount]),
+    ).toEqual([
+      [500, 10],
+      [505, 10],
+      [510, 10],
+      [515, 20],
+      [520, 20],
+      [525, 20],
+      [530, 20],
+    ]);
+  });
+
   test('does not floor exact divisions down a step', () => {
     const orders = plan({ step: 5, tiers: [{ from: 700, to: 700, amount: 7 }] });
 
@@ -266,6 +302,20 @@ describe('runLimitLadder', () => {
       'GOOD_TILL_CANCEL',
       'GOOD_TILL_CANCEL',
     ]);
+  });
+
+  test('sends side sell on every order of a sell ladder', async () => {
+    const input = parse(LIMIT_LADDER_SELL_EXAMPLE_ARGS);
+    const broker = fakeBroker();
+
+    await runLimitLadder({
+      input,
+      orders: plan(input),
+      placeLimitOrder: broker.placeLimitOrder,
+    });
+
+    expect(broker.calls).toHaveLength(7);
+    expect(broker.calls.every((call) => call.side === 'sell')).toBe(true);
   });
 
   test('reuses the first resolved ticker for later orders', async () => {
