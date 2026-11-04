@@ -4,6 +4,7 @@ import type {
   BrokerClientWithCache,
   Cache,
   HistoricalOrdersInput,
+  T212LimitOrderRequest,
 } from '@portfolio/domain';
 import {
   accountCashSchema,
@@ -93,12 +94,7 @@ const createTrading212Client = () => {
       body: input,
     });
 
-  const placeLimitOrder = (input: {
-    ticker: string;
-    quantity: number;
-    limitPrice: number;
-    timeValidity: 'DAY';
-  }) =>
+  const placeLimitOrder = (input: T212LimitOrderRequest) =>
     request({
       endPoint: endPoints.liveLimitOrders,
       schema: limitOrderResponseSchema,

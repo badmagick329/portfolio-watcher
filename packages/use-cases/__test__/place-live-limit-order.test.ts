@@ -110,6 +110,43 @@ describe('placeLiveLimitOrder', () => {
     );
   });
 
+  test('submits and audits the requested good-till-cancel validity', async () => {
+    const saveOrderExecutionAttempt = vi.fn(() => okAsync(undefined));
+    const placeLimitOrder = vi.fn(() => okAsync(limitOrderResponse));
+
+    const useCase = createPlaceLiveLimitOrder({
+      client: { placeLimitOrder } satisfies Pick<BrokerClient, 'placeLimitOrder'>,
+      dataManager: {
+        saveOrderExecutionAttempt,
+      } satisfies Pick<BrokerDataManager, 'saveOrderExecutionAttempt'>,
+      resolveInstrumentForOrder: () => okAsync(resolvedInstrument),
+      now: () => new Date('2026-04-04T10:20:00.000Z'),
+    });
+
+    const result = await useCase({
+      instrument: 'AAPL_US_EQ',
+      side: 'buy',
+      quantity: 2,
+      limitPrice: 90,
+      timeValidity: 'GOOD_TILL_CANCEL',
+      confirm: true,
+    });
+
+    expect(result.isOk() && result.value.timeValidity).toBe('GOOD_TILL_CANCEL');
+    expect(placeLimitOrder).toHaveBeenCalledWith({
+      ticker: 'AAPL_US_EQ',
+      quantity: 2,
+      limitPrice: 90,
+      timeValidity: 'GOOD_TILL_CANCEL',
+    });
+    expect(saveOrderExecutionAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        executionMode: 'submitted',
+        timeValidity: 'GOOD_TILL_CANCEL',
+      } satisfies Partial<OrderExecutionAttempt>),
+    );
+  });
+
   test('rejects an invalid limit price before resolving the instrument', async () => {
     const resolveInstrumentForOrder = vi.fn(() => okAsync(resolvedInstrument));
     const useCase = createPlaceLiveLimitOrder({

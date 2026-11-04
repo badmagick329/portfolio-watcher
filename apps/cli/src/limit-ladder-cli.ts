@@ -1,8 +1,10 @@
 import type {
   AppError,
+  LimitOrderTimeValidity,
   PlaceLimitOrderInput,
   PlaceLimitOrderResult,
 } from '@portfolio/domain';
+import { parseTimeValidity, timeValidityError } from './place-order-cli';
 
 const LIMIT_LADDER_USAGE =
   'Usage: place-live-limit-ladder --instrument <ticker> --side <buy|sell> --step <price> --tier <from>-<to>:<amount> [--tier ...] [--time-validity <day|gtc>] [--confirm]\nRun with --help for flag details and examples.';
@@ -15,15 +17,6 @@ const MAX_PENDING_ORDERS_PER_TICKER = 50;
 
 /** Trading 212 allows one limit order request every 2 seconds. */
 const SUBMIT_INTERVAL_MS = 2_100;
-
-type LimitOrderTimeValidity = 'DAY' | 'GOOD_TILL_CANCEL';
-
-/**
- * Time validities the limit-order use case can send today. GOOD_TILL_CANCEL is
- * parsed and carried through the ladder so that supporting it only means
- * adding it here and passing `timeValidity` on to the use case.
- */
-const SUPPORTED_TIME_VALIDITIES: readonly LimitOrderTimeValidity[] = ['DAY'];
 
 /** Shown in --help; a test keeps it a valid, 11-order ladder. */
 const LIMIT_LADDER_EXAMPLE_ARGS = [
@@ -43,10 +36,6 @@ const isLimitLadderHelpRequest = (args: string[]) =>
   args.length === 0 ||
   args.some((arg) => arg === '--help' || arg === '-h' || arg === 'help');
 
-const gtcHelp = SUPPORTED_TIME_VALIDITIES.includes('GOOD_TILL_CANCEL')
-  ? 'gtc keeps them open until filled or cancelled.'
-  : 'gtc is not implemented yet and sends nothing.';
-
 const LIMIT_LADDER_HELP = `place-live-limit-ladder: place one limit order per price level, each spending a set cash amount.
 
 Usage:
@@ -61,13 +50,14 @@ Flags:
                                 spending up to <amount>. Repeat for more tiers; tiers must not
                                 share a price. Run from high to low for buys, low to high for sells.
   --time-validity <day|gtc>     day (default) expires unfilled orders at session end;
-                                ${gtcHelp}
+                                gtc keeps them open until filled or cancelled.
   --confirm                     Send the orders live. Without it this is a dry run: nothing
                                 reaches the broker.
   --help                        Show this help.
 
 Shares per order are <amount> / price, rounded down to ${QUANTITY_DECIMALS} decimals so no order exceeds
-its amount. Trading 212 allows ${MAX_PENDING_ORDERS_PER_TICKER} pending orders per ticker.
+its amount. Trading 212 allows ${MAX_PENDING_ORDERS_PER_TICKER} pending orders per ticker; gtc orders
+from earlier runs count toward it.
 
 Example:
   place-live-limit-ladder ${LIMIT_LADDER_EXAMPLE_ARGS.join(' ')}
@@ -158,12 +148,7 @@ const parseLimitLadderArgs = (args: string[]): ParseResult<LimitLadderInput> => 
     } else if (arg === '--time-validity') {
       const parsed = parseTimeValidity(nextValue);
       if (!parsed) {
-        return {
-          ok: false,
-          error: validationError(
-            'The --time-validity flag must be either "day" or "gtc".',
-          ),
-        };
+        return { ok: false, error: timeValidityError() };
       }
       timeValidity = parsed;
     } else {
@@ -274,14 +259,6 @@ const planLimitLadder = (
   return { ok: true, value: orders };
 };
 
-/** Returns a warning when the ladder asks for a validity not yet wired up. */
-const unsupportedTimeValidityWarning = (
-  timeValidity: LimitOrderTimeValidity,
-): string | null =>
-  SUPPORTED_TIME_VALIDITIES.includes(timeValidity)
-    ? null
-    : `Time validity ${timeValidity} is not implemented yet; only DAY orders can be placed. Nothing was sent.`;
-
 /**
  * Places (or dry-runs) each order in sequence and stops at the first failure,
  * so a rejected order never leaves later levels half-submitted. The ticker
@@ -311,6 +288,7 @@ const runLimitLadder = async ({
       side: input.side,
       quantity: order.quantity,
       limitPrice: order.limitPrice,
+      timeValidity: input.timeValidity,
       confirm: input.confirm,
     }).match(
       (result): LadderOrderOutcome => ({ ...order, result, error: null }),
@@ -386,20 +364,6 @@ const parseTier = (value: string): LadderTier | null => {
   return from > 0 && to > 0 && amount > 0 ? { from, to, amount } : null;
 };
 
-const parseTimeValidity = (value: string): LimitOrderTimeValidity | null => {
-  const normalized = value.toLowerCase();
-
-  if (normalized === 'day') {
-    return 'DAY';
-  }
-
-  if (normalized === 'gtc' || normalized === 'good_till_cancel') {
-    return 'GOOD_TILL_CANCEL';
-  }
-
-  return null;
-};
-
 const floorQuantity = (raw: number) => {
   const factor = 10 ** QUANTITY_DECIMALS;
   // The epsilon keeps exact divisions such as 7 / 700 from flooring to 0.009.
@@ -439,6 +403,5 @@ export {
   parseLimitLadderArgs,
   planLimitLadder,
   runLimitLadder,
-  unsupportedTimeValidityWarning,
 };
-export type { LadderOrder, LimitLadderInput, LimitOrderTimeValidity };
+export type { LadderOrder, LimitLadderInput };

@@ -145,6 +145,7 @@ Live order placement:
 ```bash
 pnpm main place-live-order --instrument AMD --side buy --value 100 --confirm
 pnpm main place-live-limit-order --instrument AMD --side buy --quantity 1 --limit-price 100 --confirm
+# Limit orders and ladders expire at session end unless given --time-validity gtc.
 # One buy per $2 level: $20 each from 150 to 140, $40 each from 138 to 130.
 # Run with --help for every flag and an example request to give an agent.
 pnpm main place-live-limit-ladder --instrument AMD --side buy --step 2 --tier 150-140:20 --tier 138-130:40 --confirm

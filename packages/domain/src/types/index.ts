@@ -411,11 +411,14 @@ type T212MarketOrderRequest = {
   extendedHours: boolean;
 };
 
+/** `DAY` expires at session end; `GOOD_TILL_CANCEL` stays open until filled or cancelled. */
+type LimitOrderTimeValidity = 'DAY' | 'GOOD_TILL_CANCEL';
+
 type T212LimitOrderRequest = {
   ticker: string;
   quantity: number;
   limitPrice: number;
-  timeValidity: 'DAY';
+  timeValidity: LimitOrderTimeValidity;
 };
 
 type T212OrderResponse = {
@@ -449,7 +452,7 @@ type OrderExecutionAttempt = {
   referencePrice: number | null;
   extendedHours: boolean;
   limitPrice: number | null;
-  timeValidity: 'DAY' | null;
+  timeValidity: LimitOrderTimeValidity | null;
   executionMode: 'dry_run' | 'submitted';
   brokerRequestPayload: string;
   brokerResponsePayload: string | null;
@@ -492,6 +495,8 @@ type PlaceLimitOrderInput = {
   side: 'buy' | 'sell';
   quantity: number;
   limitPrice: number;
+  /** Defaults to `DAY`. */
+  timeValidity?: LimitOrderTimeValidity;
   confirm?: boolean;
 };
 
@@ -506,7 +511,7 @@ type PlaceLimitOrderResult = {
   referencePrice: null;
   extendedHours: false;
   limitPrice: number;
-  timeValidity: 'DAY';
+  timeValidity: LimitOrderTimeValidity;
   brokerOrder: T212LimitOrderResponse | null;
 };
 
@@ -621,6 +626,7 @@ export type {
   T212InstrumentMetadataItem,
   T212InstrumentCatalogItem,
   T212MarketOrderRequest,
+  LimitOrderTimeValidity,
   T212LimitOrderRequest,
   T212OrderResponse,
   T212MarketOrderResponse,

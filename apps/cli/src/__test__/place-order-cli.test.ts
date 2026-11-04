@@ -80,9 +80,29 @@ describe('parsePlaceLimitOrderArgs', () => {
         side: 'buy',
         quantity: 1,
         limitPrice: 100.23,
+        timeValidity: 'DAY',
         confirm: true,
       });
     }
+  });
+
+  test('accepts gtc as GOOD_TILL_CANCEL and rejects other validities', () => {
+    const args = [
+      '--instrument',
+      'AAPL',
+      '--side',
+      'buy',
+      '--quantity',
+      '1',
+      '--limit-price',
+      '100.23',
+      '--time-validity',
+    ];
+    const gtc = parsePlaceLimitOrderArgs([...args, 'gtc']);
+    const invalid = parsePlaceLimitOrderArgs([...args, 'week']);
+
+    expect(gtc.ok && gtc.value.timeValidity).toBe('GOOD_TILL_CANCEL');
+    expect(invalid.ok).toBe(false);
   });
 
   test('rejects a missing limit price', () => {

@@ -2,6 +2,7 @@ import type {
   AppError,
   BrokerClient,
   BrokerDataManager,
+  LimitOrderTimeValidity,
   OrderExecutionAttempt,
   PlaceLimitOrderInput,
   PlaceLimitOrderResult,
@@ -35,6 +36,8 @@ const createPlaceLiveLimitOrder = ({
       return errAsync(validationError);
     }
 
+    const timeValidity = input.timeValidity ?? 'DAY';
+
     return resolveInstrumentForOrder(input.instrument).andThen(
       (resolvedInstrument) => {
         const brokerRequest = toLimitOrderRequest({
@@ -42,6 +45,7 @@ const createPlaceLiveLimitOrder = ({
           side: input.side,
           quantity: input.quantity,
           limitPrice: input.limitPrice,
+          timeValidity,
         });
         const baseAttempt = {
           orderType: 'limit' as const,
@@ -58,7 +62,7 @@ const createPlaceLiveLimitOrder = ({
           referencePrice: null,
           extendedHours: false,
           limitPrice: input.limitPrice,
-          timeValidity: 'DAY' as const,
+          timeValidity,
           brokerRequestPayload: JSON.stringify(brokerRequest),
           attemptedAt,
         };
@@ -85,7 +89,7 @@ const createPlaceLiveLimitOrder = ({
                   referencePrice: null,
                   extendedHours: false,
                   limitPrice: input.limitPrice,
-                  timeValidity: 'DAY',
+                  timeValidity,
                   brokerOrder: null,
                 }) satisfies PlaceLimitOrderResult,
             );
@@ -115,7 +119,7 @@ const createPlaceLiveLimitOrder = ({
                     referencePrice: null,
                     extendedHours: false,
                     limitPrice: input.limitPrice,
-                    timeValidity: 'DAY',
+                    timeValidity,
                     brokerOrder,
                   }) satisfies PlaceLimitOrderResult,
               ),
@@ -172,7 +176,7 @@ const createPlaceLiveLimitOrder = ({
         referencePrice: null,
         extendedHours: false,
         limitPrice: input.limitPrice,
-        timeValidity: 'DAY',
+        timeValidity: input.timeValidity ?? 'DAY',
         executionMode: input.confirm ? 'submitted' : 'dry_run',
         brokerRequestPayload: '',
         brokerResponsePayload: null,
@@ -229,16 +233,18 @@ const toLimitOrderRequest = ({
   side,
   quantity,
   limitPrice,
+  timeValidity,
 }: {
   resolvedInstrument: ResolvedOrderInstrument;
   side: 'buy' | 'sell';
   quantity: number;
   limitPrice: number;
+  timeValidity: LimitOrderTimeValidity;
 }): T212LimitOrderRequest => ({
   ticker: resolvedInstrument.ticker,
   quantity: side === 'sell' ? -quantity : quantity,
   limitPrice,
-  timeValidity: 'DAY',
+  timeValidity,
 });
 
 export { createPlaceLiveLimitOrder };

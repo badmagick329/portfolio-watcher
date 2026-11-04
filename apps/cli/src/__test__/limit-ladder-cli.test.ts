@@ -12,7 +12,6 @@ import {
   parseLimitLadderArgs,
   planLimitLadder,
   runLimitLadder,
-  unsupportedTimeValidityWarning,
   type LimitLadderInput,
 } from '../limit-ladder-cli';
 
@@ -63,7 +62,7 @@ const fakeResult = (
   referencePrice: null,
   extendedHours: false,
   limitPrice: input.limitPrice,
-  timeValidity: 'DAY',
+  timeValidity: input.timeValidity ?? 'DAY',
   brokerOrder: input.confirm
     ? ({ id, status: 'NEW' } as PlaceLimitOrderResult['brokerOrder'])
     : null,
@@ -241,16 +240,34 @@ describe('planLimitLadder', () => {
   });
 });
 
-describe('unsupportedTimeValidityWarning', () => {
-  test('allows DAY and warns for GOOD_TILL_CANCEL', () => {
-    expect(unsupportedTimeValidityWarning('DAY')).toBeNull();
-    expect(unsupportedTimeValidityWarning('GOOD_TILL_CANCEL')).toMatch(
-      /not implemented yet/,
-    );
-  });
-});
-
 describe('runLimitLadder', () => {
+  test('sends the requested time validity on every order', async () => {
+    const day = parse(muLadderArgs);
+    const gtc = parse([...muLadderArgs, '--time-validity', 'gtc']);
+    const dayBroker = fakeBroker();
+    const gtcBroker = fakeBroker();
+
+    await runLimitLadder({
+      input: day,
+      orders: plan(day).slice(0, 2),
+      placeLimitOrder: dayBroker.placeLimitOrder,
+    });
+    await runLimitLadder({
+      input: gtc,
+      orders: plan(gtc).slice(0, 2),
+      placeLimitOrder: gtcBroker.placeLimitOrder,
+    });
+
+    expect(dayBroker.calls.map((call) => call.timeValidity)).toEqual([
+      'DAY',
+      'DAY',
+    ]);
+    expect(gtcBroker.calls.map((call) => call.timeValidity)).toEqual([
+      'GOOD_TILL_CANCEL',
+      'GOOD_TILL_CANCEL',
+    ]);
+  });
+
   test('reuses the first resolved ticker for later orders', async () => {
     const input = parse(muLadderArgs);
     const broker = fakeBroker();

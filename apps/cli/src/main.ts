@@ -13,7 +13,6 @@ import {
   parseLimitLadderArgs,
   planLimitLadder,
   runLimitLadder,
-  unsupportedTimeValidityWarning,
 } from './limit-ladder-cli';
 import {
   PLACE_LIMIT_ORDER_USAGE,
@@ -199,16 +198,6 @@ const main = async () => {
 
         if (!plan.ok) {
           console.error(plan.error.message);
-          process.exitCode = 1;
-          return;
-        }
-
-        const warning = unsupportedTimeValidityWarning(
-          parsed.value.timeValidity,
-        );
-
-        if (warning) {
-          console.warn(`WARNING: ${warning}`);
           process.exitCode = 1;
           return;
         }

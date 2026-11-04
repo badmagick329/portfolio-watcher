@@ -1,5 +1,6 @@
 import type {
   AppError,
+  LimitOrderTimeValidity,
   PlaceLimitOrderInput,
   PlaceMarketOrderInput,
 } from '@portfolio/domain';
@@ -8,7 +9,7 @@ const PLACE_ORDER_USAGE =
   'Usage: pnpm cli -- place-live-order --instrument <value> --side <buy|sell> (--quantity <number> | --value <number>) [--extended-hours] [--confirm]';
 
 const PLACE_LIMIT_ORDER_USAGE =
-  'Usage: pnpm cli -- place-live-limit-order --instrument <value> --side <buy|sell> --quantity <number> --limit-price <number> [--confirm]';
+  'Usage: pnpm cli -- place-live-limit-order --instrument <value> --side <buy|sell> --quantity <number> --limit-price <number> [--time-validity <day|gtc>] [--confirm]';
 
 const parsePlaceOrderArgs = (
   args: string[],
@@ -197,6 +198,16 @@ const parsePlaceLimitOrderArgs = (
       continue;
     }
 
+    if (arg === '--time-validity') {
+      const timeValidity = parseTimeValidity(nextValue);
+      if (!timeValidity) {
+        return { ok: false, error: timeValidityError() };
+      }
+      parsed.timeValidity = timeValidity;
+      index += 1;
+      continue;
+    }
+
     return { ok: false, error: validationError(`Unknown flag: ${arg}.`) };
   }
 
@@ -243,10 +254,29 @@ const parsePlaceLimitOrderArgs = (
       side: parsed.side,
       quantity: parsed.quantity,
       limitPrice: parsed.limitPrice,
+      timeValidity: parsed.timeValidity ?? 'DAY',
       confirm: parsed.confirm ?? false,
     },
   };
 };
+
+/** Parses a `--time-validity` value: `day`, or `gtc` / `good_till_cancel`. */
+const parseTimeValidity = (value: string): LimitOrderTimeValidity | null => {
+  const normalized = value.toLowerCase();
+
+  if (normalized === 'day') {
+    return 'DAY';
+  }
+
+  if (normalized === 'gtc' || normalized === 'good_till_cancel') {
+    return 'GOOD_TILL_CANCEL';
+  }
+
+  return null;
+};
+
+const timeValidityError = (): AppError =>
+  validationError('The --time-validity flag must be either "day" or "gtc".');
 
 const validationError = (message: string): AppError => ({
   code: 'VALIDATION',
@@ -256,6 +286,8 @@ const validationError = (message: string): AppError => ({
 export {
   parsePlaceLimitOrderArgs,
   parsePlaceOrderArgs,
+  parseTimeValidity,
+  timeValidityError,
   PLACE_LIMIT_ORDER_USAGE,
   PLACE_ORDER_USAGE,
 };
