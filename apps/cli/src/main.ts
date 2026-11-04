@@ -6,6 +6,16 @@ import type {
 } from '@portfolio/domain';
 import { CATEGORIES_USAGE, parseCategoriesArgs } from './categories-cli';
 import {
+  LIMIT_LADDER_HELP,
+  LIMIT_LADDER_USAGE,
+  formatLimitLadderRun,
+  isLimitLadderHelpRequest,
+  parseLimitLadderArgs,
+  planLimitLadder,
+  runLimitLadder,
+  unsupportedTimeValidityWarning,
+} from './limit-ladder-cli';
+import {
   PLACE_LIMIT_ORDER_USAGE,
   PLACE_ORDER_USAGE,
   parsePlaceLimitOrderArgs,
@@ -166,6 +176,54 @@ const main = async () => {
           },
           (e: AppError) => console.error(e.message),
         );
+
+        return;
+      }
+
+      if (command === 'place-live-limit-ladder') {
+        if (isLimitLadderHelpRequest(args)) {
+          console.log(LIMIT_LADDER_HELP);
+          return;
+        }
+
+        const parsed = parseLimitLadderArgs(args);
+
+        if (!parsed.ok) {
+          console.error(parsed.error.message);
+          console.log(LIMIT_LADDER_USAGE);
+          process.exitCode = 1;
+          return;
+        }
+
+        const plan = planLimitLadder(parsed.value);
+
+        if (!plan.ok) {
+          console.error(plan.error.message);
+          process.exitCode = 1;
+          return;
+        }
+
+        const warning = unsupportedTimeValidityWarning(
+          parsed.value.timeValidity,
+        );
+
+        if (warning) {
+          console.warn(`WARNING: ${warning}`);
+          process.exitCode = 1;
+          return;
+        }
+
+        const run = await runLimitLadder({
+          input: parsed.value,
+          orders: plan.value,
+          placeLimitOrder: ops.placeLiveLimitOrder,
+        });
+
+        console.log(formatLimitLadderRun(parsed.value, run));
+
+        if (run.outcomes.some((outcome) => outcome.error)) {
+          process.exitCode = 1;
+        }
 
         return;
       }
