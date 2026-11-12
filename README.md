@@ -32,9 +32,12 @@ pnpm install
 
 ```env
 SQLITE_DB=./sqlite/portfolio-watcher.db
-API_KEY=your_trading212_api_key
-API_SECRET=your_trading212_api_secret
 ```
+
+Trading 212 credentials (`API_KEY`, `API_SECRET`) come from Doppler
+(project `portfolio-watcher`, config `dev`), not `.env`. Prefix any command
+that talks to Trading 212 with `doppler run --`; without it the command fails
+with "Trading 212 API credentials are required."
 
 3. Run migrations
 
@@ -45,10 +48,12 @@ pnpm db:migrate
 4. Start the web app
 
 ```bash
-pnpm dev:web
+doppler run -- pnpm dev:web
 ```
 
-That gives you the web app plus Trading 212-backed portfolio data.
+That gives you the web app plus Trading 212-backed portfolio data. The web
+app listens on `127.0.0.1` only, so it isn't reachable from other machines on
+your network.
 
 ## First-time flow
 
@@ -71,14 +76,14 @@ Important:
 Run the web app:
 
 ```bash
-pnpm dev:web
+doppler run -- pnpm dev:web
 ```
 
 Build and run production mode:
 
 ```bash
 pnpm build:web
-pnpm start:web
+doppler run -- pnpm start:web
 ```
 
 Run tests:
@@ -104,7 +109,7 @@ The rest of the commands can be ignored as there are web equivalents for them.
 Main sync:
 
 ```bash
-pnpm main sync
+doppler run -- pnpm main sync
 ```
 
 This runs:
@@ -115,7 +120,7 @@ This runs:
 Instrument catalog sync:
 
 ```bash
-pnpm main sync-instruments
+doppler run -- pnpm main sync-instruments
 ```
 
 Category management:
@@ -143,15 +148,15 @@ pnpm main sync-risk-metrics
 Live order placement:
 
 ```bash
-pnpm main place-live-order --instrument AMD --side buy --value 100 --confirm
-pnpm main place-live-limit-order --instrument AMD --side buy --quantity 1 --limit-price 100 --confirm
+doppler run -- pnpm main place-live-order --instrument AMD --side buy --value 100 --confirm
+doppler run -- pnpm main place-live-limit-order --instrument AMD --side buy --quantity 1 --limit-price 100 --confirm
 # Limit orders and ladders expire at session end unless given --time-validity gtc.
 # One buy per $2 level: $20 each from 150 to 140, $40 each from 138 to 130.
 # Run with --help for every flag and an example request to give an agent.
-pnpm main place-live-limit-ladder --instrument AMD --side buy --step 2 --tier 150-140:20 --tier 138-130:40 --confirm
+doppler run -- pnpm main place-live-limit-ladder --instrument AMD --side buy --step 2 --tier 150-140:20 --tier 138-130:40 --confirm
 # One sell per $5 level, stepping up: $10 each at 170, 175 and 180, $20 each from 185 to 200.
 # The amount is cash per level for sells too. A sell level below the market price fills immediately.
-pnpm main place-live-limit-ladder --instrument AMD --side sell --step 5 --tier 170-180:10 --tier 185-200:20 --confirm
+doppler run -- pnpm main place-live-limit-ladder --instrument AMD --side sell --step 5 --tier 170-180:10 --tier 185-200:20 --confirm
 ```
 
 ## Current portfolio export
