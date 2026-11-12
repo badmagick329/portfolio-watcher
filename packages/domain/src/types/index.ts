@@ -488,6 +488,8 @@ type PlaceMarketOrderResult = {
   referencePrice: number | null;
   extendedHours: boolean;
   brokerOrder: T212MarketOrderResponse | null;
+  /** Set when the order was placed but its audit record could not be saved. */
+  auditWarning: string | null;
 };
 
 type PlaceLimitOrderInput = {
@@ -513,6 +515,8 @@ type PlaceLimitOrderResult = {
   limitPrice: number;
   timeValidity: LimitOrderTimeValidity;
   brokerOrder: T212LimitOrderResponse | null;
+  /** Set when the order was placed but its audit record could not be saved. */
+  auditWarning: string | null;
 };
 
 type InstrumentPriceProvider = 'fmp' | 'eodhd' | 'manual' | 't212';
@@ -593,7 +597,16 @@ type RateLimitResponse = {
 
 type AppError =
   | { code: 'FILE_IO'; message: string }
-  | { code: 'API'; message: string }
+  | {
+      code: 'API';
+      message: string;
+      /**
+       * HTTP status when the broker answered with an error response. Absent
+       * when the failure came from reading a 2xx response, so callers can tell
+       * "the broker refused" from "the broker answered but we could not parse it".
+       */
+      status?: number;
+    }
   | { code: 'VALIDATION'; message: string }
   | { code: 'NETWORK'; message: string }
   | {
@@ -602,7 +615,13 @@ type AppError =
       rateLimitResponse: RateLimitResponse;
     }
   | { code: 'FORBIDDEN'; message: string }
-  | { code: 'DATABASE'; message: string };
+  | { code: 'DATABASE'; message: string }
+  /**
+   * A live order request failed in a way that does not prove the broker
+   * rejected it, so the order may exist. Kept distinct so callers never
+   * present it as a plain failure that invites a duplicate retry.
+   */
+  | { code: 'ORDER_OUTCOME_UNKNOWN'; message: string };
 
 type SyncStepResult =
   | 'rate_limited'

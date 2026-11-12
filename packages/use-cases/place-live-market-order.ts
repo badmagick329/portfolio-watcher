@@ -9,6 +9,10 @@ import type {
   T212MarketOrderRequest,
 } from '@portfolio/domain';
 import { errAsync, okAsync, type ResultAsync } from 'neverthrow';
+import {
+  normalizeOrderPlacementError,
+  submitLiveOrder,
+} from './submit-live-order';
 
 type Params = {
   client: Pick<BrokerClient, 'placeMarketOrder'>;
@@ -22,16 +26,30 @@ type Params = {
   now?: () => Date;
 };
 
+type PreparedMarketOrder = {
+  resolvedInstrument: ResolvedOrderInstrument;
+  brokerRequest: T212MarketOrderRequest;
+  baseAttempt: Omit<
+    OrderExecutionAttempt,
+    'executionMode' | 'brokerResponsePayload' | 'errorCode' | 'errorMessage'
+  >;
+  toResult: (
+    executionMode: PlaceMarketOrderResult['executionMode'],
+    brokerOrder: PlaceMarketOrderResult['brokerOrder'],
+    auditWarning: string | null,
+  ) => PlaceMarketOrderResult;
+};
+
 const createPlaceLiveMarketOrder = ({
   client,
   dataManager,
   resolveInstrumentForOrder,
   now = () => new Date(),
 }: Params) => {
-  const placeLiveMarketOrder = (
+  const prepareMarketOrder = (
     input: PlaceMarketOrderInput,
     attemptedAt: string,
-  ): ResultAsync<PlaceMarketOrderResult, AppError> => {
+  ): ResultAsync<PreparedMarketOrder, AppError> => {
     const validationError = validatePlaceMarketOrderInput(input);
 
     if (validationError) {
@@ -44,141 +62,139 @@ const createPlaceLiveMarketOrder = ({
           input,
           resolvedInstrument,
           dataManager,
-        }).andThen(({ derivedQuantity, referencePrice, requestedMode }) => {
+        }).map(({ derivedQuantity, referencePrice, requestedMode }): PreparedMarketOrder => {
+          const extendedHours = input.extendedHours ?? false;
           const brokerRequest = toMarketOrderRequest({
             resolvedInstrument,
             side: input.side,
             derivedQuantity,
-            extendedHours: input.extendedHours ?? false,
+            extendedHours,
           });
-          const baseAttempt = {
-            orderType: 'market' as const,
-            environment: 'live' as const,
-            instrumentInput: input.instrument,
-            resolvedTicker: resolvedInstrument.ticker,
-            resolvedIsin: resolvedInstrument.isin,
-            resolvedName: resolvedInstrument.name,
-            side: input.side,
-            requestedMode,
-            requestedQuantity: input.quantity ?? null,
-            requestedValue: input.value ?? null,
-            derivedQuantity,
-            referencePrice,
-            extendedHours: input.extendedHours ?? false,
-            limitPrice: null,
-            timeValidity: null,
-            brokerRequestPayload: JSON.stringify(brokerRequest),
-            attemptedAt,
+
+          return {
+            resolvedInstrument,
+            brokerRequest,
+            baseAttempt: {
+              orderType: 'market',
+              environment: 'live',
+              instrumentInput: input.instrument,
+              resolvedTicker: resolvedInstrument.ticker,
+              resolvedIsin: resolvedInstrument.isin,
+              resolvedName: resolvedInstrument.name,
+              side: input.side,
+              requestedMode,
+              requestedQuantity: input.quantity ?? null,
+              requestedValue: input.value ?? null,
+              derivedQuantity,
+              referencePrice,
+              extendedHours,
+              limitPrice: null,
+              timeValidity: null,
+              brokerRequestPayload: JSON.stringify(brokerRequest),
+              attemptedAt,
+            },
+            toResult: (executionMode, brokerOrder, auditWarning) => ({
+              environment: 'live',
+              executionMode,
+              resolvedInstrument,
+              requestedMode,
+              requestedQuantity: input.quantity ?? null,
+              requestedValue: input.value ?? null,
+              derivedQuantity,
+              referencePrice,
+              extendedHours,
+              brokerOrder,
+              auditWarning,
+            }),
           };
-
-          if (!input.confirm) {
-            return dataManager
-              .saveOrderExecutionAttempt({
-                ...baseAttempt,
-                executionMode: 'dry_run',
-                brokerResponsePayload: null,
-                errorCode: null,
-                errorMessage: null,
-              })
-              .map(
-                () =>
-                  ({
-                    environment: 'live',
-                    executionMode: 'dry_run',
-                    resolvedInstrument,
-                    requestedMode,
-                    requestedQuantity: input.quantity ?? null,
-                    requestedValue: input.value ?? null,
-                    derivedQuantity,
-                    referencePrice,
-                    extendedHours: input.extendedHours ?? false,
-                    brokerOrder: null,
-                  }) satisfies PlaceMarketOrderResult,
-              );
-          }
-
-          return client.placeMarketOrder(brokerRequest).andThen((brokerOrder) =>
-            dataManager
-              .saveOrderExecutionAttempt({
-                ...baseAttempt,
-                executionMode: 'submitted',
-                brokerResponsePayload: JSON.stringify(brokerOrder),
-                errorCode: null,
-                errorMessage: null,
-              })
-              .map(
-                () =>
-                  ({
-                    environment: 'live',
-                    executionMode: 'submitted',
-                    resolvedInstrument,
-                    requestedMode,
-                    requestedQuantity: input.quantity ?? null,
-                    requestedValue: input.value ?? null,
-                    derivedQuantity,
-                    referencePrice,
-                    extendedHours: input.extendedHours ?? false,
-                    brokerOrder,
-                  }) satisfies PlaceMarketOrderResult,
-              ),
-          );
         }),
     );
   };
 
-  return (input: PlaceMarketOrderInput): ResultAsync<PlaceMarketOrderResult, AppError> => {
+  /**
+   * Records an attempt that failed before reaching the broker. Broker failures
+   * are recorded by `submitLiveOrder` with the full request, so they must not
+   * pass through here a second time.
+   */
+  const recordPreparationFailure = (
+    input: PlaceMarketOrderInput,
+    attemptedAt: string,
+    error: AppError,
+  ): ResultAsync<never, AppError> => {
+    const normalizedError = normalizeOrderPlacementError(error);
+    const validationError = validatePlaceMarketOrderInput(input);
+    if (validationError) {
+      return errAsync(normalizedError);
+    }
+
+    return resolveInstrumentForOrder(input.instrument)
+      .orElse(() => okAsync(null))
+      .andThen((resolvedInstrument) => {
+        const fallbackAttempt: OrderExecutionAttempt = {
+          orderType: 'market',
+          environment: 'live',
+          instrumentInput: input.instrument,
+          resolvedTicker: resolvedInstrument?.ticker ?? '',
+          resolvedIsin: resolvedInstrument?.isin ?? '',
+          resolvedName: resolvedInstrument?.name ?? '',
+          side: input.side,
+          requestedMode: input.quantity !== undefined ? 'quantity' : 'value',
+          requestedQuantity: input.quantity ?? null,
+          requestedValue: input.value ?? null,
+          derivedQuantity: 0,
+          referencePrice: null,
+          extendedHours: input.extendedHours ?? false,
+          limitPrice: null,
+          timeValidity: null,
+          executionMode: input.confirm ? 'submitted' : 'dry_run',
+          brokerRequestPayload: '',
+          brokerResponsePayload: null,
+          errorCode: normalizedError.code,
+          errorMessage: normalizedError.message,
+          attemptedAt,
+        };
+
+        return dataManager
+          .saveOrderExecutionAttempt(fallbackAttempt)
+          .orElse(() => okAsync(undefined))
+          .andThen(() => errAsync(normalizedError));
+      });
+  };
+
+  return (
+    input: PlaceMarketOrderInput,
+  ): ResultAsync<PlaceMarketOrderResult, AppError> => {
     const attemptedAt = now().toISOString();
 
-    return placeLiveMarketOrder(input, attemptedAt).orElse((error) => {
-      const normalizedError = normalizeOrderPlacementError(error);
-      const validationError = validatePlaceMarketOrderInput(input);
-      if (validationError) {
-        return errAsync(normalizedError);
-      }
-
-      return resolveInstrumentForOrder(input.instrument)
-        .orElse(() => okAsync(null))
-        .andThen((resolvedInstrument) => {
-          const fallbackAttempt: OrderExecutionAttempt = {
-            orderType: 'market',
-            environment: 'live',
-            instrumentInput: input.instrument,
-            resolvedTicker: resolvedInstrument?.ticker ?? '',
-            resolvedIsin: resolvedInstrument?.isin ?? '',
-            resolvedName: resolvedInstrument?.name ?? '',
-            side: input.side,
-            requestedMode: input.quantity !== undefined ? 'quantity' : 'value',
-            requestedQuantity: input.quantity ?? null,
-            requestedValue: input.value ?? null,
-            derivedQuantity: 0,
-            referencePrice: null,
-            extendedHours: input.extendedHours ?? false,
-            limitPrice: null,
-            timeValidity: null,
-            executionMode: input.confirm ? 'submitted' : 'dry_run',
-            brokerRequestPayload: '',
-            brokerResponsePayload: null,
-            errorCode: normalizedError.code,
-            errorMessage: normalizedError.message,
-            attemptedAt,
-          };
-
+    return prepareMarketOrder(input, attemptedAt)
+      .orElse((error) => recordPreparationFailure(input, attemptedAt, error))
+      .andThen(({ brokerRequest, baseAttempt, toResult }) => {
+        if (!input.confirm) {
           return dataManager
-            .saveOrderExecutionAttempt(fallbackAttempt)
-            .orElse(() => okAsync(undefined))
-            .andThen(() => errAsync(normalizedError));
+            .saveOrderExecutionAttempt({
+              ...baseAttempt,
+              executionMode: 'dry_run',
+              brokerResponsePayload: null,
+              errorCode: null,
+              errorMessage: null,
+            })
+            .map(() => toResult('dry_run', null, null));
+        }
+
+        return submitLiveOrder({
+          brokerOrder: client.placeMarketOrder(brokerRequest),
+          recordAttempt: (outcome) =>
+            dataManager.saveOrderExecutionAttempt({
+              ...baseAttempt,
+              executionMode: 'submitted',
+              ...outcome,
+            }),
+          toResult: (brokerOrder, auditWarning) =>
+            toResult('submitted', brokerOrder, auditWarning),
         });
-    });
+      });
   };
 };
-
-const normalizeOrderPlacementError = (error: AppError): AppError =>
-  error.code === 'FORBIDDEN'
-    ? {
-        ...error,
-        message: 'Broker key does not allow live order placement.',
-      }
-    : error;
 
 const validatePlaceMarketOrderInput = (
   input: PlaceMarketOrderInput,

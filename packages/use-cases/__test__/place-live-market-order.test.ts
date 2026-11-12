@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import type {
+  AppError,
   BrokerClient,
   BrokerDataManager,
   InstrumentPriceSnapshot,
@@ -7,7 +8,7 @@ import type {
   ResolvedOrderInstrument,
   T212MarketOrderResponse,
 } from '@portfolio/domain';
-import { errAsync, okAsync } from 'neverthrow';
+import { errAsync, okAsync, type ResultAsync } from 'neverthrow';
 import { createPlaceLiveMarketOrder } from '../place-live-market-order';
 
 const resolvedInstrument: ResolvedOrderInstrument = {
@@ -183,4 +184,98 @@ describe('placeLiveMarketOrder', () => {
       );
     }
   });
+
+  test('returns a 4xx broker rejection as is and audits it once', async () => {
+    const { submit, saveOrderExecutionAttempt } = confirmedOrderWith(
+      errAsync({ code: 'API', message: 'Rejected', status: 400 } as const),
+    );
+
+    const result = await submit();
+
+    expect(result.isErr() && result.error.code).toBe('API');
+    expect(saveOrderExecutionAttempt).toHaveBeenCalledTimes(1);
+    expect(saveOrderExecutionAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        executionMode: 'submitted',
+        derivedQuantity: 2,
+        errorCode: 'API',
+      } satisfies Partial<OrderExecutionAttempt>),
+    );
+  });
+
+  test.each([
+    ['a network error', { code: 'NETWORK', message: 'Request failed: socket hang up' }],
+    ['a 5xx response', { code: 'API', message: 'Trading212 returned 503', status: 503 }],
+    ['an unreadable 2xx body', { code: 'API', message: 'Invalid JSON body: Unexpected end' }],
+  ] satisfies [string, AppError][])(
+    'reports %s as an unknown outcome and audits it once',
+    async (_, brokerError) => {
+      const { submit, saveOrderExecutionAttempt } = confirmedOrderWith(
+        errAsync(brokerError),
+      );
+
+      const result = await submit();
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.code).toBe('ORDER_OUTCOME_UNKNOWN');
+        expect(result.error.message).toContain(brokerError.message);
+        expect(result.error.message).toContain('Check open orders');
+      }
+      expect(saveOrderExecutionAttempt).toHaveBeenCalledTimes(1);
+      expect(saveOrderExecutionAttempt).toHaveBeenCalledWith(
+        expect.objectContaining({
+          executionMode: 'submitted',
+          errorCode: 'ORDER_OUTCOME_UNKNOWN',
+        } satisfies Partial<OrderExecutionAttempt>),
+      );
+    },
+  );
+
+  test('keeps a placed order as success when its audit save fails', async () => {
+    const { submit } = confirmedOrderWith(
+      okAsync(marketOrderResponse),
+      errAsync({ code: 'DATABASE', message: 'disk full' } as const),
+    );
+
+    const result = await submit();
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.brokerOrder?.id).toBe(77);
+      expect(result.value.auditWarning).toContain('disk full');
+    }
+  });
 });
+
+const confirmedOrderWith = (
+  brokerResult: ReturnType<BrokerClient['placeMarketOrder']>,
+  saveResult: ResultAsync<void, AppError> = okAsync(undefined),
+) => {
+  const saveOrderExecutionAttempt = vi.fn(() => saveResult);
+  const useCase = createPlaceLiveMarketOrder({
+    client: {
+      placeMarketOrder: vi.fn(() => brokerResult),
+    } satisfies Pick<BrokerClient, 'placeMarketOrder'>,
+    dataManager: {
+      getLatestInstrumentPriceByIsin: vi.fn(() => okAsync(undefined)),
+      saveOrderExecutionAttempt,
+    } satisfies Pick<
+      BrokerDataManager,
+      'getLatestInstrumentPriceByIsin' | 'saveOrderExecutionAttempt'
+    >,
+    resolveInstrumentForOrder: () => okAsync(resolvedInstrument),
+    now: () => new Date('2026-04-04T10:20:00.000Z'),
+  });
+
+  return {
+    saveOrderExecutionAttempt,
+    submit: () =>
+      useCase({
+        instrument: 'AAPL_US_EQ',
+        side: 'buy',
+        quantity: 2,
+        confirm: true,
+      }),
+  };
+};

@@ -10,6 +10,10 @@ import type {
   T212LimitOrderRequest,
 } from '@portfolio/domain';
 import { errAsync, okAsync, type ResultAsync } from 'neverthrow';
+import {
+  normalizeOrderPlacementError,
+  submitLiveOrder,
+} from './submit-live-order';
 
 type Params = {
   client: Pick<BrokerClient, 'placeLimitOrder'>;
@@ -91,56 +95,36 @@ const createPlaceLiveLimitOrder = ({
                   limitPrice: input.limitPrice,
                   timeValidity,
                   brokerOrder: null,
+                  auditWarning: null,
                 }) satisfies PlaceLimitOrderResult,
             );
         }
 
-        return client
-          .placeLimitOrder(brokerRequest)
-          .andThen((brokerOrder) =>
-            dataManager
-              .saveOrderExecutionAttempt({
-                ...baseAttempt,
-                executionMode: 'submitted',
-                brokerResponsePayload: JSON.stringify(brokerOrder),
-                errorCode: null,
-                errorMessage: null,
-              })
-              .map(
-                () =>
-                  ({
-                    environment: 'live',
-                    executionMode: 'submitted',
-                    resolvedInstrument,
-                    requestedMode: 'quantity',
-                    requestedQuantity: input.quantity,
-                    requestedValue: null,
-                    derivedQuantity: input.quantity,
-                    referencePrice: null,
-                    extendedHours: false,
-                    limitPrice: input.limitPrice,
-                    timeValidity,
-                    brokerOrder,
-                  }) satisfies PlaceLimitOrderResult,
-              ),
-          )
-          .orElse((error) =>
-            {
-              const normalizedError = normalizeOrderPlacementError(error);
-              return (
-            dataManager
-              .saveOrderExecutionAttempt({
-                ...baseAttempt,
-                executionMode: 'submitted',
-                brokerResponsePayload: null,
-                errorCode: normalizedError.code,
-                errorMessage: normalizedError.message,
-              })
-              .orElse(() => okAsync(undefined))
-              .andThen(() => errAsync(normalizedError))
-              );
-            },
-          );
+        return submitLiveOrder({
+          brokerOrder: client.placeLimitOrder(brokerRequest),
+          recordAttempt: (outcome) =>
+            dataManager.saveOrderExecutionAttempt({
+              ...baseAttempt,
+              executionMode: 'submitted',
+              ...outcome,
+            }),
+          toResult: (brokerOrder, auditWarning) =>
+            ({
+              environment: 'live',
+              executionMode: 'submitted',
+              resolvedInstrument,
+              requestedMode: 'quantity',
+              requestedQuantity: input.quantity,
+              requestedValue: null,
+              derivedQuantity: input.quantity,
+              referencePrice: null,
+              extendedHours: false,
+              limitPrice: input.limitPrice,
+              timeValidity,
+              brokerOrder,
+              auditWarning,
+            }) satisfies PlaceLimitOrderResult,
+        });
       },
     );
   };
@@ -192,14 +176,6 @@ const createPlaceLiveLimitOrder = ({
     });
   };
 };
-
-const normalizeOrderPlacementError = (error: AppError): AppError =>
-  error.code === 'FORBIDDEN'
-    ? {
-        ...error,
-        message: 'Broker key does not allow live order placement.',
-      }
-    : error;
 
 const validatePlaceLimitOrderInput = (
   input: PlaceLimitOrderInput,

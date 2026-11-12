@@ -83,6 +83,7 @@ const fetchRequestRaw = <T>({
         return errAsync({
           code: 'API' as const,
           message: `Trading212 returned ${resp.status} - ${resp.statusText} from ${resp.url}.${bodyMessage}`,
+          status: resp.status,
         });
       });
     })

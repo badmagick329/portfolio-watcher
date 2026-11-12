@@ -97,13 +97,13 @@ describe('trading212 transport', () => {
 
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
-      expect(result.error.code).toBe('API');
+      expect(result.error).toMatchObject({ code: 'API', status: 400 });
       expect(result.error.message).toContain('Body:');
       expect(result.error.message).toContain('Invalid price');
     }
   });
 
-  test('request returns API for invalid schema', async () => {
+  test('request returns API without a status for invalid schema', async () => {
     globalThis.fetch = (async () =>
       new Response(JSON.stringify({ nope: true }), {
         status: 200,
@@ -118,6 +118,7 @@ describe('trading212 transport', () => {
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error.code).toBe('API');
+      expect(result.error).not.toHaveProperty('status');
     }
   });
 });

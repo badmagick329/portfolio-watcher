@@ -280,7 +280,9 @@ const planLimitLadder = (
 
 /**
  * Places (or dry-runs) each order in sequence and stops at the first failure,
- * so a rejected order never leaves later levels half-submitted. The ticker
+ * so a rejected order never leaves later levels half-submitted. An uncertain
+ * outcome also stops the run: the user must check Trading 212 before anything
+ * else is sent. The ticker
  * resolved by the first order is reused for the rest to skip fuzzy matching.
  */
 const runLimitLadder = async ({
@@ -342,6 +344,11 @@ const formatLimitLadderRun = (input: LimitLadderInput, run: LadderRun) => {
   const succeeded = run.outcomes.filter((outcome) => !outcome.error);
   const totalQuantity = sum(succeeded.map((o) => o.quantity));
   const totalCost = sum(succeeded.map((o) => o.quantity * o.limitPrice));
+  const warnings = run.outcomes.flatMap((outcome, index) =>
+    outcome.result?.auditWarning
+      ? [`warning: ${levelLabel(outcome, index)}: ${outcome.result.auditWarning}`]
+      : [],
+  );
 
   return [
     `instrument: ${instrument ? `${instrument.name} (${instrument.ticker})` : input.instrument}`,
@@ -351,12 +358,63 @@ const formatLimitLadderRun = (input: LimitLadderInput, run: LadderRun) => {
     formatTable([header, ...rows]),
     '',
     `total: ${totalQuantity.toFixed(QUANTITY_DECIMALS)} shares, ${totalCost.toFixed(2)} across ${succeeded.length} order(s)`,
+    ...warnings,
+    ...(input.confirm ? formatResubmitGuidance(run) : []),
   ].join('\n');
 };
+
+/**
+ * After a live ladder stops early, tells the user exactly which levels to
+ * resubmit. Re-running the same command would place every earlier level a
+ * second time, and an uncertain level may already exist at the broker.
+ */
+const formatResubmitGuidance = (run: LadderRun): string[] => {
+  const stopIndex = run.outcomes.findIndex((outcome) => outcome.error);
+  const stopped = run.outcomes[stopIndex];
+
+  if (!stopped?.error) {
+    return [];
+  }
+
+  const placed = run.outcomes.slice(0, stopIndex);
+  const unplaced = run.unplaced.map((order, offset) =>
+    levelLabel(order, stopIndex + 1 + offset),
+  );
+  const stoppedLabel = levelLabel(stopped, stopIndex);
+  const uncertain = stopped.error.code === 'ORDER_OUTCOME_UNKNOWN';
+  const lines = [''];
+
+  if (uncertain) {
+    lines.push(`UNCERTAIN ${stoppedLabel}: ${stopped.error.message}`);
+  }
+
+  if (placed.length > 0) {
+    lines.push(
+      `placed: ${placed.map(levelLabel).join(', ')}. Do not resubmit these; re-running this ladder places them again.`,
+    );
+  }
+
+  const resubmit = uncertain
+    ? [
+        ...unplaced,
+        `${stoppedLabel} only if Trading 212 shows no order for it`,
+      ]
+    : [stoppedLabel, ...unplaced];
+  lines.push(`resubmit only: ${resubmit.join(', ')}.`);
+
+  return lines;
+};
+
+const levelLabel = (order: LadderOrder, index: number) =>
+  `#${index + 1} at ${order.limitPrice.toFixed(2)}`;
 
 const describeResult = (order: LadderOrder | LadderOrderOutcome) => {
   if (!('result' in order)) {
     return 'not sent';
+  }
+
+  if (order.error?.code === 'ORDER_OUTCOME_UNKNOWN') {
+    return 'UNCERTAIN: may be placed, see below';
   }
 
   if (order.error) {

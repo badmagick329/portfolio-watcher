@@ -67,9 +67,13 @@ const fakeResult = (
   brokerOrder: input.confirm
     ? ({ id, status: 'NEW' } as PlaceLimitOrderResult['brokerOrder'])
     : null,
+  auditWarning: null,
 });
 
-const fakeBroker = (failAtCall?: number) => {
+const fakeBroker = (
+  failAtCall?: number,
+  failWith: AppError = { code: 'VALIDATION', message: 'rejected' },
+) => {
   const calls: PlaceLimitOrderInput[] = [];
   const placeLimitOrder = (input: PlaceLimitOrderInput) => {
     calls.push(input);
@@ -81,7 +85,7 @@ const fakeBroker = (failAtCall?: number) => {
       ) =>
         Promise.resolve(
           callNumber === failAtCall
-            ? err({ code: 'VALIDATION', message: 'rejected' })
+            ? err(failWith)
             : ok(fakeResult(input, 1000 + callNumber)),
         ),
     };
@@ -350,6 +354,49 @@ describe('runLimitLadder', () => {
     expect(run.outcomes[1]?.error?.message).toBe('rejected');
     expect(run.unplaced.map((order) => order.limitPrice)).toEqual([790, 785]);
     expect(formatLimitLadderRun(input, run)).toContain('not sent');
+  });
+
+  test('marks an uncertain level and lists only the levels to resubmit', async () => {
+    const input = parse([...muLadderArgs, '--confirm']);
+    const broker = fakeBroker(3, {
+      code: 'ORDER_OUTCOME_UNKNOWN',
+      message: 'Trading 212 may have placed this order.',
+    });
+
+    const run = await runLimitLadder({
+      input,
+      orders: plan(input).slice(0, 5),
+      placeLimitOrder: broker.placeLimitOrder,
+      wait: () => Promise.resolve(),
+    });
+    const lines = formatLimitLadderRun(input, run).split('\n');
+
+    expect(broker.calls).toHaveLength(3);
+    expect(lines.find((line) => line.startsWith('3 '))).toContain('UNCERTAIN');
+    expect(lines).toContain(
+      'UNCERTAIN #3 at 790.00: Trading 212 may have placed this order.',
+    );
+    expect(lines).toContain(
+      'placed: #1 at 800.00, #2 at 795.00. Do not resubmit these; re-running this ladder places them again.',
+    );
+    expect(lines).toContain(
+      'resubmit only: #4 at 785.00, #5 at 780.00, #3 at 790.00 only if Trading 212 shows no order for it.',
+    );
+  });
+
+  test('lists a rejected level for resubmission without calling it uncertain', async () => {
+    const input = parse([...muLadderArgs, '--confirm']);
+    const run = await runLimitLadder({
+      input,
+      orders: plan(input).slice(0, 3),
+      placeLimitOrder: fakeBroker(2).placeLimitOrder,
+      wait: () => Promise.resolve(),
+    });
+    const output = formatLimitLadderRun(input, run);
+
+    expect(output).toContain('FAILED: rejected');
+    expect(output).not.toContain('UNCERTAIN');
+    expect(output).toContain('resubmit only: #2 at 795.00, #3 at 790.00.');
   });
 
   test('spaces live submissions but not dry runs', async () => {

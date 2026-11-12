@@ -137,6 +137,9 @@ const main = async () => {
               console.log('createdAt:', result.brokerOrder.createdAt);
               console.log('status:', result.brokerOrder.status);
             }
+            if (result.auditWarning) {
+              console.warn('warning:', result.auditWarning);
+            }
           },
           (e: AppError) => console.error(e.message),
         );
@@ -171,6 +174,9 @@ const main = async () => {
               console.log('orderId:', result.brokerOrder.id);
               console.log('createdAt:', result.brokerOrder.createdAt);
               console.log('status:', result.brokerOrder.status);
+            }
+            if (result.auditWarning) {
+              console.warn('warning:', result.auditWarning);
             }
           },
           (e: AppError) => console.error(e.message),
