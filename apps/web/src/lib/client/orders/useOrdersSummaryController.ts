@@ -1,7 +1,7 @@
 'use client';
 
 import type { WebHistoricalOrder } from '@portfolio/domain';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type {
   AccountSummarySnapshot,
   InstrumentStoredPrice,
@@ -51,6 +51,15 @@ function useOrdersSummaryController({
     singleSelectedInstrument?.latestPositionSnapshot ?? null;
   const mode = singleSelectedInstrument ? 'single' : 'multi';
   const [storedPrice, setStoredPrice] = useState(latestStoredPrice);
+  // Resync the locally saved price when the server value changes. Done during
+  // render (React's "adjust state on prop change" pattern) rather than in an
+  // effect, so the summary never renders one frame with the stale price.
+  const [syncedLatestStoredPrice, setSyncedLatestStoredPrice] =
+    useState(latestStoredPrice);
+  if (latestStoredPrice !== syncedLatestStoredPrice) {
+    setSyncedLatestStoredPrice(latestStoredPrice);
+    setStoredPrice(latestStoredPrice);
+  }
   const [saveError, setSaveError] = useState<string | null>(null);
   const [manualPriceOverrideActive, setManualPriceOverrideActive] =
     useState(false);
@@ -114,10 +123,6 @@ function useOrdersSummaryController({
     parsedDisplayedManualPrice !== null &&
     parsedDisplayedManualPrice > 0 &&
     instrumentCurrency.trim() !== '';
-
-  useEffect(() => {
-    setStoredPrice(latestStoredPrice);
-  }, [latestStoredPrice]);
 
   const savePrice = () => {
     if (!canSavePrice || parsedDisplayedManualPrice === null) {

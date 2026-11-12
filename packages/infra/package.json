@@ -4,9 +4,9 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "^0.45.4",
     "neverthrow": "^8.2.0",
-    "zod": "^4.3.6",
+    "zod": "^4.6.7",
     "@portfolio/domain": "workspace:*",
     "better-sqlite3": "^12.8.0"
   },
